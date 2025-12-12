@@ -1,6 +1,12 @@
-# Edura - Kurs Takip Programı
+# Edura Programı
 
 Edura, eğitim kurumları için geliştirilmiş kapsamlı bir kurs takip ve yönetim sistemidir.
+
+## Sahipleri
+
+- **Abdurrahman**
+- **Hasan**
+- **Ferhat**
 
 ## 🏗️ Proje Yapısı
 
