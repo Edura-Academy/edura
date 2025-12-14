@@ -1,5 +1,11 @@
 import { Router } from 'express';
 import {
+  getAllBranslar,
+  getSiniflarByKurs,
+  getAllDersler,
+  getDersProgrami,
+  getDenemelerByKurs,
+  getDenemeSonuclari,
   getAllCourses,
   getCourseById,
   createCourse,
@@ -7,39 +13,33 @@ import {
   deleteCourse,
 } from '../controllers/course.controller';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.middleware';
-import { UserRole } from '../types';
 
 const router = Router();
 
-// GET /api/courses - Tüm kursları getir (Public)
+// Public routes
+router.get('/branslar', getAllBranslar);
+router.get('/dersler', getAllDersler);
+
+// Protected routes
+router.use(authenticateToken);
+
+// GET /api/courses/siniflar/:kursId - Kursa ait sınıflar
+router.get('/siniflar/:kursId', getSiniflarByKurs);
+
+// GET /api/courses/program/:kursId - Ders programı
+router.get('/program/:kursId', getDersProgrami);
+
+// GET /api/courses/denemeler/:kursId - Denemeler
+router.get('/denemeler/:kursId', getDenemelerByKurs);
+
+// GET /api/courses/deneme-sonuclari/:denemeId - Deneme sonuçları
+router.get('/deneme-sonuclari/:denemeId', getDenemeSonuclari);
+
+// Eski endpoint'ler (placeholder)
 router.get('/', getAllCourses);
-
-// GET /api/courses/:id - Kurs detayı (Public)
 router.get('/:id', getCourseById);
-
-// POST /api/courses - Yeni kurs oluştur (Öğretmen, Müdür, Admin)
-router.post(
-  '/',
-  authenticateToken,
-  authorizeRoles(UserRole.ADMIN, UserRole.MUDUR, UserRole.OGRETMEN),
-  createCourse
-);
-
-// PUT /api/courses/:id - Kurs güncelle (Öğretmen, Müdür, Admin)
-router.put(
-  '/:id',
-  authenticateToken,
-  authorizeRoles(UserRole.ADMIN, UserRole.MUDUR, UserRole.OGRETMEN),
-  updateCourse
-);
-
-// DELETE /api/courses/:id - Kurs sil (Sadece Admin ve Müdür)
-router.delete(
-  '/:id',
-  authenticateToken,
-  authorizeRoles(UserRole.ADMIN, UserRole.MUDUR),
-  deleteCourse
-);
+router.post('/', authorizeRoles('ADMIN', 'MUDUR', 'OGRETMEN'), createCourse);
+router.put('/:id', authorizeRoles('ADMIN', 'MUDUR', 'OGRETMEN'), updateCourse);
+router.delete('/:id', authorizeRoles('ADMIN', 'MUDUR'), deleteCourse);
 
 export default router;
-

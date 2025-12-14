@@ -1,24 +1,14 @@
 import { Request } from 'express';
 
 // Kullanıcı Rolleri
-export enum UserRole {
-  ADMIN = 'ADMIN',
-  MUDUR = 'MUDUR',
-  OGRETMEN = 'OGRETMEN',
-  OGRENCI = 'OGRENCI',
-}
-
-// Okul Türü
-export enum SchoolType {
-  ORTAOKUL = 'ORTAOKUL',
-  LISE = 'LISE',
-}
+export type UserRole = 'ADMIN' | 'MUDUR' | 'OGRETMEN' | 'SEKRETER' | 'OGRENCI' | 'KURS';
 
 // JWT Payload
 export interface JwtPayload {
-  userId: string;
-  email: string;
+  userId: number;
+  kullaniciAdi: string;
   role: UserRole;
+  kursId?: number | null;
 }
 
 // Express Request with User
@@ -33,4 +23,3 @@ export interface ApiResponse<T = unknown> {
   error?: string;
   message?: string;
 }
-
