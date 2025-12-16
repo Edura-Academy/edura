@@ -1,0 +1,132 @@
+{
+  "common": {
+    "save": "保存",
+    "cancel": "キャンセル",
+    "delete": "削除",
+    "edit": "編集",
+    "add": "追加",
+    "search": "検索",
+    "loading": "読み込み中...",
+    "error": "エラー",
+    "success": "成功",
+    "close": "閉じる",
+    "back": "戻る",
+    "next": "次へ",
+    "yes": "はい",
+    "no": "いいえ",
+    "active": "アクティブ",
+    "passive": "非アクティブ",
+    "all": "すべて",
+    "view": "表示",
+    "details": "詳細"
+  },
+  "auth": {
+    "login": "ログイン",
+    "logout": "ログアウト",
+    "username": "ユーザー名",
+    "password": "パスワード",
+    "email": "メールアドレス",
+    "forgotPassword": "パスワードを忘れた",
+    "changePassword": "パスワード変更",
+    "currentPassword": "現在のパスワード",
+    "newPassword": "新しいパスワード",
+    "confirmPassword": "パスワード確認",
+    "rememberMe": "ログイン状態を保持"
+  },
+  "admin": {
+    "title": "管理パネル",
+    "welcome": "ようこそ",
+    "systemAdmin": "システム管理者",
+    "dashboard": "ダッシュボード",
+    "courses": "コース",
+    "users": "ユーザー",
+    "reports": "レポート",
+    "settings": "設定",
+    "newCourse": "新規コース追加",
+    "addUser": "ユーザー追加",
+    "registeredCourses": "登録コース",
+    "totalStudents": "総学生数",
+    "totalTeachers": "総教師数",
+    "totalManagers": "総管理者数",
+    "systemDescription": "システム管理者として、すべてのコースにアクセスできます。"
+  },
+  "profile": {
+    "editProfile": "プロフィール編集",
+    "accountSettings": "アカウント設定",
+    "profilePhoto": "プロフィール写真",
+    "firstName": "名",
+    "lastName": "姓",
+    "removePhoto": "写真を削除",
+    "photoHint": "JPGまたはPNG。最大2MB"
+  },
+  "notifications": {
+    "title": "通知",
+    "markAllRead": "すべて既読にする",
+    "viewAll": "すべての通知を表示",
+    "newCourseRegistration": "新規コース登録",
+    "passwordChanged": "がパスワードを変更しました",
+    "systemUpdate": "システム更新完了",
+    "newManager": "新しい管理者が追加されました"
+  },
+  "messages": {
+    "title": "メッセージ",
+    "newMessage": "新規メッセージ",
+    "viewAll": "すべてのメッセージを表示"
+  },
+  "language": {
+    "title": "言語",
+    "turkish": "Türkçe",
+    "english": "English",
+    "spanish": "Español",
+    "japanese": "日本語",
+    "french": "Français"
+  },
+  "courses": {
+    "courseName": "コース名",
+    "address": "住所",
+    "phone": "電話",
+    "status": "ステータス",
+    "actions": "操作",
+    "createCourse": "コース作成",
+    "updateCourse": "コース更新",
+    "courseDetails": "コース詳細",
+    "statistics": "統計",
+    "students": "学生",
+    "teachers": "教師",
+    "classes": "クラス",
+    "managers": "管理者",
+    "secretaries": "秘書"
+  },
+  "users": {
+    "userType": "ユーザータイプ",
+    "manager": "管理者",
+    "teacher": "教師",
+    "secretary": "秘書",
+    "student": "学生",
+    "branch": "部門",
+    "educationCoach": "教育コーチ",
+    "createUser": "ユーザー作成",
+    "selectCourse": "コースを選択",
+    "selectBranch": "部門を選択"
+  },
+  "settings": {
+    "changeEmail": "メール変更",
+    "changePassword": "パスワード変更",
+    "deleteAccount": "アカウント削除",
+    "currentEmail": "現在のメール",
+    "newEmail": "新しいメール",
+    "verifyPassword": "パスワードを確認",
+    "updateEmail": "メールを更新",
+    "updatePassword": "パスワードを更新",
+    "deleteWarning": "アカウントを削除すると、すべてのデータが完全に削除されます。この操作は元に戻せません。",
+    "deleteConfirmText": "アカウントを完全に削除するには、下に「アカウントを削除」と入力してください：",
+    "deleteConfirmPlaceholder": "アカウントを削除"
+  },
+  "time": {
+    "minutesAgo": "分前",
+    "hoursAgo": "時間前",
+    "yesterday": "昨日",
+    "daysAgo": "日前"
+  }
+}
+

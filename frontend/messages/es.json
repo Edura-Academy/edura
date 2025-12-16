@@ -1,0 +1,132 @@
+{
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "add": "Añadir",
+    "search": "Buscar",
+    "loading": "Cargando...",
+    "error": "Error",
+    "success": "Éxito",
+    "close": "Cerrar",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "yes": "Sí",
+    "no": "No",
+    "active": "Activo",
+    "passive": "Inactivo",
+    "all": "Todo",
+    "view": "Ver",
+    "details": "Detalles"
+  },
+  "auth": {
+    "login": "Iniciar sesión",
+    "logout": "Cerrar sesión",
+    "username": "Nombre de usuario",
+    "password": "Contraseña",
+    "email": "Correo electrónico",
+    "forgotPassword": "Olvidé mi contraseña",
+    "changePassword": "Cambiar contraseña",
+    "currentPassword": "Contraseña actual",
+    "newPassword": "Nueva contraseña",
+    "confirmPassword": "Confirmar contraseña",
+    "rememberMe": "Recordarme"
+  },
+  "admin": {
+    "title": "Panel de administración",
+    "welcome": "Bienvenido",
+    "systemAdmin": "Administrador del sistema",
+    "dashboard": "Panel",
+    "courses": "Cursos",
+    "users": "Usuarios",
+    "reports": "Informes",
+    "settings": "Configuración",
+    "newCourse": "Añadir nuevo curso",
+    "addUser": "Añadir usuario",
+    "registeredCourses": "Cursos registrados",
+    "totalStudents": "Total de estudiantes",
+    "totalTeachers": "Total de profesores",
+    "totalManagers": "Total de directores",
+    "systemDescription": "Como administrador del sistema, tiene acceso a todos los cursos."
+  },
+  "profile": {
+    "editProfile": "Editar perfil",
+    "accountSettings": "Configuración de cuenta",
+    "profilePhoto": "Foto de perfil",
+    "firstName": "Nombre",
+    "lastName": "Apellido",
+    "removePhoto": "Eliminar foto",
+    "photoHint": "JPG o PNG. Máx 2MB"
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "markAllRead": "Marcar todo como leído",
+    "viewAll": "Ver todas las notificaciones",
+    "newCourseRegistration": "Nuevo registro de curso",
+    "passwordChanged": "cambió la contraseña",
+    "systemUpdate": "Actualización del sistema completada",
+    "newManager": "Nuevo director añadido"
+  },
+  "messages": {
+    "title": "Mensajes",
+    "newMessage": "Nuevo mensaje",
+    "viewAll": "Ver todos los mensajes"
+  },
+  "language": {
+    "title": "Idioma",
+    "turkish": "Türkçe",
+    "english": "English",
+    "spanish": "Español",
+    "japanese": "日本語",
+    "french": "Français"
+  },
+  "courses": {
+    "courseName": "Nombre del curso",
+    "address": "Dirección",
+    "phone": "Teléfono",
+    "status": "Estado",
+    "actions": "Acciones",
+    "createCourse": "Crear curso",
+    "updateCourse": "Actualizar curso",
+    "courseDetails": "Detalles del curso",
+    "statistics": "Estadísticas",
+    "students": "Estudiantes",
+    "teachers": "Profesores",
+    "classes": "Clases",
+    "managers": "Directores",
+    "secretaries": "Secretarios"
+  },
+  "users": {
+    "userType": "Tipo de usuario",
+    "manager": "Director",
+    "teacher": "Profesor",
+    "secretary": "Secretario",
+    "student": "Estudiante",
+    "branch": "Rama",
+    "educationCoach": "Coach educativo",
+    "createUser": "Crear usuario",
+    "selectCourse": "Seleccionar curso",
+    "selectBranch": "Seleccionar rama"
+  },
+  "settings": {
+    "changeEmail": "Cambiar correo",
+    "changePassword": "Cambiar contraseña",
+    "deleteAccount": "Eliminar cuenta",
+    "currentEmail": "Correo actual",
+    "newEmail": "Nuevo correo",
+    "verifyPassword": "Verificar contraseña",
+    "updateEmail": "Actualizar correo",
+    "updatePassword": "Actualizar contraseña",
+    "deleteWarning": "Al eliminar tu cuenta, todos tus datos se eliminarán permanentemente. Esta acción no se puede deshacer.",
+    "deleteConfirmText": "Para eliminar permanentemente tu cuenta, escribe ELIMINAR MI CUENTA abajo:",
+    "deleteConfirmPlaceholder": "ELIMINAR MI CUENTA"
+  },
+  "time": {
+    "minutesAgo": "minutos atrás",
+    "hoursAgo": "horas atrás",
+    "yesterday": "Ayer",
+    "daysAgo": "días atrás"
+  }
+}
+
