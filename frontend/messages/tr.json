@@ -1,0 +1,132 @@
+{
+  "common": {
+    "save": "Kaydet",
+    "cancel": "İptal",
+    "delete": "Sil",
+    "edit": "Düzenle",
+    "add": "Ekle",
+    "search": "Ara",
+    "loading": "Yükleniyor...",
+    "error": "Hata",
+    "success": "Başarılı",
+    "close": "Kapat",
+    "back": "Geri",
+    "next": "İleri",
+    "yes": "Evet",
+    "no": "Hayır",
+    "active": "Aktif",
+    "passive": "Pasif",
+    "all": "Tümü",
+    "view": "Görüntüle",
+    "details": "Detaylar"
+  },
+  "auth": {
+    "login": "Giriş Yap",
+    "logout": "Çıkış Yap",
+    "username": "Kullanıcı Adı",
+    "password": "Şifre",
+    "email": "E-posta",
+    "forgotPassword": "Şifremi Unuttum",
+    "changePassword": "Şifre Değiştir",
+    "currentPassword": "Mevcut Şifre",
+    "newPassword": "Yeni Şifre",
+    "confirmPassword": "Şifre Tekrar",
+    "rememberMe": "Beni Hatırla"
+  },
+  "admin": {
+    "title": "Admin Paneli",
+    "welcome": "Hoş Geldin",
+    "systemAdmin": "Sistem Yöneticisi",
+    "dashboard": "Panel",
+    "courses": "Kurslar",
+    "users": "Kullanıcılar",
+    "reports": "Raporlar",
+    "settings": "Ayarlar",
+    "newCourse": "Yeni Kurs Ekle",
+    "addUser": "Kullanıcı Ekle",
+    "registeredCourses": "Kayıtlı Kurslar",
+    "totalStudents": "Toplam Öğrenci",
+    "totalTeachers": "Toplam Öğretmen",
+    "totalManagers": "Toplam Müdür",
+    "systemDescription": "Sistem yöneticisi olarak tüm kurslara erişiminiz bulunmaktadır."
+  },
+  "profile": {
+    "editProfile": "Profili Düzenle",
+    "accountSettings": "Hesap Ayarları",
+    "profilePhoto": "Profil Fotoğrafı",
+    "firstName": "Ad",
+    "lastName": "Soyad",
+    "removePhoto": "Fotoğrafı Kaldır",
+    "photoHint": "JPG veya PNG. Maks 2MB"
+  },
+  "notifications": {
+    "title": "Bildirimler",
+    "markAllRead": "Tümünü okundu işaretle",
+    "viewAll": "Tüm bildirimleri gör",
+    "newCourseRegistration": "Yeni kurs kaydı",
+    "passwordChanged": "şifresini değiştirdi",
+    "systemUpdate": "Sistem güncellemesi tamamlandı",
+    "newManager": "Yeni müdür eklendi"
+  },
+  "messages": {
+    "title": "Mesajlar",
+    "newMessage": "Yeni mesaj",
+    "viewAll": "Tüm mesajları gör"
+  },
+  "language": {
+    "title": "Dil",
+    "turkish": "Türkçe",
+    "english": "English",
+    "spanish": "Español",
+    "japanese": "日本語",
+    "french": "Français"
+  },
+  "courses": {
+    "courseName": "Kurs Adı",
+    "address": "Adres",
+    "phone": "Telefon",
+    "status": "Durum",
+    "actions": "İşlemler",
+    "createCourse": "Kurs Oluştur",
+    "updateCourse": "Kursu Güncelle",
+    "courseDetails": "Kurs Detayları",
+    "statistics": "İstatistikler",
+    "students": "Öğrenci",
+    "teachers": "Öğretmen",
+    "classes": "Sınıf",
+    "managers": "Müdür",
+    "secretaries": "Sekreter"
+  },
+  "users": {
+    "userType": "Kullanıcı Türü",
+    "manager": "Müdür",
+    "teacher": "Öğretmen",
+    "secretary": "Sekreter",
+    "student": "Öğrenci",
+    "branch": "Branş",
+    "educationCoach": "Eğitim Koçu",
+    "createUser": "Kullanıcı Oluştur",
+    "selectCourse": "Kurs Seçin",
+    "selectBranch": "Branş Seçin"
+  },
+  "settings": {
+    "changeEmail": "E-posta Değiştir",
+    "changePassword": "Şifre Değiştir",
+    "deleteAccount": "Hesabı Sil",
+    "currentEmail": "Mevcut E-posta",
+    "newEmail": "Yeni E-posta",
+    "verifyPassword": "Şifrenizi Doğrulayın",
+    "updateEmail": "E-postayı Güncelle",
+    "updatePassword": "Şifreyi Güncelle",
+    "deleteWarning": "Hesabınızı sildiğinizde tüm verileriniz kalıcı olarak silinecektir. Bu işlem geri alınamaz.",
+    "deleteConfirmText": "Hesabınızı kalıcı olarak silmek için aşağıya HESABIMI SIL yazın:",
+    "deleteConfirmPlaceholder": "HESABIMI SIL"
+  },
+  "time": {
+    "minutesAgo": "dakika önce",
+    "hoursAgo": "saat önce",
+    "yesterday": "Dün",
+    "daysAgo": "gün önce"
+  }
+}
+

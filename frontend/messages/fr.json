@@ -1,0 +1,132 @@
+{
+  "common": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "add": "Ajouter",
+    "search": "Rechercher",
+    "loading": "Chargement...",
+    "error": "Erreur",
+    "success": "Succès",
+    "close": "Fermer",
+    "back": "Retour",
+    "next": "Suivant",
+    "yes": "Oui",
+    "no": "Non",
+    "active": "Actif",
+    "passive": "Inactif",
+    "all": "Tout",
+    "view": "Voir",
+    "details": "Détails"
+  },
+  "auth": {
+    "login": "Connexion",
+    "logout": "Déconnexion",
+    "username": "Nom d'utilisateur",
+    "password": "Mot de passe",
+    "email": "Email",
+    "forgotPassword": "Mot de passe oublié",
+    "changePassword": "Changer le mot de passe",
+    "currentPassword": "Mot de passe actuel",
+    "newPassword": "Nouveau mot de passe",
+    "confirmPassword": "Confirmer le mot de passe",
+    "rememberMe": "Se souvenir de moi"
+  },
+  "admin": {
+    "title": "Panneau d'administration",
+    "welcome": "Bienvenue",
+    "systemAdmin": "Administrateur système",
+    "dashboard": "Tableau de bord",
+    "courses": "Cours",
+    "users": "Utilisateurs",
+    "reports": "Rapports",
+    "settings": "Paramètres",
+    "newCourse": "Ajouter un nouveau cours",
+    "addUser": "Ajouter un utilisateur",
+    "registeredCourses": "Cours enregistrés",
+    "totalStudents": "Total des étudiants",
+    "totalTeachers": "Total des enseignants",
+    "totalManagers": "Total des directeurs",
+    "systemDescription": "En tant qu'administrateur système, vous avez accès à tous les cours."
+  },
+  "profile": {
+    "editProfile": "Modifier le profil",
+    "accountSettings": "Paramètres du compte",
+    "profilePhoto": "Photo de profil",
+    "firstName": "Prénom",
+    "lastName": "Nom",
+    "removePhoto": "Supprimer la photo",
+    "photoHint": "JPG ou PNG. Max 2Mo"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Tout marquer comme lu",
+    "viewAll": "Voir toutes les notifications",
+    "newCourseRegistration": "Nouvelle inscription au cours",
+    "passwordChanged": "a changé de mot de passe",
+    "systemUpdate": "Mise à jour du système terminée",
+    "newManager": "Nouveau directeur ajouté"
+  },
+  "messages": {
+    "title": "Messages",
+    "newMessage": "Nouveau message",
+    "viewAll": "Voir tous les messages"
+  },
+  "language": {
+    "title": "Langue",
+    "turkish": "Türkçe",
+    "english": "English",
+    "spanish": "Español",
+    "japanese": "日本語",
+    "french": "Français"
+  },
+  "courses": {
+    "courseName": "Nom du cours",
+    "address": "Adresse",
+    "phone": "Téléphone",
+    "status": "Statut",
+    "actions": "Actions",
+    "createCourse": "Créer un cours",
+    "updateCourse": "Mettre à jour le cours",
+    "courseDetails": "Détails du cours",
+    "statistics": "Statistiques",
+    "students": "Étudiants",
+    "teachers": "Enseignants",
+    "classes": "Classes",
+    "managers": "Directeurs",
+    "secretaries": "Secrétaires"
+  },
+  "users": {
+    "userType": "Type d'utilisateur",
+    "manager": "Directeur",
+    "teacher": "Enseignant",
+    "secretary": "Secrétaire",
+    "student": "Étudiant",
+    "branch": "Branche",
+    "educationCoach": "Coach éducatif",
+    "createUser": "Créer un utilisateur",
+    "selectCourse": "Sélectionner un cours",
+    "selectBranch": "Sélectionner une branche"
+  },
+  "settings": {
+    "changeEmail": "Changer l'email",
+    "changePassword": "Changer le mot de passe",
+    "deleteAccount": "Supprimer le compte",
+    "currentEmail": "Email actuel",
+    "newEmail": "Nouvel email",
+    "verifyPassword": "Vérifier le mot de passe",
+    "updateEmail": "Mettre à jour l'email",
+    "updatePassword": "Mettre à jour le mot de passe",
+    "deleteWarning": "Lorsque vous supprimez votre compte, toutes vos données seront définitivement supprimées. Cette action est irréversible.",
+    "deleteConfirmText": "Pour supprimer définitivement votre compte, tapez SUPPRIMER MON COMPTE ci-dessous :",
+    "deleteConfirmPlaceholder": "SUPPRIMER MON COMPTE"
+  },
+  "time": {
+    "minutesAgo": "minutes",
+    "hoursAgo": "heures",
+    "yesterday": "Hier",
+    "daysAgo": "jours"
+  }
+}
+

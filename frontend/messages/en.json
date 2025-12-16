@@ -1,0 +1,132 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "search": "Search",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "yes": "Yes",
+    "no": "No",
+    "active": "Active",
+    "passive": "Inactive",
+    "all": "All",
+    "view": "View",
+    "details": "Details"
+  },
+  "auth": {
+    "login": "Login",
+    "logout": "Logout",
+    "username": "Username",
+    "password": "Password",
+    "email": "Email",
+    "forgotPassword": "Forgot Password",
+    "changePassword": "Change Password",
+    "currentPassword": "Current Password",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm Password",
+    "rememberMe": "Remember Me"
+  },
+  "admin": {
+    "title": "Admin Panel",
+    "welcome": "Welcome",
+    "systemAdmin": "System Administrator",
+    "dashboard": "Dashboard",
+    "courses": "Courses",
+    "users": "Users",
+    "reports": "Reports",
+    "settings": "Settings",
+    "newCourse": "Add New Course",
+    "addUser": "Add User",
+    "registeredCourses": "Registered Courses",
+    "totalStudents": "Total Students",
+    "totalTeachers": "Total Teachers",
+    "totalManagers": "Total Managers",
+    "systemDescription": "As a system administrator, you have access to all courses."
+  },
+  "profile": {
+    "editProfile": "Edit Profile",
+    "accountSettings": "Account Settings",
+    "profilePhoto": "Profile Photo",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "removePhoto": "Remove Photo",
+    "photoHint": "JPG or PNG. Max 2MB"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Mark all as read",
+    "viewAll": "View all notifications",
+    "newCourseRegistration": "New course registration",
+    "passwordChanged": "changed password",
+    "systemUpdate": "System update completed",
+    "newManager": "New manager added"
+  },
+  "messages": {
+    "title": "Messages",
+    "newMessage": "New message",
+    "viewAll": "View all messages"
+  },
+  "language": {
+    "title": "Language",
+    "turkish": "Türkçe",
+    "english": "English",
+    "spanish": "Español",
+    "japanese": "日本語",
+    "french": "Français"
+  },
+  "courses": {
+    "courseName": "Course Name",
+    "address": "Address",
+    "phone": "Phone",
+    "status": "Status",
+    "actions": "Actions",
+    "createCourse": "Create Course",
+    "updateCourse": "Update Course",
+    "courseDetails": "Course Details",
+    "statistics": "Statistics",
+    "students": "Students",
+    "teachers": "Teachers",
+    "classes": "Classes",
+    "managers": "Managers",
+    "secretaries": "Secretaries"
+  },
+  "users": {
+    "userType": "User Type",
+    "manager": "Manager",
+    "teacher": "Teacher",
+    "secretary": "Secretary",
+    "student": "Student",
+    "branch": "Branch",
+    "educationCoach": "Education Coach",
+    "createUser": "Create User",
+    "selectCourse": "Select Course",
+    "selectBranch": "Select Branch"
+  },
+  "settings": {
+    "changeEmail": "Change Email",
+    "changePassword": "Change Password",
+    "deleteAccount": "Delete Account",
+    "currentEmail": "Current Email",
+    "newEmail": "New Email",
+    "verifyPassword": "Verify Your Password",
+    "updateEmail": "Update Email",
+    "updatePassword": "Update Password",
+    "deleteWarning": "When you delete your account, all your data will be permanently deleted. This action cannot be undone.",
+    "deleteConfirmText": "To permanently delete your account, type DELETE MY ACCOUNT below:",
+    "deleteConfirmPlaceholder": "DELETE MY ACCOUNT"
+  },
+  "time": {
+    "minutesAgo": "minutes ago",
+    "hoursAgo": "hours ago",
+    "yesterday": "Yesterday",
+    "daysAgo": "days ago"
+  }
+}
+
