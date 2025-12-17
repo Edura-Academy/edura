@@ -1,352 +1,233 @@
+// Edura - Kurs Takip Sistemi Database Schema
+
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-model admin {
-  AdminID         Int       @id @default(autoincrement())
-  Ad              String    @db.VarChar(50)
-  Soyad           String    @db.VarChar(50)
-  Email           String    @unique(map: "Email") @db.VarChar(100)
-  KullaniciAdi    String    @unique(map: "KullaniciAdi") @db.VarChar(50)
-  Sifre           String    @db.VarChar(255)
-  Telefon         String?   @db.VarChar(15)
-  AktifMi         Boolean?  @default(true)
-  OlusturmaTarihi DateTime? @default(now()) @db.DateTime(0)
+enum Role {
+  ADMIN
+  MUDUR
+  OGRETMEN
+  SEKRETER
+  OGRENCI
 }
 
-model birebirdders {
-  BirebirdDersID Int                 @id @default(autoincrement())
-  OgrenciID      Int
-  OgretmenID     Int
-  BransID        Int
-  Tarih          DateTime            @db.Date
-  BaslangicSaati DateTime            @db.Time(0)
-  BitisSaati     DateTime            @db.Time(0)
-  Durum          birebirdders_Durum? @default(Planli)
-  Notlar         String?             @db.Text
-
-  @@index([BransID], map: "BransID")
-  @@index([OgrenciID], map: "OgrenciID")
-  @@index([OgretmenID], map: "OgretmenID")
+enum MessageStatus {
+  OKUNMADI
+  OKUNDU
 }
 
-model brans {
-  BransID  Int    @id @default(autoincrement())
-  BransAdi String @unique(map: "BransAdi") @db.VarChar(50)
+enum NotificationType {
+  BILDIRIM
+  ONAY_TALEBI
+  SISTEM
 }
 
-model deneme {
-  DenemeID        Int       @id @default(autoincrement())
-  KursID          Int
-  DenemeAdi       String    @db.VarChar(100)
-  Seviye          Int
-  Tarih           DateTime  @db.Date
-  ToplamSoru      Int?      @default(100)
-  OlusturmaTarihi DateTime? @default(now()) @db.DateTime(0)
-
-  @@index([KursID], map: "KursID")
+enum ExamType {
+  DENEME
+  SINAV
+  QUIZ
 }
 
-model denemesonuc {
-  SonucID      Int       @id @default(autoincrement())
-  DenemeID     Int
-  OgrenciID    Int
-  DogruSayisi  Int?      @default(0)
-  YanlisSayisi Int?      @default(0)
-  BosSayisi    Int?      @default(0)
-  NetPuan      Decimal?  @db.Decimal(5, 2)
-  Siralama     Int?
-  KayitTarihi  DateTime? @default(now()) @db.DateTime(0)
+// Kullanıcılar tablosu - Tüm roller için merkezi tablo
+model User {
+  id                String   @id @default(uuid())
+  email             String   @unique
+  password          String
+  ad                String
+  soyad             String
+  telefon           String?
+  dogumTarihi       DateTime?
+  role              Role
+  aktif             Boolean  @default(true)
+  olusturanId       String?  // Kim tarafından oluşturuldu
+  olusturan         User?    @relation("UserOlusturan", fields: [olusturanId], references: [id])
+  olusturulanlar    User[]   @relation("UserOlusturan")
+  
+  // Öğrenci özellikleri
+  sinifId           String?
+  sinif             Sinif?   @relation(fields: [sinifId], references: [id])
+  ogrenciNo         String?  @unique
+  
+  // Öğretmen özellikleri
+  brans             String?
+  
+  // İlişkiler
+  gonderdigiMesajlar    Message[] @relation("GonderenMesajlar")
+  aldigiMesajlar        Message[] @relation("AlanMesajlar")
+  bildirimleri          Notification[]
+  sinavSonuclari        ExamResult[]
+  dersKayitlari         CourseEnrollment[]
+  ogretmenDersleri      Course[] @relation("OgretmenDersler")
+  devamsizliklar        Devamsizlik[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  @@unique([DenemeID, OgrenciID], map: "DenemeID")
-  @@index([OgrenciID], map: "OgrenciID")
+  @@index([email])
+  @@index([role])
+  @@index([sinifId])
 }
 
-model ders {
-  DersID   Int     @id @default(autoincrement())
-  BransID  Int
-  DersAdi  String  @db.VarChar(100)
-  Aciklama String? @db.VarChar(255)
-
-  @@index([BransID], map: "BransID")
+// Sınıflar
+model Sinif {
+  id          String   @id @default(uuid())
+  ad          String   @unique // 8-A, 9-B, etc.
+  seviye      Int      // 8, 9, 10, etc.
+  aktif       Boolean  @default(true)
+  
+  ogrenciler  User[]
+  dersler     Course[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
-model dersprogrami {
-  ProgramID      Int              @id @default(autoincrement())
-  KursID         Int
-  SinifID        Int
-  DersID         Int
-  OgretmenID     Int
-  Gun            dersprogrami_Gun
-  BaslangicSaati DateTime         @db.Time(0)
-  BitisSaati     DateTime         @db.Time(0)
+// Dersler/Kurslar
+model Course {
+  id              String   @id @default(uuid())
+  ad              String
+  aciklama        String?
+  sinifId         String
+  sinif           Sinif    @relation(fields: [sinifId], references: [id])
+  ogretmenId      String
+  ogretmen        User     @relation("OgretmenDersler", fields: [ogretmenId], references: [id])
+  gun             String   // Pazartesi, Salı, etc.
+  baslangicSaati  String
+  bitisSaati      String
+  aktif           Boolean  @default(true)
+  
+  kayitlar        CourseEnrollment[]
+  sinavlar        Exam[]
+  devamsizliklar  Devamsizlik[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  @@index([DersID], map: "DersID")
-  @@index([KursID], map: "KursID")
-  @@index([OgretmenID], map: "OgretmenID")
-  @@index([SinifID], map: "SinifID")
+  @@index([sinifId])
+  @@index([ogretmenId])
 }
 
-model egitimkoclugu {
-  KoclukID           Int  @id @default(autoincrement())
-  OgrenciID          Int
-  KocID              Int
-  AylikGorusmeLimiti Int? @default(4)
-  KalanGorusme       Int? @default(4)
-  Ay                 Int
-  Yil                Int
+// Ders kayıtları (Öğrenci-Ders ilişkisi)
+model CourseEnrollment {
+  id          String   @id @default(uuid())
+  ogrenciId   String
+  ogrenci     User     @relation(fields: [ogrenciId], references: [id])
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id])
+  kayitTarihi DateTime @default(now())
+  aktif       Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  @@unique([OgrenciID, KocID, Ay, Yil], map: "OgrenciID")
-  @@index([KocID], map: "KocID")
+  @@unique([ogrenciId, courseId])
+  @@index([ogrenciId])
+  @@index([courseId])
 }
 
-model karne {
-  KarneID            Int         @id @default(autoincrement())
-  OgrenciID          Int
-  Donem              karne_Donem
-  Yil                Int
-  GelisimRaporu      String?     @db.Text
-  GenelOrtalama      Decimal?    @db.Decimal(5, 2)
-  DavranisNotu       String?     @db.VarChar(20)
-  OlusturmaTarihi    DateTime?   @default(now()) @db.DateTime(0)
-  VeliyeGonderildiMi Boolean?    @default(false)
+// Sınavlar
+model Exam {
+  id          String     @id @default(uuid())
+  ad          String
+  tip         ExamType
+  courseId    String
+  course      Course     @relation(fields: [courseId], references: [id])
+  tarih       DateTime
+  sure        Int?       // dakika
+  toplamPuan  Int
+  aciklama    String?
+  
+  sonuclar    ExamResult[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  @@unique([OgrenciID, Donem, Yil], map: "OgrenciID")
+  @@index([courseId])
+  @@index([tarih])
 }
 
-model koclukgorusmesi {
-  GorusmeID Int                    @id @default(autoincrement())
-  KoclukID  Int
-  Tarih     DateTime               @db.DateTime(0)
-  Sure      Int?
-  Konu      String?                @db.VarChar(255)
-  Notlar    String?                @db.Text
-  Durum     koclukgorusmesi_Durum? @default(Planli)
+// Sınav sonuçları
+model ExamResult {
+  id          String   @id @default(uuid())
+  examId      String
+  exam        Exam     @relation(fields: [examId], references: [id])
+  ogrenciId   String
+  ogrenci     User     @relation(fields: [ogrenciId], references: [id])
+  puan        Float
+  dogru       Int?
+  yanlis      Int?
+  bos         Int?
+  yuzde       Float?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  @@index([KoclukID], map: "KoclukID")
+  @@unique([examId, ogrenciId])
+  @@index([ogrenciId])
+  @@index([examId])
 }
 
-model kurs {
-  KursID              Int       @id @default(autoincrement())
-  KursAdi             String    @db.VarChar(100)
-  Adres               String?   @db.VarChar(255)
-  Telefon             String?   @db.VarChar(15)
-  Email               String?   @db.VarChar(100)
-  KullaniciAdi        String    @unique(map: "KullaniciAdi") @db.VarChar(50)
-  Sifre               String    @db.VarChar(255)
-  SifreDegistirildiMi Boolean?  @default(false)
-  AktifMi             Boolean?  @default(true)
-  KayitTarihi         DateTime? @default(now()) @db.DateTime(0)
+// Devamsızlık kayıtları
+model Devamsizlik {
+  id          String   @id @default(uuid())
+  ogrenciId   String
+  ogrenci     User     @relation(fields: [ogrenciId], references: [id])
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id])
+  tarih       DateTime
+  aciklama    String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([ogrenciId])
+  @@index([courseId])
+  @@index([tarih])
 }
 
-model mudur {
-  MudurID             Int       @id @default(autoincrement())
-  KursID              Int
-  Ad                  String    @db.VarChar(50)
-  Soyad               String    @db.VarChar(50)
-  Email               String?   @db.VarChar(100)
-  Telefon             String?   @db.VarChar(15)
-  KullaniciAdi        String    @unique(map: "KullaniciAdi") @db.VarChar(50)
-  Sifre               String    @db.VarChar(255)
-  SifreDegistirildiMi Boolean?  @default(false)
-  AktifMi             Boolean?  @default(true)
-  KayitTarihi         DateTime? @default(now()) @db.DateTime(0)
+// Mesajlaşma sistemi
+model Message {
+  id          String        @id @default(uuid())
+  gonderenId  String
+  gonderen    User          @relation("GonderenMesajlar", fields: [gonderenId], references: [id])
+  alanId      String
+  alan        User          @relation("AlanMesajlar", fields: [alanId], references: [id])
+  baslik      String
+  icerik      String
+  durum       MessageStatus @default(OKUNMADI)
+  
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
-  @@index([KursID], map: "KursID")
+  @@index([gonderenId])
+  @@index([alanId])
+  @@index([durum])
+  @@index([createdAt])
 }
 
-model notlar {
-  NotID     Int            @id @default(autoincrement())
-  OgrenciID Int
-  DersID    Int
-  NotTuru   notlar_NotTuru
-  NotDegeri Decimal        @db.Decimal(5, 2)
-  Tarih     DateTime       @db.Date
-  Aciklama  String?        @db.VarChar(255)
+// Bildirimler
+model Notification {
+  id          String           @id @default(uuid())
+  userId      String
+  user        User             @relation(fields: [userId], references: [id])
+  tip         NotificationType
+  baslik      String
+  mesaj       String
+  okundu      Boolean          @default(false)
+  onayTalebi  Boolean          @default(false)
+  onayDurumu  String?          // BEKLEMEDE, ONAYLANDI, REDDEDILDI
+  ilgiliId    String?          // Onay için ilgili kayıt ID'si
+  
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
-  @@index([DersID], map: "DersID")
-  @@index([OgrenciID], map: "OgrenciID")
-}
-
-model ogrenci {
-  OgrenciID           Int              @id @default(autoincrement())
-  KursID              Int
-  SinifID             Int?
-  VeliID              Int?
-  Ad                  String           @db.VarChar(50)
-  Soyad               String           @db.VarChar(50)
-  DogumTarihi         DateTime?        @db.Date
-  Telefon             String?          @db.VarChar(15)
-  OkulTuru            ogrenci_OkulTuru
-  Seviye              Int
-  KullaniciAdi        String?          @unique(map: "KullaniciAdi") @db.VarChar(50)
-  Sifre               String?          @db.VarChar(255)
-  SifreDegistirildiMi Boolean?         @default(false)
-  AktifMi             Boolean?         @default(true)
-  KayitTarihi         DateTime?        @default(now()) @db.DateTime(0)
-
-  @@index([KursID], map: "KursID")
-  @@index([SinifID], map: "SinifID")
-  @@index([VeliID], map: "VeliID")
-}
-
-model ogretmen {
-  OgretmenID          Int       @id @default(autoincrement())
-  KursID              Int
-  BransID             Int
-  Ad                  String    @db.VarChar(50)
-  Soyad               String    @db.VarChar(50)
-  Email               String?   @db.VarChar(100)
-  Telefon             String?   @db.VarChar(15)
-  EgitimKocuMu        Boolean?  @default(false)
-  AylikKoclukLimiti   Int?      @default(10)
-  KullaniciAdi        String    @unique(map: "KullaniciAdi") @db.VarChar(50)
-  Sifre               String    @db.VarChar(255)
-  SifreDegistirildiMi Boolean?  @default(false)
-  AktifMi             Boolean?  @default(true)
-  KayitTarihi         DateTime? @default(now()) @db.DateTime(0)
-
-  @@index([BransID], map: "BransID")
-  @@index([KursID], map: "KursID")
-}
-
-model sekreter {
-  SekreterID          Int       @id @default(autoincrement())
-  KursID              Int
-  Ad                  String    @db.VarChar(50)
-  Soyad               String    @db.VarChar(50)
-  Email               String?   @db.VarChar(100)
-  Telefon             String?   @db.VarChar(15)
-  KullaniciAdi        String    @unique(map: "KullaniciAdi") @db.VarChar(50)
-  Sifre               String    @db.VarChar(255)
-  SifreDegistirildiMi Boolean?  @default(false)
-  AktifMi             Boolean?  @default(true)
-  KayitTarihi         DateTime? @default(now()) @db.DateTime(0)
-
-  @@index([KursID], map: "KursID")
-}
-
-model silinenkayitlar {
-  SilmeID              Int                                @id @default(autoincrement())
-  TabloAdi             String                             @db.VarChar(50)
-  KayitID              Int
-  KayitVerisi          Json
-  BagliVeriler         Json?
-  SilenKullanici       String?                            @db.VarChar(100)
-  SilenKullaniciTuru   silinenkayitlar_SilenKullaniciTuru
-  SilmeTarihi          DateTime?                          @default(now()) @db.DateTime(0)
-  SonGeriYuklemeTarihi DateTime?                          @db.DateTime(0)
-  GeriYuklendi         Boolean?                           @default(false)
-  KaliciSilindiMi      Boolean?                           @default(false)
-}
-
-model sinif {
-  SinifID    Int    @id @default(autoincrement())
-  KursID     Int
-  SinifAdi   String @db.VarChar(20)
-  Seviye     Int
-  Kapasite   Int?   @default(20)
-  DanismanID Int?
-
-  @@index([DanismanID], map: "DanismanID")
-  @@index([KursID], map: "KursID")
-}
-
-model veli {
-  VeliID      Int       @id @default(autoincrement())
-  Ad          String    @db.VarChar(50)
-  Soyad       String    @db.VarChar(50)
-  Telefon     String    @db.VarChar(15)
-  Email       String?   @db.VarChar(100)
-  Adres       String?   @db.VarChar(255)
-  KayitTarihi DateTime? @default(now()) @db.DateTime(0)
-}
-
-model veliiletisim {
-  IletisimID   Int                       @id @default(autoincrement())
-  VeliID       Int
-  SekreterID   Int
-  IletisimTuru veliiletisim_IletisimTuru
-  Konu         String?                   @db.VarChar(255)
-  Detay        String?                   @db.Text
-  Tarih        DateTime?                 @default(now()) @db.DateTime(0)
-
-  @@index([SekreterID], map: "SekreterID")
-  @@index([VeliID], map: "VeliID")
-}
-
-model yoklama {
-  YoklamaID Int            @id @default(autoincrement())
-  OgrenciID Int
-  ProgramID Int
-  Tarih     DateTime       @db.Date
-  Durum     yoklama_Durum? @default(Var)
-
-  @@unique([OgrenciID, ProgramID, Tarih], map: "OgrenciID")
-  @@index([ProgramID], map: "ProgramID")
-}
-
-enum karne_Donem {
-  Donem1  @map("1. Donem")
-  Donem2  @map("2. Donem")
-  Yilsonu
-}
-
-enum notlar_NotTuru {
-  Yazili
-  Sozlu
-  Odev
-  Proje
-}
-
-enum veliiletisim_IletisimTuru {
-  Telefon
-  Yuz_Yuze @map("Yuz Yuze")
-  Mesaj
-  Email
-}
-
-enum yoklama_Durum {
-  Var
-  Yok
-  Izinli
-  Hasta
-}
-
-enum dersprogrami_Gun {
-  Pazartesi
-  Sali
-  Carsamba
-  Persembe
-  Cuma
-  Cumartesi
-  Pazar
-}
-
-enum koclukgorusmesi_Durum {
-  Planli
-  Tamamlandi
-  Iptal
-}
-
-enum silinenkayitlar_SilenKullaniciTuru {
-  Admin
-  Mudur
-  Sekreter
-}
-
-enum birebirdders_Durum {
-  Planli
-  Tamamlandi
-  Iptal
-}
-
-enum ogrenci_OkulTuru {
-  ORTAOKUL
-  LISE
+  @@index([userId])
+  @@index([okundu])
+  @@index([createdAt])
 }
