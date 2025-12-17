@@ -48,3 +48,7 @@ prisma/*.db-journal
 .cache/
 .temp/
 
+# Firebase
+firebase-service-account.json
+*-firebase-adminsdk-*.json
+

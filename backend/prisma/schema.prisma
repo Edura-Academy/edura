@@ -15,6 +15,7 @@ model admin {
   KullaniciAdi    String    @unique(map: "KullaniciAdi") @db.VarChar(50)
   Sifre           String    @db.VarChar(255)
   Telefon         String?   @db.VarChar(15)
+  ProfilFoto      String?   @db.VarChar(500)
   AktifMi         Boolean?  @default(true)
   OlusturmaTarihi DateTime? @default(now()) @db.DateTime(0)
 }
@@ -140,6 +141,7 @@ model kurs {
   KullaniciAdi        String    @unique(map: "KullaniciAdi") @db.VarChar(50)
   Sifre               String    @db.VarChar(255)
   SifreDegistirildiMi Boolean?  @default(false)
+  Logo                String?   @db.VarChar(500)
   AktifMi             Boolean?  @default(true)
   KayitTarihi         DateTime? @default(now()) @db.DateTime(0)
 }
@@ -154,6 +156,7 @@ model mudur {
   KullaniciAdi        String    @unique(map: "KullaniciAdi") @db.VarChar(50)
   Sifre               String    @db.VarChar(255)
   SifreDegistirildiMi Boolean?  @default(false)
+  ProfilFoto          String?   @db.VarChar(500)
   AktifMi             Boolean?  @default(true)
   KayitTarihi         DateTime? @default(now()) @db.DateTime(0)
 
@@ -187,6 +190,7 @@ model ogrenci {
   KullaniciAdi        String?          @unique(map: "KullaniciAdi") @db.VarChar(50)
   Sifre               String?          @db.VarChar(255)
   SifreDegistirildiMi Boolean?         @default(false)
+  ProfilFoto          String?          @db.VarChar(500)
   AktifMi             Boolean?         @default(true)
   KayitTarihi         DateTime?        @default(now()) @db.DateTime(0)
 
@@ -208,6 +212,7 @@ model ogretmen {
   KullaniciAdi        String    @unique(map: "KullaniciAdi") @db.VarChar(50)
   Sifre               String    @db.VarChar(255)
   SifreDegistirildiMi Boolean?  @default(false)
+  ProfilFoto          String?   @db.VarChar(500)
   AktifMi             Boolean?  @default(true)
   KayitTarihi         DateTime? @default(now()) @db.DateTime(0)
 
@@ -225,6 +230,7 @@ model sekreter {
   KullaniciAdi        String    @unique(map: "KullaniciAdi") @db.VarChar(50)
   Sifre               String    @db.VarChar(255)
   SifreDegistirildiMi Boolean?  @default(false)
+  ProfilFoto          String?   @db.VarChar(500)
   AktifMi             Boolean?  @default(true)
   KayitTarihi         DateTime? @default(now()) @db.DateTime(0)
 

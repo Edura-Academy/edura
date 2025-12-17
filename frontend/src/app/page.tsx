@@ -59,6 +59,16 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Giriş Butonu */}
+        <div className="mt-8">
+          <a
+            href="/login"
+            className="inline-block px-8 py-4 bg-purple-500 text-white font-semibold rounded-xl hover:bg-purple-600 transition-colors text-lg"
+          >
+            Giriş Yap →
+          </a>
+        </div>
+
         {/* Footer */}
         <footer className="mt-16 text-gray-500 text-sm">
           © 2025 Edura Academy. Tüm hakları saklıdır.
@@ -67,8 +77,3 @@ export default function Home() {
     </div>
   );
 }
-<button>
-  <button className="bg-purple-500 text-white px-4 py-2 rounded-md">
-    Merhaba
-  </button>
-</button>

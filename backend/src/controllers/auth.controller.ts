@@ -83,6 +83,11 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     // Şifre değiştirilmeli mi kontrol et
     const sifreDegistirildiMi = (user as Record<string, unknown>).SifreDegistirildiMi;
 
+    // Profil fotoğrafı (kurs için Logo)
+    const profilFoto = kullaniciTuru === 'kurs' 
+      ? (user as Record<string, unknown>).Logo 
+      : (user as Record<string, unknown>).ProfilFoto;
+
     res.json({
       success: true,
       data: {
@@ -92,7 +97,10 @@ export const login = async (req: Request, res: Response): Promise<void> => {
           kullaniciAdi: user.KullaniciAdi,
           ad: (user as Record<string, unknown>).Ad || (user as Record<string, unknown>).KursAdi,
           soyad: (user as Record<string, unknown>).Soyad || null,
-          role,
+          email: (user as Record<string, unknown>).Email || null,
+          telefon: (user as Record<string, unknown>).Telefon || null,
+          role: kullaniciTuru,
+          profilFoto: profilFoto || null,
           sifreDegistirildiMi,
         },
       },
