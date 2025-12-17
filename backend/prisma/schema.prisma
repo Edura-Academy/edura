@@ -17,6 +17,11 @@ enum Role {
   OGRENCI
 }
 
+enum SinifTipi {
+  ORTAOKUL
+  LISE
+}
+
 enum MessageStatus {
   OKUNMADI
   OKUNDU
@@ -34,6 +39,21 @@ enum ExamType {
   QUIZ
 }
 
+// Kurslar/Şubeler
+model Kurs {
+  id          String   @id @default(uuid())
+  ad          String   @unique // Edura Merkez, Edura Çankaya, etc.
+  adres       String
+  telefon     String
+  aktif       Boolean  @default(true)
+  
+  siniflar    Sinif[]
+  users       User[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 // Kullanıcılar tablosu - Tüm roller için merkezi tablo
 model User {
   id                String   @id @default(uuid())
@@ -48,6 +68,10 @@ model User {
   olusturanId       String?  // Kim tarafından oluşturuldu
   olusturan         User?    @relation("UserOlusturan", fields: [olusturanId], references: [id])
   olusturulanlar    User[]   @relation("UserOlusturan")
+  
+  // Kurs ilişkisi
+  kursId            String?
+  kurs              Kurs?    @relation(fields: [kursId], references: [id])
   
   // Öğrenci özellikleri
   sinifId           String?
@@ -72,20 +96,28 @@ model User {
   @@index([email])
   @@index([role])
   @@index([sinifId])
+  @@index([kursId])
 }
 
 // Sınıflar
 model Sinif {
-  id          String   @id @default(uuid())
-  ad          String   @unique // 8-A, 9-B, etc.
-  seviye      Int      // 8, 9, 10, etc.
-  aktif       Boolean  @default(true)
+  id          String     @id @default(uuid())
+  ad          String     // 8-A, 9-B, etc.
+  seviye      Int        // 5, 6, 7, 8, 9, 10, 11, 12
+  tip         SinifTipi  // ORTAOKUL, LISE
+  kursId      String
+  kurs        Kurs       @relation(fields: [kursId], references: [id])
+  aktif       Boolean    @default(true)
   
   ogrenciler  User[]
   dersler     Course[]
   
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@unique([ad, kursId]) // Aynı kursta aynı isimli sınıf olamaz
+  @@index([kursId])
+  @@index([seviye])
 }
 
 // Dersler/Kurslar

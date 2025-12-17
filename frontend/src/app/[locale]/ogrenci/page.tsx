@@ -11,6 +11,7 @@ import {
   mockMesajlar,
   mockOgretmenler,
   mockSinavSonuclari,
+  mockKurslar,
   type Ders,
   type Devamsizlik,
   type Bildirim,
@@ -23,8 +24,10 @@ export default function OgrenciDashboard() {
   const [devamsizliklar] = useState<Devamsizlik[]>(mockDevamsizliklar);
   const [bildirimler] = useState<Bildirim[]>(mockBildirimler);
   const [mesajlar] = useState<Mesaj[]>(mockMesajlar);
-  const [ogretmenler] = useState(mockOgretmenler);
+  // Sadece öğrencinin kursundaki öğretmenleri göster
+  const [ogretmenler] = useState(mockOgretmenler.filter(o => o.kursId === mockOgrenci.kursId));
   const [sinavSonuclari] = useState(mockSinavSonuclari);
+  const [kurs] = useState(mockKurslar.find(k => k.id === mockOgrenci.kursId));
 
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [showProfilModal, setShowProfilModal] = useState(false);
@@ -68,7 +71,7 @@ export default function OgrenciDashboard() {
               Merhaba, {ogrenci.ad} 👋
             </h1>
             <p className="text-gray-500 text-base sm:text-lg">
-              Sınıf: <span className="font-bold text-blue-600">{ogrenci.sinif}</span> • {ogrenci.seviye}. Sınıf
+              <span className="font-bold text-blue-600">{kurs?.ad}</span> • Sınıf: <span className="font-bold text-indigo-600">{ogrenci.sinif}</span>
             </p>
           </div>
 
