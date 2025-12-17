@@ -36,9 +36,10 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
   res.status(500).json({ success: false, error: 'Sunucu hatası' });
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Server is running on http://localhost:${PORT}`);
+// Start server - Cloud Run requires 0.0.0.0 binding
+const HOST = '0.0.0.0';
+app.listen(Number(PORT), HOST, () => {
+  console.log(`🚀 Server is running on http://${HOST}:${PORT}`);
 });
 
 export default app;

@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+
+# Build output (we build in container)
+dist/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+
+# Git
+.git/
+.gitignore
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+
+# Development files
+*.md
+.prettierrc
+.eslintrc*
+nodemon.json
+
+# Firebase service account (should be in secrets)
+firebase-service-account.json
+*-firebase-adminsdk-*.json
