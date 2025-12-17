@@ -1,0 +1,603 @@
+'use client';
+
+import { useState } from 'react';
+import ClientOnlyDate from '../../../components/ClientOnlyDate';
+
+interface Ders {
+  id: number;
+  ad: string;
+  ogretmen: string;
+  gun: string;
+  baslangicSaati: string;
+  bitisSaati: string;
+  sınıf: string;
+}
+
+interface DevamsizlikKaydi {
+  id: number;
+  dersAdi: string;
+  tarih: string;
+}
+
+interface Bildirim {
+  id: number;
+  baslik: string;
+  mesaj: string;
+  tarih: string;
+  okundu: boolean;
+}
+
+interface OgrenciMesaji {
+  id: number;
+  gonderenAd: string;
+  baslik: string;
+  mesaj: string;
+  tarih: string;
+  okundu: boolean;
+}
+
+export default function OgrenciDashboard() {
+  const [ogrenci] = useState({
+    id: 1,
+    ad: 'Ahmet',
+    soyad: 'Yılmaz',
+    sinif: '8-A',
+    email: 'ahmet@example.com',
+    telefon: '0555 123 4567',
+    dogumTarihi: '2009-05-15',
+    seviye: 8,
+  });
+
+  const [dersler] = useState<Ders[]>([
+    { id: 1, ad: 'Matematik', ogretmen: 'Öğretmen 1', gun: 'Pazartesi', baslangicSaati: '09:00', bitisSaati: '10:30', sınıf: '8-A' },
+    { id: 2, ad: 'Türkçe', ogretmen: 'Öğretmen 2', gun: 'Pazartesi', baslangicSaati: '10:45', bitisSaati: '12:15', sınıf: '8-A' },
+    { id: 3, ad: 'İngilizce', ogretmen: 'Öğretmen 3', gun: 'Salı', baslangicSaati: '09:00', bitisSaati: '10:30', sınıf: '8-A' },
+    { id: 4, ad: 'Fen Bilimleri', ogretmen: 'Öğretmen 4', gun: 'Çarşamba', baslangicSaati: '09:00', bitisSaati: '10:30', sınıf: '8-A' },
+    { id: 5, ad: 'Sosyal Bilgiler', ogretmen: 'Öğretmen 5', gun: 'Perşembe', baslangicSaati: '10:45', bitisSaati: '12:15', sınıf: '8-A' },
+    { id: 6, ad: 'Beden Eğitimi', ogretmen: 'Öğretmen 6', gun: 'Cuma', baslangicSaati: '13:00', bitisSaati: '14:30', sınıf: '8-A' },
+  ]);
+
+  const [devamsizliklar] = useState<DevamsizlikKaydi[]>([
+    { id: 1, dersAdi: 'Matematik', tarih: '2024-12-10' },
+    { id: 2, dersAdi: 'İngilizce', tarih: '2024-12-05' },
+  ]);
+
+  const [bildirimler] = useState<Bildirim[]>([
+    { id: 1, baslik: 'Sınav Tarihi Duyurusu', mesaj: 'Matematik sınavı 20 Aralık\'ta yapılacaktır.', tarih: '2024-12-15', okundu: false },
+    { id: 2, baslik: 'Ders İptal', mesaj: 'Yarın Beden Eğitimi dersi iptal edilmiştir.', tarih: '2024-12-14', okundu: false },
+    { id: 3, baslik: 'Not Açıklanması', mesaj: 'Türkçe sınav sonuçları açıklanmıştır.', tarih: '2024-12-10', okundu: true },
+  ]);
+
+  const [mesajlar] = useState<OgrenciMesaji[]>([
+    { id: 1, gonderenAd: 'Matematik Öğretmeni', baslik: 'Ödev hakkında', mesaj: 'Son ödevi henüz göndermedin. Lütfen gönder.', tarih: '2024-12-14', okundu: false },
+    { id: 2, gonderenAd: 'Sınıf Rehberi', baslik: 'Devamsızlık', mesaj: 'Devamsızlık kaydında artış görülüyor. Dikkat et.', tarih: '2024-12-12', okundu: true },
+  ]);
+
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [showProfilModal, setShowProfilModal] = useState(false);
+  const [showSifreModal, setShowSifreModal] = useState(false);
+  const [yeniSifre, setYeniSifre] = useState('');
+  const [yeniSifreTekrar, setYeniSifreTekrar] = useState('');
+
+  const handleDropdownToggle = (dropdownName: string) => {
+    setOpenDropdown(prev => (prev === dropdownName ? null : dropdownName));
+  };
+  
+  const gunler = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
+  const dersSayisi = dersler.length;
+  const devamsizlikSayisi = devamsizliklar.length;
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 p-6">
+      <main className="max-w-7xl mx-auto">
+        {/* Üst Bar - Profil, Bildirim, Mesaj */}
+        <div className="flex justify-between items-center mb-12 pb-6 border-b border-gray-200">
+          <div>
+            <h1 className="text-5xl font-bold text-gray-900 mb-3">
+              Merhaba, {ogrenci.ad} 👋
+            </h1>
+            <p className="text-gray-500 text-lg">
+              Sınıf: <span className="font-bold text-blue-600">{ogrenci.sinif}</span> • {ogrenci.seviye}. Sınıf
+            </p>
+          </div>
+
+          {/* Sağ taraf butonları */}
+          <div className="flex items-center gap-4">
+            {/* Bildirimler */}
+            <div className="relative">
+              <button
+                onClick={() => handleDropdownToggle('bildirim')}
+                className="relative p-3 rounded-full hover:bg-gray-100 transition-colors"
+              >
+                <span className="text-2xl">🔔</span>
+                {bildirimler.filter((b) => !b.okundu).length > 0 && (
+                  <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center">
+                    {bildirimler.filter((b) => !b.okundu).length}
+                  </span>
+                )}
+              </button>
+
+              {/* Bildirimler Dropdown */}
+              {openDropdown === 'bildirim' && (
+                <div className="absolute right-0 top-14 w-96 bg-white border border-gray-200 rounded-2xl shadow-2xl z-50 max-h-96 overflow-y-auto">
+                  <div className="p-4 border-b border-gray-200 sticky top-0 bg-white">
+                    <h3 className="text-lg font-bold text-gray-900">Bildirimler</h3>
+                  </div>
+                  <div className="divide-y divide-gray-100">
+                    {bildirimler.length > 0 ? (
+                      bildirimler.map((bildirim) => (
+                        <div
+                          key={bildirim.id}
+                          className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer ${
+                            !bildirim.okundu ? 'bg-blue-50' : ''
+                          }`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <p className="font-bold text-gray-900">{bildirim.baslik}</p>
+                              <p className="text-sm text-gray-600 mt-1">{bildirim.mesaj}</p>
+                              <p className="text-xs text-gray-500 mt-2">
+                                <ClientOnlyDate dateString={bildirim.tarih} />
+                              </p>
+                            </div>
+                            {!bildirim.okundu && (
+                              <div className="w-3 h-3 bg-blue-500 rounded-full mt-1"></div>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-4 text-center text-gray-500">Bildirim yok</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Mesajlar */}
+            <div className="relative">
+              <button
+                onClick={() => handleDropdownToggle('mesaj')}
+                className="relative p-3 rounded-full hover:bg-gray-100 transition-colors"
+              >
+                <span className="text-2xl">💬</span>
+                {mesajlar.filter((m) => !m.okundu).length > 0 && (
+                  <span className="absolute top-0 right-0 bg-green-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center">
+                    {mesajlar.filter((m) => !m.okundu).length}
+                  </span>
+                )}
+              </button>
+
+              {/* Mesajlar Dropdown */}
+              {openDropdown === 'mesaj' && (
+                <div className="absolute right-0 top-14 w-96 bg-white border border-gray-200 rounded-2xl shadow-2xl z-50 max-h-96 overflow-y-auto">
+                  <div className="p-4 border-b border-gray-200 sticky top-0 bg-white">
+                    <h3 className="text-lg font-bold text-gray-900">Mesajlar</h3>
+                  </div>
+                  <div className="divide-y divide-gray-100">
+                    {mesajlar.length > 0 ? (
+                      mesajlar.map((mesaj) => (
+                        <div
+                          key={mesaj.id}
+                          className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer ${
+                            !mesaj.okundu ? 'bg-green-50' : ''
+                          }`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <p className="font-bold text-gray-900">{mesaj.gonderenAd}</p>
+                              <p className="text-sm font-semibold text-gray-700 mt-1">{mesaj.baslik}</p>
+                              <p className="text-sm text-gray-600 mt-1">{mesaj.mesaj}</p>
+                              <p className="text-xs text-gray-500 mt-2">
+                                <ClientOnlyDate dateString={mesaj.tarih} />
+                              </p>
+                            </div>
+                            {!mesaj.okundu && (
+                              <div className="w-3 h-3 bg-green-500 rounded-full mt-1"></div>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-4 text-center text-gray-500">Mesaj yok</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Profil Menüsü */}
+            <div className="relative">
+              <button
+                onClick={() => handleDropdownToggle('profil')}
+                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+              >
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                  {ogrenci.ad.charAt(0)}
+                </div>
+              </button>
+
+              {/* Profil Dropdown */}
+              {openDropdown === 'profil' && (
+                <div className="absolute right-0 top-14 w-64 bg-white border border-gray-200 rounded-2xl shadow-2xl z-50">
+                  <div className="p-4 border-b border-gray-200">
+                    <p className="font-bold text-gray-900">
+                      {ogrenci.ad} {ogrenci.soyad}
+                    </p>
+                    <p className="text-sm text-gray-500">{ogrenci.email}</p>
+                  </div>
+                  <div className="divide-y divide-gray-100">
+                    <button
+                      onClick={() => {
+                        setShowProfilModal(true);
+                        setOpenDropdown(null);
+                      }}
+                      className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors font-medium text-gray-900"
+                    >
+                      👤 Profil Bilgilerim
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowSifreModal(true);
+                        setOpenDropdown(null);
+                      }}
+                      className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors font-medium text-gray-900"
+                    >
+                      🔐 Şifre Değiştir
+                    </button>
+                    <button className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors font-medium text-red-600">
+                      🚪 Çıkış Yap
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* İstatistikler Kartları */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-2xl p-6 border border-blue-200 hover:shadow-xl transition-shadow cursor-pointer">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-blue-600 text-sm font-bold uppercase tracking-wide">Toplam Ders</p>
+                <p className="text-5xl font-bold text-blue-900 mt-2">{dersSayisi}</p>
+              </div>
+              <div className="text-6xl opacity-20">📚</div>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-orange-50 to-orange-100/50 rounded-2xl p-6 border border-orange-200 hover:shadow-xl transition-shadow cursor-pointer">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-orange-600 text-sm font-bold uppercase tracking-wide">Devamsızlık</p>
+                <p className="text-5xl font-bold text-orange-900 mt-2">{devamsizlikSayisi}</p>
+              </div>
+              <div className="text-6xl opacity-20">⚠️</div>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-green-50 to-green-100/50 rounded-2xl p-6 border border-green-200 hover:shadow-xl transition-shadow cursor-pointer">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-green-600 text-sm font-bold uppercase tracking-wide">Bu Hafta</p>
+                <p className="text-5xl font-bold text-green-900 mt-2">{dersler.length}</p>
+              </div>
+              <div className="text-6xl opacity-20">📅</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Haftalık Ders Programı */}
+        <div className="mb-12">
+          <h2 className="text-3xl font-bold text-gray-900 mb-8 flex items-center gap-3">
+            <span>📅</span> Haftalık Ders Programı
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {gunler.map((gun) => {
+              const gunDersleri = dersler.filter((d) => d.gun === gun);
+              const gunRenkleri: { [key: string]: { bg: string; border: string; text: string } } = {
+                'Pazartesi': { bg: 'from-blue-50 to-blue-100/50', border: 'border-blue-200', text: 'text-blue-700' },
+                'Salı': { bg: 'from-purple-50 to-purple-100/50', border: 'border-purple-200', text: 'text-purple-700' },
+                'Çarşamba': { bg: 'from-pink-50 to-pink-100/50', border: 'border-pink-200', text: 'text-pink-700' },
+                'Perşembe': { bg: 'from-green-50 to-green-100/50', border: 'border-green-200', text: 'text-green-700' },
+                'Cuma': { bg: 'from-yellow-50 to-yellow-100/50', border: 'border-yellow-200', text: 'text-yellow-700' },
+                'Cumartesi': { bg: 'from-indigo-50 to-indigo-100/50', border: 'border-indigo-200', text: 'text-indigo-700' },
+              };
+              const renkler = gunRenkleri[gun] || gunRenkleri['Pazartesi'];
+              
+              return (
+                <div
+                  key={gun}
+                  className={`bg-gradient-to-br ${renkler.bg} rounded-2xl p-5 border ${renkler.border} hover:shadow-lg transition-shadow`}
+                >
+                  <h3 className={`font-bold ${renkler.text} mb-4 text-lg`}>{gun}</h3>
+                  {gunDersleri.length > 0 ? (
+                    <div className="space-y-2">
+                      {gunDersleri.map((ders) => (
+                        <div
+                          key={ders.id}
+                          className="bg-white rounded-xl p-3 hover:shadow-md transition-shadow border border-gray-100 hover:border-gray-200"
+                        >
+                          <p className="font-bold text-gray-900 text-sm">{ders.ad}</p>
+                          <p className="text-xs text-gray-600 mt-1">👨‍🏫 {ders.ogretmen}</p>
+                          <p className="text-xs text-gray-500 mt-1">⏰ {ders.baslangicSaati} - {ders.bitisSaati}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-sm italic">Ders yok</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Derslerin Detaylı Listesi */}
+        <div className="mb-12">
+          <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+            <span>📖</span> Tüm Derslerim
+          </h2>
+          <div className="grid grid-cols-1 gap-4">
+            {dersler.map((ders) => (
+              <div
+                key={ders.id}
+                className="bg-white rounded-2xl p-6 border border-gray-200 hover:shadow-xl transition-all hover:border-blue-300 hover:scale-105"
+              >
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex-1">
+                    <h3 className="text-2xl font-bold text-gray-900">{ders.ad}</h3>
+                    <p className="text-gray-600 mt-2">👨‍🏫 {ders.ogretmen}</p>
+                  </div>
+                  <div className="text-sm bg-gradient-to-r from-blue-100 to-blue-50 text-blue-700 px-4 py-2 rounded-full font-bold border border-blue-200">
+                    {ders.gun}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-6 mb-5">
+                  <div className="flex items-center gap-2 text-gray-700 font-semibold">
+                    <span className="text-lg">🕒</span>
+                    <span>{ders.baslangicSaati} - {ders.bitisSaati}</span>
+                  </div>
+                </div>
+
+                <button className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold py-3 rounded-xl hover:shadow-lg transition-all hover:from-blue-600 hover:to-blue-700 active:scale-95">
+                  Ders Detaylarını Gör
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Devamsızlık Kaydı */}
+        {devamsizliklar.length > 0 && (
+          <div className="mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+              <span>⚠️</span> Devamsızlık Kaydım
+            </h2>
+            <div className="bg-gradient-to-br from-red-50 to-red-100/50 rounded-2xl p-6 border border-red-200">
+              <div className="space-y-3">
+                {devamsizliklar.map((kayit) => (
+                  <div
+                    key={kayit.id}
+                    className="flex items-center justify-between bg-white rounded-xl p-4 border border-red-100 hover:shadow-md transition-shadow"
+                  >
+                    <div>
+                      <p className="text-gray-900 font-bold">{kayit.dersAdi}</p>
+                      <p className="text-gray-500 text-sm">
+                        <ClientOnlyDate dateString={kayit.tarih} />
+                      </p>
+                    </div>
+                    <span className="text-3xl">❌</span>
+                  </div>
+                ))}
+              </div>
+              <div className="bg-red-100/50 rounded-xl p-4 mt-4 border border-red-200">
+                <p className="text-red-700 font-semibold text-sm">
+                  ⚠️ <span className="font-bold">Dikkat!</span> Fazla devamsızlık sınıf geçmesini etkileyebilir.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Hızlı İletişim */}
+        <div className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 rounded-2xl p-8 border border-indigo-200">
+          <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+            <span>💬</span> Hızlı İletişim
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <button className="bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold py-4 rounded-xl hover:shadow-lg transition-all hover:from-blue-600 hover:to-blue-700 active:scale-95 flex items-center justify-center gap-2 text-lg">
+              <span>📧</span> Öğretmene Mesaj Gönder
+            </button>
+            <button className="bg-gradient-to-r from-green-500 to-green-600 text-white font-bold py-4 rounded-xl hover:shadow-lg transition-all hover:from-green-600 hover:to-green-700 active:scale-95 flex items-center justify-center gap-2 text-lg">
+              <span>📞</span> Dershaneli İletişim
+            </button>
+          </div>
+        </div>
+      </main>
+
+      {/* Profil Bilgileri Modal */}
+      {showProfilModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[100]">
+          <div className="bg-white rounded-2xl p-8 max-w-2xl w-full shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-3xl font-bold text-gray-900">👤 Profil Bilgilerim</h2>
+              <button
+                onClick={() => setShowProfilModal(false)}
+                className="text-3xl font-bold text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Ad</label>
+                  <input
+                    type="text"
+                    value={ogrenci.ad}
+                    readOnly
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Soyad</label>
+                  <input
+                    type="text"
+                    value={ogrenci.soyad}
+                    readOnly
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">E-posta</label>
+                <input
+                  type="email"
+                  value={ogrenci.email}
+                  readOnly
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Telefon</label>
+                  <input
+                    type="tel"
+                    value={ogrenci.telefon}
+                    readOnly
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Doğum Tarihi</label>
+                  <input
+                    type="date"
+                    value={ogrenci.dogumTarihi}
+                    readOnly
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Sınıf</label>
+                  <input
+                    type="text"
+                    value={ogrenci.sinif}
+                    readOnly
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Seviye</label>
+                  <input
+                    type="text"
+                    value={`${ogrenci.seviye}. Sınıf`}
+                    readOnly
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-8 flex gap-3">
+              <button className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold py-3 rounded-xl hover:shadow-lg transition-all">
+                ✏️ Düzenle
+              </button>
+              <button
+                onClick={() => setShowProfilModal(false)}
+                className="flex-1 bg-gray-200 text-gray-900 font-bold py-3 rounded-xl hover:bg-gray-300 transition-colors"
+              >
+                Kapat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Şifre Değiştir Modal */}
+      {showSifreModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[100]">
+          <div className="bg-white rounded-2xl p-8 max-w-lg w-full shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-3xl font-bold text-gray-900">🔐 Şifre Değiştir</h2>
+              <button
+                onClick={() => {
+                  setShowSifreModal(false);
+                  setYeniSifre('');
+                  setYeniSifreTekrar('');
+                }}
+                className="text-3xl font-bold text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Mevcut Şifre</label>
+                <input
+                  type="password"
+                  placeholder="Mevcut şifrenizi girin"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Yeni Şifre</label>
+                <input
+                  type="password"
+                  value={yeniSifre}
+                  onChange={(e) => setYeniSifre(e.target.value)}
+                  placeholder="Yeni şifreni girin"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Yeni Şifre (Tekrar)</label>
+                <input
+                  type="password"
+                  value={yeniSifreTekrar}
+                  onChange={(e) => setYeniSifreTekrar(e.target.value)}
+                  placeholder="Yeni şifreni tekrar girin"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <p className="text-sm text-blue-700">
+                  <strong>Şifre Gerekçeleri:</strong> En az 8 karakter, büyük/küçük harf ve sayı içermeli.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-8 flex gap-3">
+              <button className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold py-3 rounded-xl hover:shadow-lg transition-all hover:from-blue-600 hover:to-blue-700 disabled:opacity-50">
+                💾 Kaydet
+              </button>
+              <button
+                onClick={() => {
+                  setShowSifreModal(false);
+                  setYeniSifre('');
+                  setYeniSifreTekrar('');
+                }}
+                className="flex-1 bg-gray-200 text-gray-900 font-bold py-3 rounded-xl hover:bg-gray-300 transition-colors"
+              >
+                İptal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
