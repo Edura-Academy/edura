@@ -1,4 +1,4 @@
-import { PrismaClient, UserRole, SchoolType } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -8,137 +8,165 @@ async function main() {
 
   // Admin kullanıcısı oluştur
   const adminPassword = await bcrypt.hash('admin123', 10);
-  const admin = await prisma.user.upsert({
-    where: { email: 'admin@edura.com' },
+  const admin = await prisma.admin.upsert({
+    where: { Email: 'admin@edura.com' },
     update: {},
     create: {
-      email: 'admin@edura.com',
-      password: adminPassword,
-      firstName: 'System',
-      lastName: 'Admin',
-      role: UserRole.ADMIN,
+      Ad: 'System',
+      Soyad: 'Admin',
+      Email: 'admin@edura.com',
+      KullaniciAdi: 'admin',
+      Sifre: adminPassword,
+      Telefon: '05551234567',
+      AktifMi: true,
     },
   });
-  console.log('✅ Admin created:', admin.email);
+  console.log('✅ Admin created:', admin.Email);
+
+  // Örnek Kurs oluştur
+  const kursPassword = await bcrypt.hash('kurs123', 10);
+  const kurs = await prisma.kurs.upsert({
+    where: { KullaniciAdi: 'demokurs' },
+    update: {},
+    create: {
+      KursAdi: 'Demo Eğitim Kursu',
+      Adres: 'İstanbul, Türkiye',
+      Telefon: '02121234567',
+      Email: 'info@demokurs.com',
+      KullaniciAdi: 'demokurs',
+      Sifre: kursPassword,
+      AktifMi: true,
+    },
+  });
+  console.log('✅ Kurs created:', kurs.KursAdi);
+
+  // Branş oluştur
+  const brans = await prisma.brans.upsert({
+    where: { BransAdi: 'Matematik' },
+    update: {},
+    create: {
+      BransAdi: 'Matematik',
+    },
+  });
+  console.log('✅ Branş created:', brans.BransAdi);
 
   // Müdür oluştur
   const mudurPassword = await bcrypt.hash('mudur123', 10);
-  const mudur = await prisma.user.upsert({
-    where: { email: 'mudur@edura.com' },
+  const mudur = await prisma.mudur.upsert({
+    where: { KullaniciAdi: 'mudur' },
     update: {},
     create: {
-      email: 'mudur@edura.com',
-      password: mudurPassword,
-      firstName: 'Ahmet',
-      lastName: 'Yılmaz',
-      role: UserRole.MUDUR,
+      KursID: kurs.KursID,
+      Ad: 'Ahmet',
+      Soyad: 'Yılmaz',
+      Email: 'mudur@demokurs.com',
+      Telefon: '05551234567',
+      KullaniciAdi: 'mudur',
+      Sifre: mudurPassword,
+      AktifMi: true,
     },
   });
-  console.log('✅ Müdür created:', mudur.email);
+  console.log('✅ Müdür created:', mudur.KullaniciAdi);
+
+  // Sekreter oluştur
+  const sekreterPassword = await bcrypt.hash('sekreter123', 10);
+  const sekreter = await prisma.sekreter.upsert({
+    where: { KullaniciAdi: 'sekreter' },
+    update: {},
+    create: {
+      KursID: kurs.KursID,
+      Ad: 'Ayşe',
+      Soyad: 'Demir',
+      Email: 'sekreter@demokurs.com',
+      Telefon: '05552345678',
+      KullaniciAdi: 'sekreter',
+      Sifre: sekreterPassword,
+      AktifMi: true,
+    },
+  });
+  console.log('✅ Sekreter created:', sekreter.KullaniciAdi);
 
   // Öğretmen oluştur
   const ogretmenPassword = await bcrypt.hash('ogretmen123', 10);
-  const ogretmenUser = await prisma.user.upsert({
-    where: { email: 'ogretmen@edura.com' },
+  const ogretmen = await prisma.ogretmen.upsert({
+    where: { KullaniciAdi: 'ogretmen' },
     update: {},
     create: {
-      email: 'ogretmen@edura.com',
-      password: ogretmenPassword,
-      firstName: 'Fatma',
-      lastName: 'Demir',
-      role: UserRole.OGRETMEN,
+      KursID: kurs.KursID,
+      BransID: brans.BransID,
+      Ad: 'Fatma',
+      Soyad: 'Kaya',
+      Email: 'ogretmen@demokurs.com',
+      Telefon: '05553456789',
+      EgitimKocuMu: true,
+      KullaniciAdi: 'ogretmen',
+      Sifre: ogretmenPassword,
+      AktifMi: true,
     },
   });
+  console.log('✅ Öğretmen created:', ogretmen.KullaniciAdi);
 
-  const teacher = await prisma.teacher.upsert({
-    where: { userId: ogretmenUser.id },
+  // Sınıf oluştur
+  const sinif = await prisma.sinif.upsert({
+    where: { SinifID: 1 },
     update: {},
     create: {
-      userId: ogretmenUser.id,
-      isCoach: true,
-      subjects: 'Matematik, Fizik',
-      bio: 'Deneyimli matematik ve fizik öğretmeni.',
+      KursID: kurs.KursID,
+      SinifAdi: '10-A',
+      Seviye: 10,
+      Kapasite: 25,
+      DanismanID: ogretmen.OgretmenID,
     },
   });
-  console.log('✅ Öğretmen created:', ogretmenUser.email);
+  console.log('✅ Sınıf created:', sinif.SinifAdi);
+
+  // Veli oluştur
+  const veli = await prisma.veli.upsert({
+    where: { VeliID: 1 },
+    update: {},
+    create: {
+      Ad: 'Ali',
+      Soyad: 'Yıldız',
+      Telefon: '05554567890',
+      Email: 'veli@email.com',
+      Adres: 'İstanbul, Türkiye',
+    },
+  });
+  console.log('✅ Veli created:', veli.Ad, veli.Soyad);
 
   // Öğrenci oluştur
   const ogrenciPassword = await bcrypt.hash('ogrenci123', 10);
-  const ogrenciUser = await prisma.user.upsert({
-    where: { email: 'ogrenci@edura.com' },
-    update: {},
-    create: {
-      email: 'ogrenci@edura.com',
-      password: ogrenciPassword,
-      firstName: 'Mehmet',
-      lastName: 'Kaya',
-      role: UserRole.OGRENCI,
-    },
-  });
-
-  const student = await prisma.student.upsert({
-    where: { userId: ogrenciUser.id },
-    update: {},
-    create: {
-      userId: ogrenciUser.id,
-      schoolType: SchoolType.LISE,
-      grade: 10,
-      parentName: 'Ali Kaya',
-      parentPhone: '05551234567',
-    },
-  });
-  console.log('✅ Öğrenci created:', ogrenciUser.email);
-
-  // Örnek Kurs oluştur
-  const course = await prisma.course.upsert({
-    where: { id: 'course-1' },
-    update: {},
-    create: {
-      id: 'course-1',
-      title: 'Matematik 10. Sınıf',
-      description: '10. sınıf matematik müfredatına uygun kapsamlı kurs.',
-      teacherId: teacher.id,
-      isPublished: true,
-    },
-  });
-  console.log('✅ Course created:', course.title);
-
-  // Örnek Dersler oluştur
-  const lessons = [
-    { title: 'Polinomlar - Giriş', description: 'Polinomların tanımı ve temel kavramlar', order: 1 },
-    { title: 'Polinomlar - İşlemler', description: 'Toplama, çıkarma ve çarpma işlemleri', order: 2 },
-    { title: 'İkinci Dereceden Denklemler', description: 'Kök bulma yöntemleri', order: 3 },
-  ];
-
-  for (const lessonData of lessons) {
-    await prisma.lesson.upsert({
-      where: { id: `lesson-${lessonData.order}` },
+  const ogrenci = await prisma.ogrenci.upsert({
+    where: { KullaniciAdi: 'ogrenci' },
       update: {},
       create: {
-        id: `lesson-${lessonData.order}`,
-        ...lessonData,
-        courseId: course.id,
-        duration: 45,
+      KursID: kurs.KursID,
+      SinifID: sinif.SinifID,
+      VeliID: veli.VeliID,
+      Ad: 'Mehmet',
+      Soyad: 'Yıldız',
+      DogumTarihi: new Date('2008-05-15'),
+      Telefon: '05555678901',
+      OkulTuru: 'LISE',
+      Seviye: 10,
+      KullaniciAdi: 'ogrenci',
+      Sifre: ogrenciPassword,
+      AktifMi: true,
       },
     });
-  }
-  console.log('✅ Lessons created');
+  console.log('✅ Öğrenci created:', ogrenci.KullaniciAdi);
 
-  // Öğrenciyi kursa kaydet
-  await prisma.enrollment.upsert({
-    where: {
-      studentId_courseId: {
-        studentId: student.id,
-        courseId: course.id,
-      },
-    },
+  // Ders oluştur
+  const ders = await prisma.ders.upsert({
+    where: { DersID: 1 },
     update: {},
     create: {
-      studentId: student.id,
-      courseId: course.id,
+      BransID: brans.BransID,
+      DersAdi: 'Matematik 10',
+      Aciklama: '10. sınıf matematik dersi',
     },
   });
-  console.log('✅ Enrollment created');
+  console.log('✅ Ders created:', ders.DersAdi);
 
   console.log('🎉 Seeding completed!');
 }
@@ -151,4 +179,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
-

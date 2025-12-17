@@ -65,3 +65,54 @@ export const courseApi = {
   delete: (id: string) => apiRequest<void>(`/courses/${id}`, { method: 'DELETE' }),
 };
 
+// Upload endpoints - Profil fotoğrafı yükleme
+export const uploadApi = {
+  /**
+   * Profil fotoğrafı yükle
+   * @param userType - admin, mudur, sekreter, ogretmen, ogrenci, kurs
+   * @param userId - Kullanıcı ID'si
+   * @param file - Yüklenecek dosya (JPG/PNG, max 2MB)
+   */
+  uploadPhoto: async (userType: string, userId: number, file: File) => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    
+    const formData = new FormData();
+    formData.append('photo', file);
+    
+    const response = await fetch(
+      `${API_URL}/upload/profile/${userType}/${userId}`,
+      {
+        method: 'POST',
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        body: formData,
+      }
+    );
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Bir hata oluştu' }));
+      throw new Error(error.error || 'Fotoğraf yüklenemedi');
+    }
+    
+    return response.json() as Promise<{ success: boolean; data: { url: string } }>;
+  },
+
+  /**
+   * Profil fotoğrafını sil
+   */
+  deletePhoto: (userType: string, userId: number) =>
+    apiRequest<{ success: boolean; message: string }>(
+      `/upload/profile/${userType}/${userId}`,
+      { method: 'DELETE' }
+    ),
+
+  /**
+   * Profil fotoğrafını getir
+   */
+  getPhoto: (userType: string, userId: number) =>
+    apiRequest<{ success: boolean; data: { url: string | null } }>(
+      `/upload/profile/${userType}/${userId}`
+    ),
+};
+

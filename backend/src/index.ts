@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import courseRoutes from './routes/course.routes';
+import uploadRoutes from './routes/upload.routes';
 
 // Load environment variables
 dotenv.config();
@@ -22,6 +23,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/courses', courseRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
