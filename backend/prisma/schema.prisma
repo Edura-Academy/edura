@@ -67,16 +67,16 @@ model User {
   role              Role
   aktif             Boolean  @default(true)
   olusturanId       String?  // Kim tarafından oluşturuldu
-  olusturan         User?    @relation("UserOlusturan", fields: [olusturanId], references: [id])
+  olusturan         User?    @relation("UserOlusturan", fields: [olusturanId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   olusturulanlar    User[]   @relation("UserOlusturan")
   
   // Kurs ilişkisi
   kursId            String?
-  kurs              Kurs?    @relation(fields: [kursId], references: [id])
+  kurs              Kurs?    @relation(fields: [kursId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   
   // Öğrenci özellikleri
   sinifId           String?
-  sinif             Sinif?   @relation(fields: [sinifId], references: [id])
+  sinif             Sinif?   @relation(fields: [sinifId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   ogrenciNo         String?  @unique
   
   // Öğretmen özellikleri
@@ -98,6 +98,7 @@ model User {
   @@index([role])
   @@index([sinifId])
   @@index([kursId])
+  @@index([olusturanId])
 }
 
 // Sınıflar
@@ -107,7 +108,7 @@ model Sinif {
   seviye      Int        // 5, 6, 7, 8, 9, 10, 11, 12
   tip         SinifTipi  // ORTAOKUL, LISE
   kursId      String
-  kurs        Kurs       @relation(fields: [kursId], references: [id])
+  kurs        Kurs       @relation(fields: [kursId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   aktif       Boolean    @default(true)
   
   ogrenciler  User[]
@@ -127,9 +128,9 @@ model Course {
   ad              String
   aciklama        String?
   sinifId         String
-  sinif           Sinif    @relation(fields: [sinifId], references: [id])
+  sinif           Sinif    @relation(fields: [sinifId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   ogretmenId      String
-  ogretmen        User     @relation("OgretmenDersler", fields: [ogretmenId], references: [id])
+  ogretmen        User     @relation("OgretmenDersler", fields: [ogretmenId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   gun             String   // Pazartesi, Salı, etc.
   baslangicSaati  String
   bitisSaati      String
@@ -150,9 +151,9 @@ model Course {
 model CourseEnrollment {
   id          String   @id @default(uuid())
   ogrenciId   String
-  ogrenci     User     @relation(fields: [ogrenciId], references: [id])
+  ogrenci     User     @relation(fields: [ogrenciId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   courseId    String
-  course      Course   @relation(fields: [courseId], references: [id])
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   kayitTarihi DateTime @default(now())
   aktif       Boolean  @default(true)
   
@@ -170,7 +171,7 @@ model Exam {
   ad          String
   tip         ExamType
   courseId    String
-  course      Course     @relation(fields: [courseId], references: [id])
+  course      Course     @relation(fields: [courseId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   tarih       DateTime
   sure        Int?       // dakika
   toplamPuan  Int
@@ -189,9 +190,9 @@ model Exam {
 model ExamResult {
   id          String   @id @default(uuid())
   examId      String
-  exam        Exam     @relation(fields: [examId], references: [id])
+  exam        Exam     @relation(fields: [examId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   ogrenciId   String
-  ogrenci     User     @relation(fields: [ogrenciId], references: [id])
+  ogrenci     User     @relation(fields: [ogrenciId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   puan        Float
   dogru       Int?
   yanlis      Int?
@@ -210,9 +211,9 @@ model ExamResult {
 model Devamsizlik {
   id          String   @id @default(uuid())
   ogrenciId   String
-  ogrenci     User     @relation(fields: [ogrenciId], references: [id])
+  ogrenci     User     @relation(fields: [ogrenciId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   courseId    String
-  course      Course   @relation(fields: [courseId], references: [id])
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   tarih       DateTime
   aciklama    String?
   
@@ -228,9 +229,9 @@ model Devamsizlik {
 model Message {
   id          String        @id @default(uuid())
   gonderenId  String
-  gonderen    User          @relation("GonderenMesajlar", fields: [gonderenId], references: [id])
+  gonderen    User          @relation("GonderenMesajlar", fields: [gonderenId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   alanId      String
-  alan        User          @relation("AlanMesajlar", fields: [alanId], references: [id])
+  alan        User          @relation("AlanMesajlar", fields: [alanId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   baslik      String
   icerik      String
   durum       MessageStatus @default(OKUNMADI)
@@ -248,7 +249,7 @@ model Message {
 model Notification {
   id          String           @id @default(uuid())
   userId      String
-  user        User             @relation(fields: [userId], references: [id])
+  user        User             @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   tip         NotificationType
   baslik      String
   mesaj       String
