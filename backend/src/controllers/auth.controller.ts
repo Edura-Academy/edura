@@ -3,105 +3,65 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import prisma from '../lib/prisma';
 import { AuthRequest } from '../types';
+
 const JWT_SECRET = process.env.JWT_SECRET || 'edura-secret-key';
 
-// Admin Giriş
+// Login
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { kullaniciAdi, sifre, kullaniciTuru } = req.body;
+    const { email, password } = req.body;
 
-    let user = null;
-    let role = '';
-
-    // Kullanıcı türüne göre ara
-    switch (kullaniciTuru) {
-      case 'admin':
-        user = await prisma.admin.findUnique({ where: { KullaniciAdi: kullaniciAdi } });
-        role = 'ADMIN';
-        break;
-      case 'mudur':
-        user = await prisma.mudur.findUnique({ where: { KullaniciAdi: kullaniciAdi } });
-        role = 'MUDUR';
-        break;
-      case 'ogretmen':
-        user = await prisma.ogretmen.findUnique({ where: { KullaniciAdi: kullaniciAdi } });
-        role = 'OGRETMEN';
-        break;
-      case 'sekreter':
-        user = await prisma.sekreter.findUnique({ where: { KullaniciAdi: kullaniciAdi } });
-        role = 'SEKRETER';
-        break;
-      case 'ogrenci':
-        user = await prisma.ogrenci.findUnique({ where: { KullaniciAdi: kullaniciAdi } });
-        role = 'OGRENCI';
-        break;
-      case 'kurs':
-        user = await prisma.kurs.findUnique({ where: { KullaniciAdi: kullaniciAdi } });
-        role = 'KURS';
-        break;
-      default:
-        res.status(400).json({ success: false, error: 'Geçersiz kullanıcı türü' });
-        return;
-    }
+    // Kullanıcıyı email ile bul
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: {
+        kurs: true,
+        sinif: true,
+      },
+    });
 
     if (!user) {
       res.status(401).json({ success: false, error: 'Kullanıcı bulunamadı' });
       return;
     }
 
-    // Şifre kontrolü
-    if (!user.Sifre) {
-      res.status(401).json({ success: false, error: 'Şifre tanımlanmamış' });
+    if (!user.aktif) {
+      res.status(401).json({ success: false, error: 'Hesap devre dışı' });
       return;
     }
-    const isValidPassword = await bcrypt.compare(sifre, user.Sifre);
+
+    // Şifre kontrolü
+    const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
       res.status(401).json({ success: false, error: 'Geçersiz şifre' });
       return;
     }
 
-    // ID alanını bul (her tabloda farklı isim)
-    const userId = (user as Record<string, unknown>).AdminID || 
-                   (user as Record<string, unknown>).MudurID || 
-                   (user as Record<string, unknown>).OgretmenID || 
-                   (user as Record<string, unknown>).SekreterID || 
-                   (user as Record<string, unknown>).OgrenciID || 
-                   (user as Record<string, unknown>).KursID;
-
     // Token oluştur
     const token = jwt.sign(
-      { 
-        userId, 
-        kullaniciAdi: user.KullaniciAdi, 
-        role,
-        kursId: (user as Record<string, unknown>).KursID || null
+      {
+        userId: user.id,
+        email: user.email,
+        role: user.role,
+        kursId: user.kursId,
       },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
-
-    // Şifre değiştirilmeli mi kontrol et
-    const sifreDegistirildiMi = (user as Record<string, unknown>).SifreDegistirildiMi;
-
-    // Profil fotoğrafı (kurs için Logo)
-    const profilFoto = kullaniciTuru === 'kurs' 
-      ? (user as Record<string, unknown>).Logo 
-      : (user as Record<string, unknown>).ProfilFoto;
 
     res.json({
       success: true,
       data: {
         token,
         user: {
-          id: userId,
-          kullaniciAdi: user.KullaniciAdi,
-          ad: (user as Record<string, unknown>).Ad || (user as Record<string, unknown>).KursAdi,
-          soyad: (user as Record<string, unknown>).Soyad || null,
-          email: (user as Record<string, unknown>).Email || null,
-          telefon: (user as Record<string, unknown>).Telefon || null,
-          role: kullaniciTuru,
-          profilFoto: profilFoto || null,
-          sifreDegistirildiMi,
+          id: user.id,
+          email: user.email,
+          ad: user.ad,
+          soyad: user.soyad,
+          telefon: user.telefon,
+          role: user.role,
+          kurs: user.kurs,
+          sinif: user.sinif,
         },
       },
     });
@@ -114,7 +74,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 // Şifre değiştir
 export const changePassword = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { yeniSifre, kullaniciTuru } = req.body;
+    const { currentPassword, newPassword } = req.body;
     const userId = req.user?.userId;
 
     if (!userId) {
@@ -122,46 +82,28 @@ export const changePassword = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    const hashedPassword = await bcrypt.hash(yeniSifre, 10);
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
 
-    switch (kullaniciTuru) {
-      case 'admin':
-        await prisma.admin.update({
-          where: { AdminID: userId as number },
-          data: { Sifre: hashedPassword },
-        });
-        break;
-      case 'mudur':
-        await prisma.mudur.update({
-          where: { MudurID: userId as number },
-          data: { Sifre: hashedPassword, SifreDegistirildiMi: true },
-        });
-        break;
-      case 'ogretmen':
-        await prisma.ogretmen.update({
-          where: { OgretmenID: userId as number },
-          data: { Sifre: hashedPassword, SifreDegistirildiMi: true },
-        });
-        break;
-      case 'sekreter':
-        await prisma.sekreter.update({
-          where: { SekreterID: userId as number },
-          data: { Sifre: hashedPassword, SifreDegistirildiMi: true },
-        });
-        break;
-      case 'ogrenci':
-        await prisma.ogrenci.update({
-          where: { OgrenciID: userId as number },
-          data: { Sifre: hashedPassword, SifreDegistirildiMi: true },
-        });
-        break;
-      case 'kurs':
-        await prisma.kurs.update({
-          where: { KursID: userId as number },
-          data: { Sifre: hashedPassword, SifreDegistirildiMi: true },
-        });
-        break;
+    if (!user) {
+      res.status(404).json({ success: false, error: 'Kullanıcı bulunamadı' });
+      return;
     }
+
+    // Mevcut şifre kontrolü
+    const isValidPassword = await bcrypt.compare(currentPassword, user.password);
+    if (!isValidPassword) {
+      res.status(401).json({ success: false, error: 'Mevcut şifre yanlış' });
+      return;
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
 
     res.json({ success: true, message: 'Şifre başarıyla değiştirildi' });
   } catch (error) {
@@ -178,11 +120,33 @@ export const me = async (req: AuthRequest, res: Response): Promise<void> => {
       return;
     }
 
-    res.json({ 
-      success: true, 
-      data: { 
-        user: req.user 
-      } 
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.userId },
+      include: {
+        kurs: true,
+        sinif: true,
+      },
+    });
+
+    if (!user) {
+      res.status(404).json({ success: false, error: 'Kullanıcı bulunamadı' });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          ad: user.ad,
+          soyad: user.soyad,
+          telefon: user.telefon,
+          role: user.role,
+          kurs: user.kurs,
+          sinif: user.sinif,
+        },
+      },
     });
   } catch (error) {
     console.error('Me error:', error);
@@ -190,79 +154,52 @@ export const me = async (req: AuthRequest, res: Response): Promise<void> => {
   }
 };
 
-// Yeni kullanıcı kaydet (Admin tarafından)
+// Yeni kullanıcı kaydet
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { kullaniciTuru, kullaniciAdi, sifre, ad, soyad, email, telefon, kursId, bransId } = req.body;
+    const { email, password, ad, soyad, telefon, role, kursId, sinifId, brans } = req.body;
 
-    const hashedPassword = await bcrypt.hash(sifre, 10);
+    // Email kontrolü
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    });
 
-    let newUser;
-
-    switch (kullaniciTuru) {
-      case 'mudur':
-        newUser = await prisma.mudur.create({
-          data: {
-            KursID: kursId,
-            Ad: ad,
-            Soyad: soyad,
-            Email: email,
-            Telefon: telefon,
-            KullaniciAdi: kullaniciAdi,
-            Sifre: hashedPassword,
-            SifreDegistirildiMi: false,
-          },
-        });
-        break;
-      case 'ogretmen':
-        newUser = await prisma.ogretmen.create({
-          data: {
-            KursID: kursId,
-            BransID: bransId,
-            Ad: ad,
-            Soyad: soyad,
-            Email: email,
-            Telefon: telefon,
-            KullaniciAdi: kullaniciAdi,
-            Sifre: hashedPassword,
-            SifreDegistirildiMi: false,
-          },
-        });
-        break;
-      case 'sekreter':
-        newUser = await prisma.sekreter.create({
-          data: {
-            KursID: kursId,
-            Ad: ad,
-            Soyad: soyad,
-            Email: email,
-            Telefon: telefon,
-            KullaniciAdi: kullaniciAdi,
-            Sifre: hashedPassword,
-            SifreDegistirildiMi: false,
-          },
-        });
-        break;
-      case 'kurs':
-        newUser = await prisma.kurs.create({
-          data: {
-            KursAdi: ad,
-            Email: email,
-            Telefon: telefon,
-            KullaniciAdi: kullaniciAdi,
-            Sifre: hashedPassword,
-            SifreDegistirildiMi: false,
-          },
-        });
-        break;
-      default:
-        res.status(400).json({ success: false, error: 'Geçersiz kullanıcı türü' });
-        return;
+    if (existingUser) {
+      res.status(400).json({ success: false, error: 'Bu email zaten kullanılıyor' });
+      return;
     }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = await prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        ad,
+        soyad,
+        telefon,
+        role,
+        kursId,
+        sinifId,
+        brans,
+      },
+      include: {
+        kurs: true,
+        sinif: true,
+      },
+    });
 
     res.status(201).json({
       success: true,
-      data: { user: newUser },
+      data: {
+        user: {
+          id: newUser.id,
+          email: newUser.email,
+          ad: newUser.ad,
+          soyad: newUser.soyad,
+          role: newUser.role,
+        },
+      },
       message: 'Kullanıcı başarıyla oluşturuldu',
     });
   } catch (error) {

@@ -1,45 +1,35 @@
 import { Router } from 'express';
 import {
-  getAllBranslar,
-  getSiniflarByKurs,
-  getAllDersler,
-  getDersProgrami,
-  getDenemelerByKurs,
-  getDenemeSonuclari,
-  getAllCourses,
-  getCourseById,
+  getCourses,
+  getCourse,
   createCourse,
   updateCourse,
   deleteCourse,
+  enrollStudent,
+  getExams,
+  createExam,
+  addExamResult,
 } from '../controllers/course.controller';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.middleware';
 
 const router = Router();
 
-// Public routes
-router.get('/branslar', getAllBranslar);
-router.get('/dersler', getAllDersler);
-
 // Protected routes
 router.use(authenticateToken);
 
-// GET /api/courses/siniflar/:kursId - Kursa ait sınıflar
-router.get('/siniflar/:kursId', getSiniflarByKurs);
-
-// GET /api/courses/program/:kursId - Ders programı
-router.get('/program/:kursId', getDersProgrami);
-
-// GET /api/courses/denemeler/:kursId - Denemeler
-router.get('/denemeler/:kursId', getDenemelerByKurs);
-
-// GET /api/courses/deneme-sonuclari/:denemeId - Deneme sonuçları
-router.get('/deneme-sonuclari/:denemeId', getDenemeSonuclari);
-
-// Eski endpoint'ler (placeholder)
-router.get('/', getAllCourses);
-router.get('/:id', getCourseById);
+// Dersler
+router.get('/', getCourses);
+router.get('/:id', getCourse);
 router.post('/', authorizeRoles('ADMIN', 'MUDUR', 'OGRETMEN'), createCourse);
 router.put('/:id', authorizeRoles('ADMIN', 'MUDUR', 'OGRETMEN'), updateCourse);
 router.delete('/:id', authorizeRoles('ADMIN', 'MUDUR'), deleteCourse);
+
+// Ders kayıtları
+router.post('/enroll', authorizeRoles('ADMIN', 'MUDUR', 'SEKRETER'), enrollStudent);
+
+// Sınavlar
+router.get('/exams', getExams);
+router.post('/exams', authorizeRoles('ADMIN', 'MUDUR', 'OGRETMEN'), createExam);
+router.post('/exams/result', authorizeRoles('ADMIN', 'MUDUR', 'OGRETMEN'), addExamResult);
 
 export default router;

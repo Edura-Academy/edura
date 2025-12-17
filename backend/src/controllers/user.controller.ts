@@ -1,403 +1,259 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import prisma from '../lib/prisma';
 import { AuthRequest } from '../types';
 
-// Tüm adminleri getir
-export const getAllAdmins = async (req: AuthRequest, res: Response): Promise<void> => {
+// Tüm kullanıcıları getir
+export const getUsers = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const admins = await prisma.admin.findMany({
-      select: {
-        AdminID: true,
-        Ad: true,
-        Soyad: true,
-        Email: true,
-        KullaniciAdi: true,
-        Telefon: true,
-        AktifMi: true,
-        OlusturmaTarihi: true,
+    const { role, kursId, aktif } = req.query;
+
+    const users = await prisma.user.findMany({
+      where: {
+        ...(role && { role: role as string }),
+        ...(kursId && { kursId: kursId as string }),
+        ...(aktif !== undefined && { aktif: aktif === 'true' }),
       },
+      include: {
+        kurs: true,
+        sinif: true,
+      },
+      orderBy: { createdAt: 'desc' },
     });
-    res.json({ success: true, data: { admins } });
+
+    res.json({ success: true, data: users });
   } catch (error) {
-    console.error('GetAllAdmins error:', error);
-    res.status(500).json({ success: false, error: 'Adminler alınamadı' });
+    console.error('Get users error:', error);
+    res.status(500).json({ success: false, error: 'Kullanıcılar getirilemedi' });
   }
 };
 
-// Tüm kursları getir
-export const getAllKurslar = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const kurslar = await prisma.kurs.findMany({
-      select: {
-        KursID: true,
-        KursAdi: true,
-        Adres: true,
-        Telefon: true,
-        Email: true,
-        KullaniciAdi: true,
-        AktifMi: true,
-        KayitTarihi: true,
-      },
-    });
-    res.json({ success: true, data: { kurslar } });
-  } catch (error) {
-    console.error('GetAllKurslar error:', error);
-    res.status(500).json({ success: false, error: 'Kurslar alınamadı' });
-  }
-};
-
-// Kurs detayı
-export const getKursById = async (req: AuthRequest, res: Response): Promise<void> => {
+// Tek kullanıcı getir
+export const getUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const kurs = await prisma.kurs.findUnique({
-      where: { KursID: parseInt(id) },
+
+    const user = await prisma.user.findUnique({
+      where: { id },
+      include: {
+        kurs: true,
+        sinif: true,
+      },
     });
 
-    if (!kurs) {
-      res.status(404).json({ success: false, error: 'Kurs bulunamadı' });
+    if (!user) {
+      res.status(404).json({ success: false, error: 'Kullanıcı bulunamadı' });
       return;
     }
 
-    res.json({ success: true, data: { kurs } });
+    res.json({ success: true, data: user });
   } catch (error) {
-    console.error('GetKursById error:', error);
-    res.status(500).json({ success: false, error: 'Kurs bilgisi alınamadı' });
+    console.error('Get user error:', error);
+    res.status(500).json({ success: false, error: 'Kullanıcı getirilemedi' });
   }
 };
 
-// Kursa ait öğretmenler
-export const getOgretmenlerByKurs = async (req: AuthRequest, res: Response): Promise<void> => {
+// Kullanıcı oluştur
+export const createUser = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { kursId } = req.params;
-    const ogretmenler = await prisma.ogretmen.findMany({
-      where: { KursID: parseInt(kursId) },
-      select: {
-        OgretmenID: true,
-        Ad: true,
-        Soyad: true,
-        Email: true,
-        Telefon: true,
-        BransID: true,
-        EgitimKocuMu: true,
-        AktifMi: true,
-      },
-    });
-    res.json({ success: true, data: { ogretmenler } });
-  } catch (error) {
-    console.error('GetOgretmenlerByKurs error:', error);
-    res.status(500).json({ success: false, error: 'Öğretmenler alınamadı' });
-  }
-};
+    const { email, password, ad, soyad, telefon, role, kursId, sinifId, brans } = req.body;
 
-// Kursa ait öğrenciler
-export const getOgrencilerByKurs = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const { kursId } = req.params;
-    const ogrenciler = await prisma.ogrenci.findMany({
-      where: { KursID: parseInt(kursId) },
-      select: {
-        OgrenciID: true,
-        Ad: true,
-        Soyad: true,
-        SinifID: true,
-        Seviye: true,
-        OkulTuru: true,
-        AktifMi: true,
-      },
-    });
-    res.json({ success: true, data: { ogrenciler } });
-  } catch (error) {
-    console.error('GetOgrencilerByKurs error:', error);
-    res.status(500).json({ success: false, error: 'Öğrenciler alınamadı' });
-  }
-};
-
-// Yeni kurs oluştur
-export const createKurs = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const { kursAdi, adres, telefon, email, kullaniciAdi, sifre } = req.body;
-
-    // Kullanıcı adı kontrolü
-    const existingKurs = await prisma.kurs.findUnique({
-      where: { KullaniciAdi: kullaniciAdi }
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
     });
 
-    if (existingKurs) {
-      res.status(400).json({ success: false, error: 'Bu kullanıcı adı zaten kullanılıyor' });
+    if (existingUser) {
+      res.status(400).json({ success: false, error: 'Bu email zaten kullanılıyor' });
       return;
     }
 
-    const hashedPassword = await bcrypt.hash(sifre, 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = await prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        ad,
+        soyad,
+        telefon,
+        role,
+        kursId,
+        sinifId,
+        brans,
+      },
+      include: {
+        kurs: true,
+        sinif: true,
+      },
+    });
+
+    res.status(201).json({ success: true, data: user });
+  } catch (error) {
+    console.error('Create user error:', error);
+    res.status(500).json({ success: false, error: 'Kullanıcı oluşturulamadı' });
+  }
+};
+
+// Kullanıcı güncelle
+export const updateUser = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { ad, soyad, telefon, email, kursId, sinifId, brans, aktif } = req.body;
+
+    const user = await prisma.user.update({
+      where: { id },
+      data: {
+        ...(ad && { ad }),
+        ...(soyad && { soyad }),
+        ...(telefon && { telefon }),
+        ...(email && { email }),
+        ...(kursId && { kursId }),
+        ...(sinifId && { sinifId }),
+        ...(brans && { brans }),
+        ...(aktif !== undefined && { aktif }),
+      },
+      include: {
+        kurs: true,
+        sinif: true,
+      },
+    });
+
+    res.json({ success: true, data: user });
+  } catch (error) {
+    console.error('Update user error:', error);
+    res.status(500).json({ success: false, error: 'Kullanıcı güncellenemedi' });
+  }
+};
+
+// Kullanıcı sil (soft delete)
+export const deleteUser = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    await prisma.user.update({
+      where: { id },
+      data: { aktif: false },
+    });
+
+    res.json({ success: true, message: 'Kullanıcı silindi' });
+  } catch (error) {
+    console.error('Delete user error:', error);
+    res.status(500).json({ success: false, error: 'Kullanıcı silinemedi' });
+  }
+};
+
+// Kursları getir
+export const getKurslar = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const kurslar = await prisma.kurs.findMany({
+      where: { aktif: true },
+      include: {
+        siniflar: true,
+        _count: {
+          select: { users: true },
+        },
+      },
+    });
+
+    res.json({ success: true, data: kurslar });
+  } catch (error) {
+    console.error('Get kurslar error:', error);
+    res.status(500).json({ success: false, error: 'Kurslar getirilemedi' });
+  }
+};
+
+// Kurs oluştur
+export const createKurs = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { ad, adres, telefon } = req.body;
 
     const kurs = await prisma.kurs.create({
       data: {
-        KursAdi: kursAdi,
-        Adres: adres,
-        Telefon: telefon,
-        Email: email,
-        KullaniciAdi: kullaniciAdi,
-        Sifre: hashedPassword,
-        SifreDegistirildiMi: false,
-        AktifMi: true,
+        ad,
+        adres,
+        telefon,
       },
     });
 
-    res.status(201).json({ success: true, data: { kurs }, message: 'Kurs başarıyla oluşturuldu' });
+    res.status(201).json({ success: true, data: kurs });
   } catch (error) {
-    console.error('CreateKurs error:', error);
+    console.error('Create kurs error:', error);
     res.status(500).json({ success: false, error: 'Kurs oluşturulamadı' });
   }
 };
 
-// Kurs güncelle
-export const updateKurs = async (req: AuthRequest, res: Response): Promise<void> => {
+// Sınıfları getir
+export const getSiniflar = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
-    const { kursAdi, adres, telefon, email, aktifMi } = req.body;
+    const { kursId } = req.query;
 
-    const kurs = await prisma.kurs.update({
-      where: { KursID: parseInt(id) },
-      data: {
-        KursAdi: kursAdi,
-        Adres: adres,
-        Telefon: telefon,
-        Email: email,
-        AktifMi: aktifMi,
+    const siniflar = await prisma.sinif.findMany({
+      where: {
+        ...(kursId && { kursId: kursId as string }),
+        aktif: true,
+      },
+      include: {
+        kurs: true,
+        _count: {
+          select: { ogrenciler: true },
+        },
       },
     });
 
-    res.json({ success: true, data: { kurs }, message: 'Kurs başarıyla güncellendi' });
+    res.json({ success: true, data: siniflar });
   } catch (error) {
-    console.error('UpdateKurs error:', error);
-    res.status(500).json({ success: false, error: 'Kurs güncellenemedi' });
+    console.error('Get siniflar error:', error);
+    res.status(500).json({ success: false, error: 'Sınıflar getirilemedi' });
   }
 };
 
-// Kurs istatistikleri
-export const getKursStats = async (req: AuthRequest, res: Response): Promise<void> => {
+// İstatistikler
+export const getStats = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { kursId } = req.params;
+    const kursId = req.user?.kursId;
 
-    const [ogrenciCount, ogretmenCount, sinifCount, mudurCount, sekreterCount] = await Promise.all([
-      prisma.ogrenci.count({ where: { KursID: parseInt(kursId), AktifMi: true } }),
-      prisma.ogretmen.count({ where: { KursID: parseInt(kursId), AktifMi: true } }),
-      prisma.sinif.count({ where: { KursID: parseInt(kursId) } }),
-      prisma.mudur.count({ where: { KursID: parseInt(kursId), AktifMi: true } }),
-      prisma.sekreter.count({ where: { KursID: parseInt(kursId), AktifMi: true } }),
+    const [
+      toplamOgrenci,
+      toplamOgretmen,
+      toplamSinif,
+      toplamKurs,
+    ] = await Promise.all([
+      prisma.user.count({
+        where: {
+          role: 'OGRENCI',
+          aktif: true,
+          ...(kursId && { kursId }),
+        },
+      }),
+      prisma.user.count({
+        where: {
+          role: 'OGRETMEN',
+          aktif: true,
+          ...(kursId && { kursId }),
+        },
+      }),
+      prisma.sinif.count({
+        where: {
+          aktif: true,
+          ...(kursId && { kursId }),
+        },
+      }),
+      prisma.kurs.count({
+        where: { aktif: true },
+      }),
     ]);
 
     res.json({
       success: true,
       data: {
-        ogrenciSayisi: ogrenciCount,
-        ogretmenSayisi: ogretmenCount,
-        sinifSayisi: sinifCount,
-        mudurSayisi: mudurCount,
-        sekreterSayisi: sekreterCount,
-      },
-    });
-  } catch (error) {
-    console.error('GetKursStats error:', error);
-    res.status(500).json({ success: false, error: 'Kurs istatistikleri alınamadı' });
-  }
-};
-
-// Genel sistem istatistikleri (Admin için)
-export const getSystemStats = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const [kursCount, toplamOgrenci, toplamOgretmen, toplamMudur] = await Promise.all([
-      prisma.kurs.count({ where: { AktifMi: true } }),
-      prisma.ogrenci.count({ where: { AktifMi: true } }),
-      prisma.ogretmen.count({ where: { AktifMi: true } }),
-      prisma.mudur.count({ where: { AktifMi: true } }),
-    ]);
-
-    res.json({
-      success: true,
-      data: {
-        kursSayisi: kursCount,
         toplamOgrenci,
         toplamOgretmen,
-        toplamMudur,
+        toplamSinif,
+        toplamKurs,
       },
     });
   } catch (error) {
-    console.error('GetSystemStats error:', error);
-    res.status(500).json({ success: false, error: 'Sistem istatistikleri alınamadı' });
-  }
-};
-
-// Tüm branşları getir
-export const getAllBranslar = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const branslar = await prisma.brans.findMany({
-      orderBy: { BransAdi: 'asc' }
-    });
-    res.json({ success: true, data: { branslar } });
-  } catch (error) {
-    console.error('GetAllBranslar error:', error);
-    res.status(500).json({ success: false, error: 'Branşlar alınamadı' });
-  }
-};
-
-// Tüm müdürleri getir
-export const getAllMudurler = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const mudurler = await prisma.mudur.findMany({
-      select: {
-        MudurID: true,
-        KursID: true,
-        Ad: true,
-        Soyad: true,
-        Email: true,
-        Telefon: true,
-        KullaniciAdi: true,
-        AktifMi: true,
-        KayitTarihi: true,
-      },
-      orderBy: { KayitTarihi: 'desc' }
-    });
-    res.json({ success: true, data: { mudurler } });
-  } catch (error) {
-    console.error('GetAllMudurler error:', error);
-    res.status(500).json({ success: false, error: 'Müdürler alınamadı' });
-  }
-};
-
-// Tüm öğretmenleri getir
-export const getAllOgretmenler = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const ogretmenler = await prisma.ogretmen.findMany({
-      select: {
-        OgretmenID: true,
-        KursID: true,
-        BransID: true,
-        Ad: true,
-        Soyad: true,
-        Email: true,
-        Telefon: true,
-        EgitimKocuMu: true,
-        KullaniciAdi: true,
-        AktifMi: true,
-        KayitTarihi: true,
-      },
-      orderBy: { KayitTarihi: 'desc' }
-    });
-    res.json({ success: true, data: { ogretmenler } });
-  } catch (error) {
-    console.error('GetAllOgretmenler error:', error);
-    res.status(500).json({ success: false, error: 'Öğretmenler alınamadı' });
-  }
-};
-
-// Tüm sekreterleri getir
-export const getAllSekreterler = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const sekreterler = await prisma.sekreter.findMany({
-      select: {
-        SekreterID: true,
-        KursID: true,
-        Ad: true,
-        Soyad: true,
-        Email: true,
-        Telefon: true,
-        KullaniciAdi: true,
-        AktifMi: true,
-        KayitTarihi: true,
-      },
-      orderBy: { KayitTarihi: 'desc' }
-    });
-    res.json({ success: true, data: { sekreterler } });
-  } catch (error) {
-    console.error('GetAllSekreterler error:', error);
-    res.status(500).json({ success: false, error: 'Sekreterler alınamadı' });
-  }
-};
-
-// Placeholder fonksiyonlar (eski route'lar için)
-export const getAllUsers = async (req: AuthRequest, res: Response): Promise<void> => {
-  res.json({ success: true, message: 'Bu endpoint güncelleniyor' });
-};
-
-export const getUserById = async (req: AuthRequest, res: Response): Promise<void> => {
-  res.json({ success: true, message: 'Bu endpoint güncelleniyor' });
-};
-
-export const updateUser = async (req: AuthRequest, res: Response): Promise<void> => {
-  res.json({ success: true, message: 'Bu endpoint güncelleniyor' });
-};
-
-export const deleteUser = async (req: AuthRequest, res: Response): Promise<void> => {
-  res.json({ success: true, message: 'Bu endpoint güncelleniyor' });
-};
-
-// Profil güncelle (Admin)
-export const updateProfil = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const userId = req.user?.userId;
-    const userRole = req.user?.role;
-    const { ad, soyad, email, telefon, profilFoto } = req.body;
-
-    if (!userId) {
-      res.status(401).json({ success: false, error: 'Yetkilendirme gerekli' });
-      return;
-    }
-
-    if (userRole === 'ADMIN') {
-      await prisma.admin.update({
-        where: { AdminID: userId },
-        data: {
-          Ad: ad,
-          Soyad: soyad,
-          Email: email,
-          Telefon: telefon,
-        },
-      });
-    } else if (userRole === 'KURS') {
-      await prisma.kurs.update({
-        where: { KursID: userId },
-        data: {
-          Email: email,
-          Telefon: telefon,
-        },
-      });
-    } else if (userRole === 'MUDUR') {
-      await prisma.mudur.update({
-        where: { MudurID: userId },
-        data: {
-          Ad: ad,
-          Soyad: soyad,
-          Email: email,
-          Telefon: telefon,
-        },
-      });
-    } else if (userRole === 'OGRETMEN') {
-      await prisma.ogretmen.update({
-        where: { OgretmenID: userId },
-        data: {
-          Ad: ad,
-          Soyad: soyad,
-          Email: email,
-          Telefon: telefon,
-        },
-      });
-    } else if (userRole === 'SEKRETER') {
-      await prisma.sekreter.update({
-        where: { SekreterID: userId },
-        data: {
-          Ad: ad,
-          Soyad: soyad,
-          Email: email,
-          Telefon: telefon,
-        },
-      });
-    }
-
-    res.json({ success: true, message: 'Profil başarıyla güncellendi' });
-  } catch (error) {
-    console.error('UpdateProfil error:', error);
-    res.status(500).json({ success: false, error: 'Profil güncellenemedi' });
+    console.error('Get stats error:', error);
+    res.status(500).json({ success: false, error: 'İstatistikler getirilemedi' });
   }
 };
