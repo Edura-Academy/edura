@@ -1,7 +1,7 @@
 import { Request } from 'express';
 
 // Kullanıcı Rolleri
-export type UserRole = 'ADMIN' | 'MUDUR' | 'OGRETMEN' | 'SEKRETER' | 'OGRENCI';
+export type UserRole = 'admin' | 'mudur' | 'ogretmen' | 'sekreter' | 'ogrenci';
 
 // JWT Payload
 export interface JwtPayload {

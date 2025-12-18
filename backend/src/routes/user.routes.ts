@@ -21,13 +21,13 @@ router.use(authenticateToken);
 router.get('/', getUsers);
 router.get('/stats', getStats);
 router.get('/:id', getUser);
-router.post('/', authorizeRoles('ADMIN', 'MUDUR'), createUser);
+router.post('/', authorizeRoles('admin', 'mudur'), createUser);
 router.put('/:id', updateUser);
-router.delete('/:id', authorizeRoles('ADMIN'), deleteUser);
+router.delete('/:id', authorizeRoles('admin'), deleteUser);
 
 // Kurslar
 router.get('/kurslar', getKurslar);
-router.post('/kurslar', authorizeRoles('ADMIN'), createKurs);
+router.post('/kurslar', authorizeRoles('admin'), createKurs);
 
 // Sınıflar
 router.get('/siniflar', getSiniflar);

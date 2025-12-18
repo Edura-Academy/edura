@@ -1,5 +1,5 @@
 // Kullanıcı Rolleri
-export type UserRole = 'ADMIN' | 'MUDUR' | 'OGRETMEN' | 'OGRENCI';
+export type UserRole = 'admin' | 'mudur' | 'ogretmen' | 'sekreter' | 'ogrenci';
 
 // Okul Türü
 export type SchoolType = 'ORTAOKUL' | 'LISE';

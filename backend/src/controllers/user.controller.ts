@@ -221,14 +221,14 @@ export const getStats = async (req: AuthRequest, res: Response): Promise<void> =
     ] = await Promise.all([
       prisma.user.count({
         where: {
-          role: 'OGRENCI',
+          role: 'ogrenci',
           aktif: true,
           ...(kursId && { kursId }),
         },
       }),
       prisma.user.count({
         where: {
-          role: 'OGRETMEN',
+          role: 'ogretmen',
           aktif: true,
           ...(kursId && { kursId }),
         },

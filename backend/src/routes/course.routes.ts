@@ -20,16 +20,16 @@ router.use(authenticateToken);
 // Dersler
 router.get('/', getCourses);
 router.get('/:id', getCourse);
-router.post('/', authorizeRoles('ADMIN', 'MUDUR', 'OGRETMEN'), createCourse);
-router.put('/:id', authorizeRoles('ADMIN', 'MUDUR', 'OGRETMEN'), updateCourse);
-router.delete('/:id', authorizeRoles('ADMIN', 'MUDUR'), deleteCourse);
+router.post('/', authorizeRoles('admin', 'mudur', 'ogretmen'), createCourse);
+router.put('/:id', authorizeRoles('admin', 'mudur', 'ogretmen'), updateCourse);
+router.delete('/:id', authorizeRoles('admin', 'mudur'), deleteCourse);
 
 // Ders kayıtları
-router.post('/enroll', authorizeRoles('ADMIN', 'MUDUR', 'SEKRETER'), enrollStudent);
+router.post('/enroll', authorizeRoles('admin', 'mudur', 'sekreter'), enrollStudent);
 
 // Sınavlar
 router.get('/exams', getExams);
-router.post('/exams', authorizeRoles('ADMIN', 'MUDUR', 'OGRETMEN'), createExam);
-router.post('/exams/result', authorizeRoles('ADMIN', 'MUDUR', 'OGRETMEN'), addExamResult);
+router.post('/exams', authorizeRoles('admin', 'mudur', 'ogretmen'), createExam);
+router.post('/exams/result', authorizeRoles('admin', 'mudur', 'ogretmen'), addExamResult);
 
 export default router;
