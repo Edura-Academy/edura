@@ -1,5 +1,6 @@
 import * as admin from 'firebase-admin';
 import * as path from 'path';
+import * as fs from 'fs';
 import dotenv from 'dotenv';
 
 // .env dosyasını yükle (backend klasöründen)
@@ -10,19 +11,28 @@ const serviceAccountPath = path.join(__dirname, '../../firebase-service-account.
 
 // Bucket adını kontrol et
 const bucketName = process.env.FIREBASE_STORAGE_BUCKET;
-if (!bucketName) {
-  console.error('⚠️ FIREBASE_STORAGE_BUCKET environment variable is not set!');
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let bucket: any = null;
+
+// Firebase service account dosyası var mı kontrol et
+const firebaseEnabled = fs.existsSync(serviceAccountPath);
+
+if (firebaseEnabled) {
+  // Firebase'i başlat (henüz başlatılmamışsa)
+  if (!admin.apps.length) {
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccountPath),
+      storageBucket: bucketName
+    });
+  }
+  
+  // Storage bucket referansı
+  bucket = admin.storage().bucket();
+  console.log('✅ Firebase initialized successfully');
+} else {
+  console.log('⚠️ Firebase service account not found - Firebase features disabled');
+  console.log('   To enable Firebase, add firebase-service-account.json to backend folder');
 }
 
-// Firebase'i başlat (henüz başlatılmamışsa)
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccountPath),
-    storageBucket: bucketName
-  });
-}
-
-// Storage bucket referansı
-const bucket = admin.storage().bucket();
-
-export { admin, bucket };
+export { admin, bucket, firebaseEnabled };

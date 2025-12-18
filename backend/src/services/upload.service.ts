@@ -1,4 +1,4 @@
-import { bucket } from '../config/firebase';
+import { bucket, firebaseEnabled } from '../config/firebase';
 import { v4 as uuidv4 } from 'uuid';
 import * as path from 'path';
 
@@ -15,6 +15,14 @@ export const uploadToFirebase = async (
   file: Express.Multer.File,
   folder: string = 'profiles'
 ): Promise<UploadResult> => {
+  // Firebase etkin değilse hata döndür
+  if (!firebaseEnabled || !bucket) {
+    return {
+      success: false,
+      error: 'Firebase Storage is not configured. File upload disabled.',
+    };
+  }
+
   try {
     // Benzersiz dosya adı oluştur
     const fileExtension = path.extname(file.originalname);
@@ -52,6 +60,11 @@ export const uploadToFirebase = async (
  * Firebase Storage'dan dosya siler
  */
 export const deleteFromFirebase = async (fileUrl: string): Promise<boolean> => {
+  // Firebase etkin değilse false döndür
+  if (!firebaseEnabled || !bucket) {
+    return false;
+  }
+
   try {
     // URL'den dosya yolunu çıkar
     const bucketName = bucket.name;

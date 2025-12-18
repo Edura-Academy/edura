@@ -41,7 +41,7 @@ export default function AyarlarPage() {
     }
 
     const parsedUser = JSON.parse(storedUser);
-    if (parsedUser.role !== 'ADMIN') {
+    if (parsedUser.role !== 'admin') {
       router.push('/login/admin');
       return;
     }

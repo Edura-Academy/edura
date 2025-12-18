@@ -11,11 +11,11 @@ datasource db {
 }
 
 enum Role {
-  ADMIN
-  MUDUR
-  OGRETMEN
-  SEKRETER
-  OGRENCI
+  admin
+  mudur
+  ogretmen
+  sekreter
+  ogrenci
 }
 
 enum SinifTipi {
@@ -38,6 +38,19 @@ enum ExamType {
   DENEME
   SINAV
   QUIZ
+}
+
+enum OdevDurum {
+  BEKLEMEDE
+  TESLIM_EDILDI
+  DEGERLENDIRILDI
+}
+
+enum YoklamaDurum {
+  KATILDI
+  KATILMADI
+  GEC_KALDI
+  IZINLI
 }
 
 // Kurslar/Şubeler
@@ -79,17 +92,27 @@ model User {
   sinif             Sinif?   @relation(fields: [sinifId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   ogrenciNo         String?  @unique
   
+  // Veli bilgileri (öğrenci için)
+  veliAd            String?
+  veliSoyad         String?
+  veliTelefon       String?
+  veliEmail         String?
+  
   // Öğretmen özellikleri
   brans             String?
   
   // İlişkiler
   gonderdigiMesajlar    Message[] @relation("GonderenMesajlar")
   aldigiMesajlar        Message[] @relation("AlanMesajlar")
+  konusmaUyelikleri     ConversationMember[]
   bildirimleri          Notification[]
   sinavSonuclari        ExamResult[]
   dersKayitlari         CourseEnrollment[]
   ogretmenDersleri      Course[] @relation("OgretmenDersler")
   devamsizliklar        Devamsizlik[]
+  yoklamalari           Yoklama[]
+  ogretmenOdevleri      Odev[] @relation("OgretmenOdevler")
+  odevTeslimleri        OdevTeslim[]
   
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -139,6 +162,8 @@ model Course {
   kayitlar        CourseEnrollment[]
   sinavlar        Exam[]
   devamsizliklar  Devamsizlik[]
+  yoklamalar      Yoklama[]
+  odevler         Odev[]
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -225,24 +250,101 @@ model Devamsizlik {
   @@index([tarih])
 }
 
-// Mesajlaşma sistemi
-model Message {
-  id          String        @id @default(uuid())
-  gonderenId  String
-  gonderen    User          @relation("GonderenMesajlar", fields: [gonderenId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  alanId      String
-  alan        User          @relation("AlanMesajlar", fields: [alanId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  baslik      String
-  icerik      String
-  durum       MessageStatus @default(OKUNMADI)
-  
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+// Mesajlaşma sistemi - Konuşmalar (1-1 ve Grup)
+enum ConversationType {
+  OZEL       // 1-1 özel mesaj
+  SINIF      // Sınıf grubu
+  OGRETMEN   // Öğretmen grubu (aynı kursta)
+  PERSONEL   // Personel grubu (müdür, sekreter, öğretmen)
+  OZEL_GRUP  // Özel oluşturulan grup
+}
 
+model Conversation {
+  id            String           @id @default(uuid())
+  tip           ConversationType
+  ad            String?          // Grup adı (1-1 için null)
+  aciklama      String?
+  resimUrl      String?
+  olusturanId   String?
+  
+  // Sınıf grubu için
+  sinifId       String?
+  
+  uyeler        ConversationMember[]
+  mesajlar      Message[]
+  
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([tip])
+  @@index([sinifId])
+  @@index([createdAt])
+}
+
+model ConversationMember {
+  id              String       @id @default(uuid())
+  conversationId  String
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User         @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  rolAd           String?      // Grup içi rol: admin, uye
+  seslesiz        Boolean      @default(false) // Bildirimleri kapat
+  sabitle         Boolean      @default(false) // Konuşmayı sabitle
+  sonGorulenMesajId String?
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([conversationId, userId])
+  @@index([conversationId])
+  @@index([userId])
+}
+
+model Message {
+  id              String        @id @default(uuid())
+  conversationId  String
+  conversation    Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  gonderenId      String
+  gonderen        User          @relation("GonderenMesajlar", fields: [gonderenId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  // Eski 1-1 mesaj sistemi için geriye uyumluluk
+  alanId          String?
+  alan            User?         @relation("AlanMesajlar", fields: [alanId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  icerik          String        @db.Text
+  baslik          String?
+  durum           MessageStatus @default(OKUNMADI)
+  
+  // Ek özellikler
+  dosyaUrl        String?
+  dosyaTip        String?       // image, document, audio
+  yanitladigiMesajId String?    // Yanıt verilen mesaj
+  duzenlendi      Boolean       @default(false)
+  silindi         Boolean       @default(false)
+  
+  okuyanlar       MessageRead[]
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([conversationId])
   @@index([gonderenId])
   @@index([alanId])
   @@index([durum])
   @@index([createdAt])
+}
+
+// Mesaj okunma durumu (grup mesajları için)
+model MessageRead {
+  id          String   @id @default(uuid())
+  mesajId     String
+  mesaj       Message  @relation(fields: [mesajId], references: [id], onDelete: Cascade)
+  userId      String
+  okunmaTarihi DateTime @default(now())
+  
+  @@unique([mesajId, userId])
+  @@index([mesajId])
+  @@index([userId])
 }
 
 // Bildirimler
@@ -264,4 +366,70 @@ model Notification {
   @@index([userId])
   @@index([okundu])
   @@index([createdAt])
+}
+
+// Yoklama kayıtları - Öğretmen tarafından alınır
+model Yoklama {
+  id          String       @id @default(uuid())
+  ogrenciId   String
+  ogrenci     User         @relation(fields: [ogrenciId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  courseId    String
+  course      Course       @relation(fields: [courseId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tarih       DateTime     @default(now())
+  durum       YoklamaDurum
+  aciklama    String?
+  
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@unique([ogrenciId, courseId, tarih])
+  @@index([ogrenciId])
+  @@index([courseId])
+  @@index([tarih])
+}
+
+// Ödevler - Öğretmen tarafından verilir
+model Odev {
+  id              String    @id @default(uuid())
+  baslik          String
+  aciklama        String?
+  courseId        String
+  course          Course    @relation(fields: [courseId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ogretmenId      String
+  ogretmen        User      @relation("OgretmenOdevler", fields: [ogretmenId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sonTeslimTarihi DateTime
+  maxPuan         Int       @default(100)
+  aktif           Boolean   @default(true)
+  
+  teslimler       OdevTeslim[]
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([courseId])
+  @@index([ogretmenId])
+  @@index([sonTeslimTarihi])
+}
+
+// Ödev teslimleri - Öğrenci tarafından teslim edilir, Öğretmen tarafından değerlendirilir
+model OdevTeslim {
+  id          String    @id @default(uuid())
+  odevId      String
+  odev        Odev      @relation(fields: [odevId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ogrenciId   String
+  ogrenci     User      @relation(fields: [ogrenciId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  teslimTarihi DateTime @default(now())
+  dosyaUrl    String?
+  aciklama    String?
+  durum       OdevDurum @default(BEKLEMEDE)
+  puan        Int?
+  ogretmenYorumu String?
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([odevId, ogrenciId])
+  @@index([odevId])
+  @@index([ogrenciId])
+  @@index([durum])
 }
