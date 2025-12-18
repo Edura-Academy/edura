@@ -27,10 +27,87 @@ export default function LoginPage() {
     return () => clearInterval(interval);
   }, []);
 
+  // BYPASS: Test için hızlı giriş butonları
+  const [showBypass, setShowBypass] = useState(false);
+
+  // Bypass kullanıcıları - TEST İÇİN
+  const bypassUsers = {
+    admin: {
+      id: 'bypass-admin',
+      email: 'admin@edura.com',
+      ad: 'Admin',
+      soyad: 'Test',
+      role: 'ADMIN',
+      kursId: null,
+      kursAd: 'Sistem',
+    },
+    mudur: {
+      id: 'bypass-mudur',
+      email: 'mudur@edura.com',
+      ad: 'Müdür',
+      soyad: 'Test',
+      role: 'MUDUR',
+      brans: null,
+      kursId: '1',
+      kursAd: 'Edura Merkez',
+    },
+    ogretmen: {
+      id: 'bypass-ogretmen',
+      email: 'ogretmen@edura.com',
+      ad: 'Öğretmen',
+      soyad: 'Test',
+      role: 'OGRETMEN',
+      brans: 'Matematik',
+      kursId: '1',
+      kursAd: 'Edura Merkez',
+    },
+    sekreter: {
+      id: 'bypass-sekreter',
+      email: 'sekreter@edura.com',
+      ad: 'Sekreter',
+      soyad: 'Test',
+      role: 'SEKRETER',
+      kursId: '1',
+      kursAd: 'Edura Merkez',
+    },
+    ogrenci: {
+      id: 'bypass-ogrenci',
+      email: 'ogrenci@edura.com',
+      ad: 'Öğrenci',
+      soyad: 'Test',
+      role: 'OGRENCI',
+      sinif: '10-A',
+      kursId: '1',
+      kursAd: 'Edura Merkez',
+    },
+  };
+
+  const handleBypassLogin = (role: keyof typeof bypassUsers) => {
+    const user = bypassUsers[role];
+    localStorage.setItem('token', 'bypass-token-' + role);
+    localStorage.setItem('user', JSON.stringify(user));
+    
+    // Role göre yönlendir
+    if (role === 'admin') {
+      router.push('/admin');
+    } else if (role === 'ogrenci') {
+      router.push('/ogrenci');
+    } else {
+      router.push('/personel');
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
+
+    // BYPASS: hasan / 123 ile test girişi
+    if (kullaniciAdi === 'hasan' && sifre === '123') {
+      setShowBypass(true);
+      setLoading(false);
+      return;
+    }
 
     // Personel seçildiyse sırayla tüm personel tablolarında ara
     const personelTurleri = ['kurs', 'mudur', 'ogretmen', 'sekreter'];
@@ -262,6 +339,100 @@ export default function LoginPage() {
           />
         ))}
       </div>
+
+      {/* BYPASS Modal - Test için rol seçimi */}
+      {showBypass && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center justify-center w-12 h-12 bg-yellow-100 rounded-full mb-3">
+                <span className="text-2xl">🔓</span>
+              </div>
+              <h3 className="text-xl font-bold text-gray-800">Test Girişi</h3>
+              <p className="text-gray-500 text-sm mt-1">Hangi rol ile giriş yapmak istersiniz?</p>
+            </div>
+
+            <div className="space-y-3">
+              {/* Admin */}
+              <button
+                onClick={() => handleBypassLogin('admin')}
+                className="w-full p-4 rounded-xl border-2 border-gray-200 hover:border-purple-500 hover:bg-purple-50 transition-all flex items-center gap-4"
+              >
+                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                  <span className="text-xl">👑</span>
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-gray-800">Admin</p>
+                  <p className="text-sm text-gray-500">Sistem yöneticisi</p>
+                </div>
+              </button>
+
+              {/* Müdür */}
+              <button
+                onClick={() => handleBypassLogin('mudur')}
+                className="w-full p-4 rounded-xl border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all flex items-center gap-4"
+              >
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                  <span className="text-xl">🏢</span>
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-gray-800">Müdür</p>
+                  <p className="text-sm text-gray-500">Kurum yöneticisi</p>
+                </div>
+              </button>
+
+              {/* Öğretmen */}
+              <button
+                onClick={() => handleBypassLogin('ogretmen')}
+                className="w-full p-4 rounded-xl border-2 border-gray-200 hover:border-green-500 hover:bg-green-50 transition-all flex items-center gap-4"
+              >
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                  <span className="text-xl">👨‍🏫</span>
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-gray-800">Öğretmen</p>
+                  <p className="text-sm text-gray-500">Matematik öğretmeni</p>
+                </div>
+              </button>
+
+              {/* Sekreter */}
+              <button
+                onClick={() => handleBypassLogin('sekreter')}
+                className="w-full p-4 rounded-xl border-2 border-gray-200 hover:border-orange-500 hover:bg-orange-50 transition-all flex items-center gap-4"
+              >
+                <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                  <span className="text-xl">📋</span>
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-gray-800">Sekreter</p>
+                  <p className="text-sm text-gray-500">İdari işler</p>
+                </div>
+              </button>
+
+              {/* Öğrenci */}
+              <button
+                onClick={() => handleBypassLogin('ogrenci')}
+                className="w-full p-4 rounded-xl border-2 border-gray-200 hover:border-cyan-500 hover:bg-cyan-50 transition-all flex items-center gap-4"
+              >
+                <div className="w-12 h-12 bg-cyan-100 rounded-full flex items-center justify-center">
+                  <span className="text-xl">🎓</span>
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-gray-800">Öğrenci</p>
+                  <p className="text-sm text-gray-500">10-A sınıfı</p>
+                </div>
+              </button>
+            </div>
+
+            <button
+              onClick={() => setShowBypass(false)}
+              className="w-full mt-4 py-2 text-gray-500 hover:text-gray-700 text-sm"
+            >
+              İptal
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
