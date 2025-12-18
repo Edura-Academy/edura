@@ -7,7 +7,7 @@ export interface AuthRequest extends Request {
   user?: {
     id: string;
     email: string;
-    role: 'ADMIN' | 'MUDUR' | 'OGRETMEN' | 'SEKRETER' | 'OGRENCI';
+    role: 'admin' | 'mudur' | 'ogretmen' | 'sekreter' | 'ogrenci';
   };
 }
 
@@ -39,15 +39,15 @@ export const authorize = (...roles: string[]) => {
 };
 
 // Sadece Müdür
-export const mudurOnly = authorize('MUDUR');
+export const mudurOnly = authorize('mudur');
 
 // Müdür ve Sekreter
-export const mudurVeSekreter = authorize('MUDUR', 'SEKRETER');
+export const mudurVeSekreter = authorize('mudur', 'sekreter');
 
 // Öğretmen, Müdür ve Sekreter
-export const ogretmenVeYukarisi = authorize('MUDUR', 'SEKRETER', 'OGRETMEN');
+export const ogretmenVeYukarisi = authorize('mudur', 'sekreter', 'ogretmen');
 
 // Admin
-export const adminOnly = authorize('ADMIN');
+export const adminOnly = authorize('admin');
 
 export {};
