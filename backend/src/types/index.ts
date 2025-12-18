@@ -5,6 +5,7 @@ export type UserRole = 'admin' | 'mudur' | 'ogretmen' | 'sekreter' | 'ogrenci';
 
 // JWT Payload
 export interface JwtPayload {
+  id: string;
   userId: string;
   email: string;
   role: UserRole;
