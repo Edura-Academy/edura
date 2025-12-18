@@ -1,11 +1,12 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import prisma from '../lib/prisma';
 import { Role, ConversationType, MessageStatus } from '@prisma/client';
+import { AuthRequest } from '../types';
 
 // ==================== KONUŞMALAR ====================
 
 // Kullanıcının tüm konuşmalarını getir
-export const getConversations = async (req: Request, res: Response) => {
+export const getConversations = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     if (!userId) {
@@ -69,7 +70,7 @@ export const getConversations = async (req: Request, res: Response) => {
 };
 
 // Yeni konuşma oluştur veya mevcut olanı getir (1-1 için)
-export const createOrGetConversation = async (req: Request, res: Response) => {
+export const createOrGetConversation = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     const { targetUserId, tip = 'OZEL' } = req.body;
@@ -137,7 +138,7 @@ export const createOrGetConversation = async (req: Request, res: Response) => {
 // ==================== MESAJLAR ====================
 
 // Konuşmadaki mesajları getir
-export const getMessages = async (req: Request, res: Response) => {
+export const getMessages = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     const { conversationId } = req.params;
@@ -199,7 +200,7 @@ export const getMessages = async (req: Request, res: Response) => {
 };
 
 // Mesaj gönder
-export const sendMessage = async (req: Request, res: Response) => {
+export const sendMessage = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     const { conversationId } = req.params;
@@ -277,7 +278,7 @@ export const sendMessage = async (req: Request, res: Response) => {
 };
 
 // Mesajı okundu olarak işaretle
-export const markAsRead = async (req: Request, res: Response) => {
+export const markAsRead = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     const { conversationId } = req.params;
@@ -319,7 +320,7 @@ export const markAsRead = async (req: Request, res: Response) => {
 // ==================== GRUP KONUŞMALARI ====================
 
 // Sınıf grubu oluştur/getir
-export const getOrCreateClassGroup = async (req: Request, res: Response) => {
+export const getOrCreateClassGroup = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     const { sinifId } = req.params;

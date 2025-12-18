@@ -1,11 +1,12 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import prisma from '../lib/prisma';
 import { OdevDurum, Role } from '@prisma/client';
+import { AuthRequest } from '../types';
 
 // ==================== ÖDEV YÖNETİMİ (Öğretmen) ====================
 
 // Öğretmenin tüm ödevlerini getir
-export const getTeacherHomeworks = async (req: Request, res: Response) => {
+export const getTeacherHomeworks = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     if (!userId) {
@@ -48,7 +49,7 @@ export const getTeacherHomeworks = async (req: Request, res: Response) => {
 };
 
 // Yeni ödev oluştur
-export const createHomework = async (req: Request, res: Response) => {
+export const createHomework = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     const { baslik, aciklama, courseId, sonTeslimTarihi, maxPuan = 100 } = req.body;
@@ -113,7 +114,7 @@ export const createHomework = async (req: Request, res: Response) => {
 };
 
 // Ödev değerlendir (puan ver)
-export const gradeHomework = async (req: Request, res: Response) => {
+export const gradeHomework = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     const { teslimId } = req.params;
@@ -183,7 +184,7 @@ export const gradeHomework = async (req: Request, res: Response) => {
 // ==================== ÖĞRENCİ ÖDEVLERİ ====================
 
 // Öğrencinin ödevlerini getir
-export const getStudentHomeworks = async (req: Request, res: Response) => {
+export const getStudentHomeworks = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     if (!userId) {
@@ -231,7 +232,7 @@ export const getStudentHomeworks = async (req: Request, res: Response) => {
 };
 
 // Ödev teslim et
-export const submitHomework = async (req: Request, res: Response) => {
+export const submitHomework = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     const { odevId } = req.params;
