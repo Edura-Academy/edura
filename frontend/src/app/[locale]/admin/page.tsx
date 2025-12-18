@@ -5,6 +5,8 @@ import { useRouter, usePathname } from '@/i18n/routing';
 import { useLocale, useTranslations } from 'next-intl';
 import Modal from '@/components/Modal';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '${API_URL}';
+
 interface User {
   id: number;
   kullaniciAdi: string;
@@ -177,13 +179,13 @@ export default function AdminPage() {
   const fetchInitialData = async (token: string) => {
     try {
       const [kurslarRes, statsRes, branslarRes] = await Promise.all([
-        fetch('http://localhost:5000/api/users/kurslar', {
+        fetch('${API_URL}/users/kurslar', {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch('http://localhost:5000/api/users/stats', {
+        fetch('${API_URL}/users/stats', {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch('http://localhost:5000/api/users/branslar', {
+        fetch('${API_URL}/users/branslar', {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
@@ -215,7 +217,7 @@ export default function AdminPage() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/users/kurslar', {
+      const response = await fetch('${API_URL}/users/kurslar', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -254,7 +256,7 @@ export default function AdminPage() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/users/kurslar/${selectedKurs.KursID}`, {
+      const response = await fetch(`${API_URL}/users/kurslar/${selectedKurs.KursID}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -288,7 +290,7 @@ export default function AdminPage() {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/users/kurslar/${kurs.KursID}/stats`, {
+      const response = await fetch(`${API_URL}/users/kurslar/${kurs.KursID}/stats`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
@@ -356,7 +358,7 @@ export default function AdminPage() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/users/profil', {
+      const response = await fetch('${API_URL}/users/profil', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -408,7 +410,7 @@ export default function AdminPage() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/auth/change-password', {
+      const response = await fetch('${API_URL}/auth/change-password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -442,13 +444,13 @@ export default function AdminPage() {
     try {
       const token = localStorage.getItem('token');
       const [mudurlerRes, ogretmenlerRes, sekreterlerRes] = await Promise.all([
-        fetch('http://localhost:5000/api/users/mudurler', {
+        fetch('${API_URL}/users/mudurler', {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch('http://localhost:5000/api/users/ogretmenler', {
+        fetch('${API_URL}/users/ogretmenler', {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch('http://localhost:5000/api/users/sekreterler', {
+        fetch('${API_URL}/users/sekreterler', {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);

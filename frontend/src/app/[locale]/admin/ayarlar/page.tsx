@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from '@/i18n/routing';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '${API_URL}';
+
 interface User {
   id: number;
   kullaniciAdi: string;
@@ -56,7 +58,7 @@ export default function AyarlarPage() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/users/email', {
+      const response = await fetch('${API_URL}/users/email', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -97,7 +99,7 @@ export default function AyarlarPage() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/auth/change-password', {
+      const response = await fetch('${API_URL}/auth/change-password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -132,7 +134,7 @@ export default function AyarlarPage() {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/users/hesap', {
+      const response = await fetch('${API_URL}/users/hesap', {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,

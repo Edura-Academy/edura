@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from '@/i18n/routing';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+
 const backgrounds = [
   '/login-backgrounds/galata.jpg',
   '/login-backgrounds/Ortakoy.jpg',
@@ -32,7 +34,7 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ kullaniciAdi, sifre, kullaniciTuru: 'admin' }),
