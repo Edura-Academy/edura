@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import prisma from '../lib/prisma';
+import { Role } from '@prisma/client';
 import { AuthRequest } from '../types';
 
 // Tüm kullanıcıları getir
@@ -10,7 +11,7 @@ export const getUsers = async (req: AuthRequest, res: Response): Promise<void> =
 
     const users = await prisma.user.findMany({
       where: {
-        ...(role && { role: role as string }),
+        ...(role && { role: role as Role }),
         ...(kursId && { kursId: kursId as string }),
         ...(aktif !== undefined && { aktif: aktif === 'true' }),
       },
