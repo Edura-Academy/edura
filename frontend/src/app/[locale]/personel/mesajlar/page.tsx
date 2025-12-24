@@ -400,12 +400,77 @@ export default function MesajlarPage() {
       return tarihB.getTime() - tarihA.getTime(); // En yeni en üstte
     });
 
-  const formatTarih = (tarih: string) => {
-    const parts = tarih.split(' ');
-    if (parts.length > 1) {
-      return parts[1]?.slice(0, 5) || '';
+  // Sadece saat formatı (HH:mm)
+  const formatSaat = (tarih: string) => {
+    try {
+      const date = new Date(tarih);
+      return date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return '';
     }
-    return tarih;
+  };
+
+  // Konuşma listesi için kısa tarih
+  const formatTarih = (tarih: string) => {
+    try {
+      const date = new Date(tarih);
+      const now = new Date();
+      const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 0) {
+        return date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+      } else if (diffDays === 1) {
+        return 'Dün';
+      } else if (diffDays < 7) {
+        return date.toLocaleDateString('tr-TR', { weekday: 'long' });
+      } else {
+        return date.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      }
+    } catch {
+      return '';
+    }
+  };
+
+  // Tarih ayracı için gün etiketi (WhatsApp tarzı)
+  const getTarihAyrac = (tarih: string) => {
+    try {
+      const date = new Date(tarih);
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const messageDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const diffDays = Math.floor((today.getTime() - messageDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 0) {
+        return 'Bugün';
+      } else if (diffDays === 1) {
+        return 'Dün';
+      } else if (diffDays < 7) {
+        return date.toLocaleDateString('tr-TR', { weekday: 'long' });
+      } else {
+        return date.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      }
+    } catch {
+      return '';
+    }
+  };
+
+  // Mesajları tarihe göre grupla
+  const getMesajlarWithDateSeparators = () => {
+    const result: Array<{ type: 'date' | 'message'; content: string | Mesaj }> = [];
+    let lastDateKey = '';
+
+    mesajlar.forEach((mesaj) => {
+      const date = new Date(mesaj.tarih);
+      const dateKey = date.toLocaleDateString('tr-TR');
+      
+      if (dateKey !== lastDateKey) {
+        result.push({ type: 'date', content: getTarihAyrac(mesaj.tarih) });
+        lastDateKey = dateKey;
+      }
+      result.push({ type: 'message', content: mesaj });
+    });
+
+    return result;
   };
 
   // Konuşma tipi ikonu
@@ -421,11 +486,11 @@ export default function MesajlarPage() {
 
   // Kullanıcı grup yöneticisi mi kontrolü
   const isGrupYoneticisi = () => {
-    if (!seciliKonusma || seciliKonusma.tip === 'ozel') return false;
+    if (!seciliKonusma || seciliKonusma.tip === 'OZEL' || !currentUser) return false;
     // Personel grubunda müdürler yöneticidir
-    const currentUserName = `${mockPersonel.ad} ${mockPersonel.soyad}`;
-    const currentUser = seciliKonusma.uyeler.find(u => u.ad === currentUserName);
-    return currentUser?.rol === 'Müdür';
+    const currentUserName = `${currentUser.ad} ${currentUser.soyad}`;
+    const member = seciliKonusma.uyeler.find(u => u.ad === currentUserName);
+    return member?.grupRol === 'admin' || currentUser.role === 'mudur';
   };
 
   // Grup ayarı tıklama handler
@@ -467,15 +532,15 @@ export default function MesajlarPage() {
     }
   };
 
-  // Kullanıcıyla mesajlaşma başlat
-  const handleUyeyleMesajlasma = (uye: any) => {
+  // Kullanıcıyla mesajlaşma başlat (API ile)
+  const handleUyeyleMesajlasma = async (uye: any) => {
     setShowUyeMenu(false);
     setShowProfilPanel(false);
     setShowGrupProfil(false);
     
     // Mevcut konuşmayı kontrol et
     const mevcutKonusma = konusmalar.find(k => 
-      k.tip === 'ozel' && k.uyeler.some(u => u.ad === uye.ad)
+      k.tip === 'OZEL' && k.uyeler.some(u => u.ad === uye.ad)
     );
 
     if (mevcutKonusma) {
@@ -483,26 +548,37 @@ export default function MesajlarPage() {
       setSeciliKonusma(mevcutKonusma);
       setShowMobileSidebar(false);
     } else {
-      // Yeni konuşma oluştur ve listeye ekle
-      const yeniKonusma: PersonelKonusma = {
-        id: `ozel-${Date.now()}`,
-        tip: 'ozel',
-        ad: uye.ad,
-        sonMesaj: 'Yeni sohbet başlatıldı',
-        sonMesajTarih: new Date().toLocaleString('tr-TR'),
-        okunmamis: 0,
-        uyeler: [{
-          id: uye.id || `uye-${Date.now()}`,
-          ad: uye.ad,
-          rol: uye.rol,
-          online: uye.online || false
-        }]
-      };
-      
-      // Konuşmayı listeye ekle
-      setKonusmalar(prev => [yeniKonusma, ...prev]);
-      setSeciliKonusma(yeniKonusma);
-      setShowMobileSidebar(false);
+      // API ile yeni konuşma oluştur
+      try {
+        const response = await fetch(`${API_URL}/messages/conversations`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            targetUserId: uye.id,
+            tip: 'OZEL'
+          })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+          await fetchConversations();
+          const newConv: Konusma = {
+            id: data.data.id,
+            tip: data.data.tip,
+            ad: data.data.ad,
+            okunmamis: 0,
+            uyeler: data.data.uyeler,
+            sabitle: false,
+            seslesiz: false,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          setSeciliKonusma(newConv);
+          setShowMobileSidebar(false);
+        }
+      } catch (error) {
+        console.error('Konuşma oluşturulamadı:', error);
+      }
     }
   };
 
@@ -750,15 +826,21 @@ export default function MesajlarPage() {
               ></div>
               
               {/* Mesaj içerikleri */}
-              <div className="relative z-10 p-4 space-y-3">
-                {/* Tarih Ayracı - WhatsApp Style */}
-                <div className="flex items-center gap-4 py-2">
-                  <div className="flex-1 h-px bg-[#EEEEEE]"></div>
-                  <span className="text-xs font-medium text-black/45">Today</span>
-                  <div className="flex-1 h-px bg-[#EEEEEE]"></div>
-                </div>
+              <div className="relative z-10 p-4 space-y-2">
+                {getMesajlarWithDateSeparators().map((item, index) => {
+                  // Tarih Ayracı - WhatsApp Style
+                  if (item.type === 'date') {
+                    return (
+                      <div key={`date-${index}`} className="flex justify-center py-2">
+                        <span className="px-3 py-1 bg-white/80 backdrop-blur-sm rounded-lg text-xs font-medium text-black/60 shadow-sm">
+                          {item.content as string}
+                        </span>
+                      </div>
+                    );
+                  }
 
-                {mesajlar.map((mesaj) => {
+                  // Mesaj
+                  const mesaj = item.content as Mesaj;
                   const isBenimMesajim = currentUser?.id === mesaj.gonderenId;
                   return (
                     <div
@@ -773,24 +855,26 @@ export default function MesajlarPage() {
                       )}
                       
                       <div
-                        className={`max-w-[70%] px-4 py-2.5 ${
+                        className={`max-w-[70%] px-3 py-2 ${
                           isBenimMesajim
-                            ? 'bg-[#DCF8C6] rounded-[16px] rounded-br-[4px]'
-                            : 'bg-[#F4F4F7] rounded-[16px] rounded-bl-[4px]'
+                            ? 'bg-[#DCF8C6] rounded-[12px] rounded-br-[4px]'
+                            : 'bg-white rounded-[12px] rounded-bl-[4px] shadow-sm'
                         }`}
                       >
                         {/* Grup mesajlarında gönderen adı */}
                         {seciliKonusma.tip !== 'OZEL' && !isBenimMesajim && (
-                          <p className="text-xs font-semibold text-[#2D9CDB] mb-1">{mesaj.gonderenAd}</p>
+                          <p className="text-xs font-semibold text-[#2D9CDB] mb-0.5">{mesaj.gonderenAd}</p>
                         )}
-                        <p className="text-sm text-black/85 whitespace-pre-wrap leading-relaxed">{mesaj.icerik}</p>
-                        <div className="flex items-center justify-end gap-1.5 mt-1">
-                          <span className="text-[11px] text-black/45">{formatTarih(mesaj.tarih)}</span>
-                          {isBenimMesajim && (
-                            mesaj.okundu 
-                              ? <CheckCheck size={14} className="text-[#27AE60]" />
-                              : <Check size={14} className="text-black/30" />
-                          )}
+                        <div className="flex items-end gap-2">
+                          <p className="text-[15px] text-black/90 whitespace-pre-wrap leading-relaxed">{mesaj.icerik}</p>
+                          <div className="flex items-center gap-1 flex-shrink-0 -mb-0.5">
+                            <span className="text-[11px] text-black/40">{formatSaat(mesaj.tarih)}</span>
+                            {isBenimMesajim && (
+                              mesaj.okundu 
+                                ? <CheckCheck size={14} className="text-[#53BDEB]" />
+                                : <Check size={14} className="text-black/30" />
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1550,20 +1634,20 @@ export default function MesajlarPage() {
             <div className="p-4 max-h-96 overflow-y-auto">
               <p className="text-sm text-slate-600 mb-4">Gruba eklemek istediğiniz kişileri seçin:</p>
               <div className="space-y-2">
-                {[mockPersonel].map((personel: any) => {
-                  const mevcutMu = seciliKonusma?.uyeler.some(u => u.ad === `${personel.ad} ${personel.soyad}`);
+                {availableUsers.map((user) => {
+                  const uyeAd = `${user.ad} ${user.soyad}`;
+                  const mevcutMu = seciliKonusma?.uyeler.some(u => u.ad === uyeAd);
                   if (mevcutMu) return null;
-                  const uyeAd = `${personel.ad} ${personel.soyad}`;
-                  const seciliMi = secilenYeniUyeler.includes(uyeAd);
+                  const seciliMi = secilenYeniUyeler.includes(user.id);
                   
                   return (
                     <button
-                      key={personel.id}
+                      key={user.id}
                       onClick={() => {
                         if (seciliMi) {
-                          setSecilenYeniUyeler(prev => prev.filter(ad => ad !== uyeAd));
+                          setSecilenYeniUyeler(prev => prev.filter(id => id !== user.id));
                         } else {
-                          setSecilenYeniUyeler(prev => [...prev, uyeAd]);
+                          setSecilenYeniUyeler(prev => [...prev, user.id]);
                         }
                       }}
                       className={`w-full p-3 rounded-xl flex items-center gap-3 transition-all ${
@@ -1571,11 +1655,13 @@ export default function MesajlarPage() {
                       }`}
                     >
                       <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
-                        {personel.ad.charAt(0)}
+                        {user.ad.charAt(0)}
                       </div>
                       <div className="flex-1 text-left">
                         <p className="font-medium text-slate-900">{uyeAd}</p>
-                        <p className="text-xs text-slate-500">{personel.rol}</p>
+                        <p className="text-xs text-slate-500">
+                          {user.rol === 'mudur' ? 'Müdür' : user.rol === 'sekreter' ? 'Sekreter' : user.rol === 'ogretmen' ? `${user.brans} Öğretmeni` : 'Öğrenci'}
+                        </p>
                       </div>
                       {seciliMi && (
                         <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
