@@ -503,16 +503,55 @@ export default function MesajlarPage() {
     // Yönetici ise işlem yap
     switch(action) {
       case 'resim':
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.onchange = (e: any) => {
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/*';
+        fileInput.onchange = async (e: any) => {
           const file = e.target.files?.[0];
           if (file) {
-            alert(`Grup resmi "${file.name}" yükleniyor... (Firebase entegrasyonu hazır)`);
+            // Dosya boyutu kontrolü (8MB)
+            if (file.size > 8 * 1024 * 1024) {
+              alert('Dosya boyutu 8MB\'dan küçük olmalı');
+              return;
+            }
+            
+            // Dosya türü kontrolü
+            if (!file.type.startsWith('image/')) {
+              alert('Sadece resim dosyaları yüklenebilir');
+              return;
+            }
+
+            try {
+              const formData = new FormData();
+              formData.append('photo', file);
+
+              const token = localStorage.getItem('token');
+              const response = await fetch(`${API_URL.replace('/api', '')}/api/upload/group/${seciliKonusma?.id}`, {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+                body: formData,
+              });
+
+              const data = await response.json();
+
+              if (!response.ok || !data.success) {
+                throw new Error(data.error || 'Fotoğraf yüklenirken bir hata oluştu');
+              }
+
+              // Başarılı yükleme
+              alert('Grup fotoğrafı başarıyla güncellendi!');
+              
+              // Konuşma listesini yenile
+              fetchConversations();
+            } catch (err) {
+              console.error('Upload error:', err);
+              alert(err instanceof Error ? err.message : 'Fotoğraf yüklenirken bir hata oluştu');
+            }
           }
         };
-        input.click();
+        fileInput.click();
         break;
       case 'ad':
         const yeniAd = prompt('Yeni grup adını girin:', seciliKonusma?.ad);
