@@ -13,7 +13,8 @@ interface UploadResult {
  */
 export const uploadToFirebase = async (
   file: Express.Multer.File,
-  folder: string = 'profiles'
+  folder: string = 'profiles',
+  makePublic: boolean = true
 ): Promise<UploadResult> => {
   // Firebase etkin değilse hata döndür
   if (!firebaseEnabled || !bucket) {
@@ -34,11 +35,16 @@ export const uploadToFirebase = async (
     await fileUpload.save(file.buffer, {
       metadata: {
         contentType: file.mimetype,
+        metadata: {
+          originalName: file.originalname,
+        }
       },
     });
 
-    // Dosyayı public yap
-    await fileUpload.makePublic();
+    // Dosyayı public yap (opsiyonel)
+    if (makePublic) {
+      await fileUpload.makePublic();
+    }
 
     // Public URL'i al
     const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;

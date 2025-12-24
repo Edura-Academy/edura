@@ -12,25 +12,6 @@ const backgrounds = [
   '/login-backgrounds/4.jpg',
 ];
 
-// Kullanıcı tipi - çoklu rol desteği
-interface BypassUser {
-  id: string;
-  email: string;
-  ad: string;
-  soyad: string;
-  roles: Array<{
-    role: string;
-    brans?: string | null;
-    label: string;
-    description: string;
-    icon: string;
-    color: string;
-  }>;
-  kursId: string | null;
-  kursAd: string;
-  sinif?: string;
-}
-
 export default function LoginPage() {
   const router = useRouter();
   const [currentBg, setCurrentBg] = useState(0);
@@ -50,278 +31,248 @@ export default function LoginPage() {
 
   // BYPASS: Test için hızlı giriş
   const [showBypass, setShowBypass] = useState(false);
-  const [showRoleSelect, setShowRoleSelect] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<BypassUser | null>(null);
+  const [bypassLoading, setBypassLoading] = useState(false);
 
-  // Bypass kullanıcıları - TEST İÇİN
-  // Çoklu rol desteği ile - Her rol için zengin mock data
-  const bypassUsers: Record<string, BypassUser> = {
+  // ==========================================================
+  // MALTEPE ZAMBAK KURSU - TEST KULLANICILARI
+  // Tüm kullanıcılar aynı kursa ait, mesajlaşma testi için ideal
+  // ==========================================================
+  interface TestUser {
+    email: string;
+    ad: string;
+    soyad: string;
+    role: string;
+    brans?: string;
+    sinif?: string;
+    icon: string;
+    color: string;
+    description: string;
+  }
+
+  const testUsers: Record<string, TestUser> = {
     // ========== ADMİN ==========
     admin: {
-      id: 'bypass-admin-001',
       email: 'admin@edura.com',
-      ad: 'Sistem',
-      soyad: 'Yöneticisi',
-      roles: [
-        { role: 'admin', label: 'Admin', description: 'Tüm sistem yetkileri', icon: '👑', color: 'purple' }
-      ],
-      kursId: null,
-      kursAd: 'Edura Sistem',
+      ad: 'Admin',
+      soyad: 'Edura',
+      role: 'admin',
+      icon: '👑',
+      color: 'purple',
+      description: 'Tüm sistem yetkileri',
     },
 
-    // ========== MÜDÜRLER ==========
-    mudur1: {
-      id: 'bypass-mudur-001',
-      email: 'mehmet.yilmaz@edura.com',
-      ad: 'Mehmet',
-      soyad: 'Yılmaz',
-      roles: [
-        { role: 'mudur', label: 'Müdür', description: 'Edura Merkez Şube', icon: '🏢', color: 'blue' }
-      ],
-      kursId: 'kurs-001',
-      kursAd: 'Edura Merkez',
-    },
-    mudur2: {
-      id: 'bypass-mudur-002',
-      email: 'ali.ozturk@edura.com',
-      ad: 'Ali',
-      soyad: 'Öztürk',
-      roles: [
-        { role: 'mudur', label: 'Müdür', description: 'Edura Kadıköy Şube', icon: '🏢', color: 'blue' }
-      ],
-      kursId: 'kurs-002',
-      kursAd: 'Edura Kadıköy',
+    // ========== MÜDÜR - Maltepe Zambak ==========
+    mudur: {
+      email: 'mudur.zambak@edura.com',
+      ad: 'Hasan',
+      soyad: 'Yıldırım',
+      role: 'mudur',
+      brans: 'Matematik',
+      icon: '🏢',
+      color: 'blue',
+      description: 'Müdür (Matematik branşlı)',
     },
 
-    // ========== ÇOKLU ROL: MÜDÜR + ÖĞRETMEN ==========
-    mudur_ogretmen1: {
-      id: 'bypass-mudur-ogretmen-001',
-      email: 'ahmet.kaya@edura.com',
-      ad: 'Ahmet',
-      soyad: 'Kaya',
-      roles: [
-        { role: 'mudur', label: 'Müdür', description: 'Kurum yöneticisi', icon: '🏢', color: 'blue' },
-        { role: 'ogretmen', brans: 'Matematik', label: 'Matematik Öğretmeni', description: 'Lise matematik', icon: '📐', color: 'green' }
-      ],
-      kursId: 'kurs-001',
-      kursAd: 'Edura Merkez',
-    },
-    mudur_ogretmen2: {
-      id: 'bypass-mudur-ogretmen-002',
-      email: 'zeynep.arslan@edura.com',
-      ad: 'Zeynep',
-      soyad: 'Arslan',
-      roles: [
-        { role: 'mudur', label: 'Müdür', description: 'Kurum yöneticisi', icon: '🏢', color: 'blue' },
-        { role: 'ogretmen', brans: 'İngilizce', label: 'İngilizce Öğretmeni', description: 'Dil eğitimi', icon: '🌍', color: 'green' }
-      ],
-      kursId: 'kurs-003',
-      kursAd: 'Edura Beşiktaş',
-    },
-
-    // ========== ÖĞRETMENLER ==========
-    ogretmen_matematik: {
-      id: 'bypass-ogretmen-001',
-      email: 'ayse.demir@edura.com',
+    // ========== SEKRETER - Maltepe Zambak ==========
+    sekreter: {
+      email: 'sekreter.zambak@edura.com',
       ad: 'Ayşe',
       soyad: 'Demir',
-      roles: [
-        { role: 'ogretmen', brans: 'Matematik', label: 'Matematik Öğretmeni', description: 'LGS & TYT Matematik', icon: '📐', color: 'green' }
-      ],
-      kursId: 'kurs-001',
-      kursAd: 'Edura Merkez',
+      role: 'sekreter',
+      icon: '📋',
+      color: 'orange',
+      description: 'Kayıt & İdari işler',
     },
-    ogretmen_fizik: {
-      id: 'bypass-ogretmen-002',
-      email: 'mustafa.celik@edura.com',
-      ad: 'Mustafa',
-      soyad: 'Çelik',
-      roles: [
-        { role: 'ogretmen', brans: 'Fizik', label: 'Fizik Öğretmeni', description: 'TYT & AYT Fizik', icon: '⚛️', color: 'green' }
-      ],
-      kursId: 'kurs-001',
-      kursAd: 'Edura Merkez',
+
+    // ========== ÖĞRETMENLER - Maltepe Zambak ==========
+    ogretmen_matematik: {
+      email: 'matematik.zambak@edura.com',
+      ad: 'Ahmet',
+      soyad: 'Kaya',
+      role: 'ogretmen',
+      brans: 'Matematik',
+      icon: '📐',
+      color: 'green',
+      description: 'Matematik',
     },
     ogretmen_turkce: {
-      id: 'bypass-ogretmen-003',
-      email: 'elif.yildiz@edura.com',
-      ad: 'Elif',
-      soyad: 'Yıldız',
-      roles: [
-        { role: 'ogretmen', brans: 'Türkçe', label: 'Türkçe Öğretmeni', description: 'LGS Türkçe', icon: '📚', color: 'green' }
-      ],
-      kursId: 'kurs-002',
-      kursAd: 'Edura Kadıköy',
+      email: 'turkce.zambak@edura.com',
+      ad: 'Fatma',
+      soyad: 'Öztürk',
+      role: 'ogretmen',
+      brans: 'Türkçe',
+      icon: '📚',
+      color: 'green',
+      description: 'Türkçe',
     },
     ogretmen_ingilizce: {
-      id: 'bypass-ogretmen-004',
-      email: 'can.aksoy@edura.com',
-      ad: 'Can',
-      soyad: 'Aksoy',
-      roles: [
-        { role: 'ogretmen', brans: 'İngilizce', label: 'İngilizce Öğretmeni', description: 'YDS & YÖKDİL', icon: '🌍', color: 'green' }
-      ],
-      kursId: 'kurs-001',
-      kursAd: 'Edura Merkez',
-    },
-
-    // ========== SEKRETERLER ==========
-    sekreter1: {
-      id: 'bypass-sekreter-001',
-      email: 'fatma.sahin@edura.com',
-      ad: 'Fatma',
-      soyad: 'Şahin',
-      roles: [
-        { role: 'sekreter', label: 'Sekreter', description: 'Kayıt & İdari işler', icon: '📋', color: 'orange' }
-      ],
-      kursId: 'kurs-001',
-      kursAd: 'Edura Merkez',
-    },
-    sekreter2: {
-      id: 'bypass-sekreter-002',
-      email: 'selin.kara@edura.com',
-      ad: 'Selin',
-      soyad: 'Kara',
-      roles: [
-        { role: 'sekreter', label: 'Sekreter', description: 'Muhasebe & Kayıt', icon: '📋', color: 'orange' }
-      ],
-      kursId: 'kurs-002',
-      kursAd: 'Edura Kadıköy',
-    },
-
-    // ========== ÖĞRENCİLER - LİSE ==========
-    ogrenci_lise_12: {
-      id: 'bypass-ogrenci-001',
-      email: 'arda.tekin@ogrenci.edura.com',
-      ad: 'Arda',
-      soyad: 'Tekin',
-      roles: [
-        { role: 'ogrenci', label: 'Öğrenci', description: '12. Sınıf - TYT/AYT', icon: '🎓', color: 'cyan' }
-      ],
-      sinif: '12-A',
-      kursId: 'kurs-001',
-      kursAd: 'Edura Merkez',
-    },
-    ogrenci_lise_11: {
-      id: 'bypass-ogrenci-002',
-      email: 'buse.korkmaz@ogrenci.edura.com',
-      ad: 'Buse',
-      soyad: 'Korkmaz',
-      roles: [
-        { role: 'ogrenci', label: 'Öğrenci', description: '11. Sınıf - Sayısal', icon: '🎓', color: 'cyan' }
-      ],
-      sinif: '11-B',
-      kursId: 'kurs-001',
-      kursAd: 'Edura Merkez',
-    },
-    ogrenci_lise_10: {
-      id: 'bypass-ogrenci-003',
-      email: 'emre.aydin@ogrenci.edura.com',
-      ad: 'Emre',
-      soyad: 'Aydın',
-      roles: [
-        { role: 'ogrenci', label: 'Öğrenci', description: '10. Sınıf - Eşit Ağırlık', icon: '🎓', color: 'cyan' }
-      ],
-      sinif: '10-A',
-      kursId: 'kurs-002',
-      kursAd: 'Edura Kadıköy',
-    },
-
-    // ========== ÖĞRENCİLER - ORTAOKUL (LGS) ==========
-    ogrenci_8: {
-      id: 'bypass-ogrenci-004',
-      email: 'deniz.yilmaz@ogrenci.edura.com',
+      email: 'ingilizce.zambak@edura.com',
       ad: 'Deniz',
-      soyad: 'Yılmaz',
-      roles: [
-        { role: 'ogrenci', label: 'Öğrenci', description: '8. Sınıf - LGS Hazırlık', icon: '📖', color: 'cyan' }
-      ],
+      soyad: 'Aktaş',
+      role: 'ogretmen',
+      brans: 'İngilizce',
+      icon: '🌍',
+      color: 'green',
+      description: 'İngilizce',
+    },
+    ogretmen_fen: {
+      email: 'fenbilimleri.zambak@edura.com',
+      ad: 'Ali',
+      soyad: 'Kılıç',
+      role: 'ogretmen',
+      brans: 'Fen Bilimleri',
+      icon: '🔬',
+      color: 'green',
+      description: 'Fen Bilimleri',
+    },
+    ogretmen_sosyal: {
+      email: 'sosyalbilgiler.zambak@edura.com',
+      ad: 'Zehra',
+      soyad: 'Güneş',
+      role: 'ogretmen',
+      brans: 'Sosyal Bilgiler',
+      icon: '🌎',
+      color: 'green',
+      description: 'Sosyal Bilgiler',
+    },
+    ogretmen_fizik: {
+      email: 'fizik.zambak@edura.com',
+      ad: 'Can',
+      soyad: 'Korkmaz',
+      role: 'ogretmen',
+      brans: 'Fizik',
+      icon: '⚛️',
+      color: 'green',
+      description: 'Fizik',
+    },
+
+    // ========== ÖĞRENCİLER - Maltepe Zambak (Her seviyeden birer öğrenci) ==========
+    ogrenci_12a: {
+      email: 'ogrenci.12a@edura.com',
+      ad: 'Test',
+      soyad: 'Öğrenci 12-A',
+      role: 'ogrenci',
+      sinif: '12-A',
+      icon: '🎓',
+      color: 'cyan',
+      description: '12. Sınıf - TYT/AYT',
+    },
+    ogrenci_11a: {
+      email: 'ogrenci.11a@edura.com',
+      ad: 'Test',
+      soyad: 'Öğrenci 11-A',
+      role: 'ogrenci',
+      sinif: '11-A',
+      icon: '🎓',
+      color: 'cyan',
+      description: '11. Sınıf',
+    },
+    ogrenci_10a: {
+      email: 'ogrenci.10a@edura.com',
+      ad: 'Test',
+      soyad: 'Öğrenci 10-A',
+      role: 'ogrenci',
+      sinif: '10-A',
+      icon: '🎓',
+      color: 'cyan',
+      description: '10. Sınıf',
+    },
+    ogrenci_9a: {
+      email: 'ogrenci.9a@edura.com',
+      ad: 'Test',
+      soyad: 'Öğrenci 9-A',
+      role: 'ogrenci',
+      sinif: '9-A',
+      icon: '🎓',
+      color: 'cyan',
+      description: '9. Sınıf',
+    },
+    ogrenci_8a: {
+      email: 'ogrenci.8a@edura.com',
+      ad: 'Test',
+      soyad: 'Öğrenci 8-A',
+      role: 'ogrenci',
       sinif: '8-A',
-      kursId: 'kurs-001',
-      kursAd: 'Edura Merkez',
+      icon: '📖',
+      color: 'cyan',
+      description: '8. Sınıf - LGS',
     },
-    ogrenci_7: {
-      id: 'bypass-ogrenci-005',
-      email: 'sude.ozkan@ogrenci.edura.com',
-      ad: 'Sude',
-      soyad: 'Özkan',
-      roles: [
-        { role: 'ogrenci', label: 'Öğrenci', description: '7. Sınıf - Ortaokul', icon: '📖', color: 'cyan' }
-      ],
-      sinif: '7-B',
-      kursId: 'kurs-002',
-      kursAd: 'Edura Kadıköy',
+    ogrenci_7a: {
+      email: 'ogrenci.7a@edura.com',
+      ad: 'Test',
+      soyad: 'Öğrenci 7-A',
+      role: 'ogrenci',
+      sinif: '7-A',
+      icon: '📖',
+      color: 'cyan',
+      description: '7. Sınıf',
     },
-
-    // ========== ÖĞRENCİLER - İLKOKUL ==========
-    ogrenci_4: {
-      id: 'bypass-ogrenci-006',
-      email: 'yusuf.eren@ogrenci.edura.com',
-      ad: 'Yusuf',
-      soyad: 'Eren',
-      roles: [
-        { role: 'ogrenci', label: 'Öğrenci', description: '4. Sınıf - İlkokul', icon: '✏️', color: 'cyan' }
-      ],
-      sinif: '4-A',
-      kursId: 'kurs-003',
-      kursAd: 'Edura Beşiktaş',
+    ogrenci_6a: {
+      email: 'ogrenci.6a@edura.com',
+      ad: 'Test',
+      soyad: 'Öğrenci 6-A',
+      role: 'ogrenci',
+      sinif: '6-A',
+      icon: '📖',
+      color: 'cyan',
+      description: '6. Sınıf',
+    },
+    ogrenci_5a: {
+      email: 'ogrenci.5a@edura.com',
+      ad: 'Test',
+      soyad: 'Öğrenci 5-A',
+      role: 'ogrenci',
+      sinif: '5-A',
+      icon: '✏️',
+      color: 'cyan',
+      description: '5. Sınıf',
     },
   };
 
-  // Kullanıcı seçildiğinde
-  const handleUserSelect = (userKey: string) => {
-    const user = bypassUsers[userKey];
-    
-    // Eğer kullanıcının birden fazla rolü varsa rol seçimi göster
-    if (user.roles.length > 1) {
-      setSelectedUser(user);
+  // Bypass giriş - Backend'e API çağrısı yaparak gerçek kullanıcı ile giriş
+  const handleBypassLogin = async (userKey: string) => {
+    const user = testUsers[userKey];
+    if (!user) return;
+
+    setBypassLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch(`${API_URL}/auth/bypass-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        setError(data.error || 'Bypass giriş başarısız');
+        setBypassLoading(false);
+        return;
+      }
+
+      // Token ve kullanıcı bilgilerini kaydet
+      localStorage.setItem('token', data.data.token);
+      localStorage.setItem('user', JSON.stringify(data.data.user));
+
+      // Role göre yönlendir
+      const userRole = data.data.user.role;
+      if (userRole === 'admin') {
+        router.push('/admin');
+      } else if (userRole === 'ogrenci') {
+        router.push('/ogrenci');
+      } else {
+        router.push('/personel');
+      }
+
       setShowBypass(false);
-      setShowRoleSelect(true);
-    } else {
-      // Tek rol varsa direkt giriş yap
-      performLogin(user, user.roles[0]);
+    } catch (err) {
+      console.error('Bypass login error:', err);
+      setError('Bağlantı hatası. Backend çalışıyor mu?');
+    } finally {
+      setBypassLoading(false);
     }
-  };
-
-  // Rol seçildiğinde giriş yap
-  const handleRoleSelect = (roleIndex: number) => {
-    if (selectedUser) {
-      performLogin(selectedUser, selectedUser.roles[roleIndex]);
-    }
-  };
-
-  // Giriş işlemini gerçekleştir
-  const performLogin = (user: BypassUser, selectedRole: BypassUser['roles'][0]) => {
-    const loginUser = {
-      id: user.id,
-      email: user.email,
-      ad: user.ad,
-      soyad: user.soyad,
-      role: selectedRole.role,
-      brans: selectedRole.brans || null,
-      kursId: user.kursId,
-      kursAd: user.kursAd,
-      sinif: user.sinif || null,
-      // Çoklu rol bilgisini de sakla
-      hasMultipleRoles: user.roles.length > 1,
-      allRoles: user.roles,
-    };
-
-    localStorage.setItem('token', 'bypass-token-' + user.id);
-    localStorage.setItem('user', JSON.stringify(loginUser));
-    
-    // Role göre yönlendir
-    if (selectedRole.role === 'admin') {
-      router.push('/admin');
-    } else if (selectedRole.role === 'ogrenci') {
-      router.push('/ogrenci');
-    } else {
-      router.push('/personel');
-    }
-
-    setShowBypass(false);
-    setShowRoleSelect(false);
-    setSelectedUser(null);
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -399,9 +350,29 @@ export default function LoginPage() {
       green: { border: 'hover:border-green-500', bg: 'hover:bg-green-50', iconBg: 'bg-green-100' },
       orange: { border: 'hover:border-orange-500', bg: 'hover:bg-orange-50', iconBg: 'bg-orange-100' },
       cyan: { border: 'hover:border-cyan-500', bg: 'hover:bg-cyan-50', iconBg: 'bg-cyan-100' },
-      indigo: { border: 'hover:border-indigo-500', bg: 'hover:bg-indigo-50', iconBg: 'bg-indigo-100' },
     };
     return colors[color] || colors.blue;
+  };
+
+  // Test kullanıcı butonu render helper
+  const renderTestUserButton = (key: string, user: TestUser, fullWidth = false) => {
+    const colorClasses = getColorClasses(user.color);
+    return (
+      <button
+        key={key}
+        onClick={() => handleBypassLogin(key)}
+        disabled={bypassLoading}
+        className={`${fullWidth ? 'w-full' : ''} p-3 rounded-xl border-2 border-gray-200 ${colorClasses.border} ${colorClasses.bg} transition-all flex items-center gap-3 disabled:opacity-50`}
+      >
+        <div className={`w-10 h-10 ${colorClasses.iconBg} rounded-full flex items-center justify-center flex-shrink-0`}>
+          <span className="text-lg">{user.icon}</span>
+        </div>
+        <div className="text-left flex-1 min-w-0">
+          <p className="font-semibold text-gray-800 text-sm truncate">{user.ad} {user.soyad}</p>
+          <p className="text-xs text-gray-500 truncate">{user.description}</p>
+        </div>
+      </button>
+    );
   };
 
   return (
@@ -588,264 +559,165 @@ export default function LoginPage() {
         ))}
       </div>
 
-      {/* BYPASS Modal - Test için kullanıcı seçimi */}
+      {/* BYPASS Modal - Test için kullanıcı seçimi - MALTEPE ZAMBAK KURSU */}
       {showBypass && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
-            <div className="text-center mb-6">
+            <div className="text-center mb-4">
               <div className="inline-flex items-center justify-center w-12 h-12 bg-yellow-100 rounded-full mb-3">
                 <span className="text-2xl">🔓</span>
               </div>
               <h3 className="text-xl font-bold text-gray-800">Test Girişi</h3>
               <p className="text-gray-500 text-sm mt-1">Hangi kullanıcı ile giriş yapmak istersiniz?</p>
+              <div className="mt-2 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg inline-block">
+                <p className="text-xs text-amber-700 font-medium">🏫 Maltepe Zambak Kursu</p>
+                <p className="text-[10px] text-amber-600">Tüm kullanıcılar aynı kursa ait</p>
+              </div>
             </div>
+
+            {/* Hata mesajı */}
+            {error && (
+              <div className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
+
+            {/* Loading indicator */}
+            {bypassLoading && (
+              <div className="mb-4 flex items-center justify-center gap-2 text-blue-600">
+                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                <span className="text-sm">Giriş yapılıyor...</span>
+              </div>
+            )}
 
             {/* ========== ADMİN ========== */}
             <div className="mb-4">
               <h4 className="text-xs font-semibold text-purple-600 uppercase tracking-wider mb-2 flex items-center gap-2">
                 <span>👑</span> Sistem Yönetimi
               </h4>
-              <button
-                onClick={() => handleUserSelect('admin')}
-                className="w-full p-3 rounded-xl border-2 border-gray-200 hover:border-purple-500 hover:bg-purple-50 transition-all flex items-center gap-3"
-              >
-                <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                  <span className="text-lg">👑</span>
-                </div>
-                <div className="text-left flex-1">
-                  <p className="font-semibold text-gray-800 text-sm">Sistem Yöneticisi</p>
-                  <p className="text-xs text-gray-500">Tüm sistem yetkileri</p>
-                </div>
-              </button>
+              {renderTestUserButton('admin', testUsers.admin, true)}
             </div>
 
-            {/* ========== MÜDÜRLER ========== */}
+            {/* ========== MÜDÜR ========== */}
             <div className="mb-4">
               <h4 className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-2 flex items-center gap-2">
-                <span>🏢</span> Müdürler
+                <span>🏢</span> Müdür
               </h4>
-              <div className="space-y-2">
-                <button
-                  onClick={() => handleUserSelect('mudur1')}
-                  className="w-full p-3 rounded-xl border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all flex items-center gap-3"
-                >
-                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                    <span className="text-lg">🏢</span>
-                  </div>
-                  <div className="text-left flex-1">
-                    <p className="font-semibold text-gray-800 text-sm">Mehmet Yılmaz</p>
-                    <p className="text-xs text-gray-500">Edura Merkez</p>
-                  </div>
-                </button>
-                <button
-                  onClick={() => handleUserSelect('mudur2')}
-                  className="w-full p-3 rounded-xl border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all flex items-center gap-3"
-                >
-                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                    <span className="text-lg">🏢</span>
-                  </div>
-                  <div className="text-left flex-1">
-                    <p className="font-semibold text-gray-800 text-sm">Ali Öztürk</p>
-                    <p className="text-xs text-gray-500">Edura Kadıköy</p>
-                  </div>
-                </button>
-              </div>
+              {renderTestUserButton('mudur', testUsers.mudur, true)}
             </div>
 
-            {/* ========== ÇOKLU ROL ========== */}
+            {/* ========== SEKRETER ========== */}
             <div className="mb-4">
-              <h4 className="text-xs font-semibold text-indigo-600 uppercase tracking-wider mb-2 flex items-center gap-2">
-                <span>🔄</span> Çoklu Rol (Müdür + Öğretmen)
+              <h4 className="text-xs font-semibold text-orange-600 uppercase tracking-wider mb-2 flex items-center gap-2">
+                <span>📋</span> Sekreter
               </h4>
-              <div className="space-y-2">
-                <button
-                  onClick={() => handleUserSelect('mudur_ogretmen1')}
-                  className="w-full p-3 rounded-xl border-2 border-gray-200 hover:border-indigo-500 hover:bg-indigo-50 transition-all flex items-center gap-3 relative"
-                >
-                  <div className="absolute -top-1 -right-1 bg-indigo-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium">
-                    2 Rol
-                  </div>
-                  <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center relative">
-                    <span className="text-lg">🏢</span>
-                    <span className="absolute -bottom-0.5 -right-0.5 text-xs">📐</span>
-                  </div>
-                  <div className="text-left flex-1">
-                    <p className="font-semibold text-gray-800 text-sm">Ahmet Kaya</p>
-                    <p className="text-xs text-gray-500">Müdür + Matematik Öğrt. • Merkez</p>
-                  </div>
-                </button>
-                <button
-                  onClick={() => handleUserSelect('mudur_ogretmen2')}
-                  className="w-full p-3 rounded-xl border-2 border-gray-200 hover:border-indigo-500 hover:bg-indigo-50 transition-all flex items-center gap-3 relative"
-                >
-                  <div className="absolute -top-1 -right-1 bg-indigo-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium">
-                    2 Rol
-                  </div>
-                  <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center relative">
-                    <span className="text-lg">🏢</span>
-                    <span className="absolute -bottom-0.5 -right-0.5 text-xs">🌍</span>
-                  </div>
-                  <div className="text-left flex-1">
-                    <p className="font-semibold text-gray-800 text-sm">Zeynep Arslan</p>
-                    <p className="text-xs text-gray-500">Müdür + İngilizce Öğrt. • Beşiktaş</p>
-                  </div>
-                </button>
-              </div>
+              {renderTestUserButton('sekreter', testUsers.sekreter, true)}
             </div>
 
             {/* ========== ÖĞRETMENLER ========== */}
             <div className="mb-4">
               <h4 className="text-xs font-semibold text-green-600 uppercase tracking-wider mb-2 flex items-center gap-2">
-                <span>👨‍🏫</span> Öğretmenler
+                <span>👨‍🏫</span> Öğretmenler (6 branş)
               </h4>
               <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => handleUserSelect('ogretmen_matematik')}
-                  className="p-3 rounded-xl border-2 border-gray-200 hover:border-green-500 hover:bg-green-50 transition-all flex items-center gap-2"
-                >
-                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                    <span className="text-sm">📐</span>
-                  </div>
-                  <div className="text-left flex-1 min-w-0">
-                    <p className="font-semibold text-gray-800 text-xs truncate">Ayşe Demir</p>
-                    <p className="text-[10px] text-gray-500">Matematik</p>
-                  </div>
-                </button>
-                <button
-                  onClick={() => handleUserSelect('ogretmen_fizik')}
-                  className="p-3 rounded-xl border-2 border-gray-200 hover:border-green-500 hover:bg-green-50 transition-all flex items-center gap-2"
-                >
-                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                    <span className="text-sm">⚛️</span>
-                  </div>
-                  <div className="text-left flex-1 min-w-0">
-                    <p className="font-semibold text-gray-800 text-xs truncate">Mustafa Çelik</p>
-                    <p className="text-[10px] text-gray-500">Fizik</p>
-                  </div>
-                </button>
-                <button
-                  onClick={() => handleUserSelect('ogretmen_turkce')}
-                  className="p-3 rounded-xl border-2 border-gray-200 hover:border-green-500 hover:bg-green-50 transition-all flex items-center gap-2"
-                >
-                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                    <span className="text-sm">📚</span>
-                  </div>
-                  <div className="text-left flex-1 min-w-0">
-                    <p className="font-semibold text-gray-800 text-xs truncate">Elif Yıldız</p>
-                    <p className="text-[10px] text-gray-500">Türkçe</p>
-                  </div>
-                </button>
-                <button
-                  onClick={() => handleUserSelect('ogretmen_ingilizce')}
-                  className="p-3 rounded-xl border-2 border-gray-200 hover:border-green-500 hover:bg-green-50 transition-all flex items-center gap-2"
-                >
-                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                    <span className="text-sm">🌍</span>
-                  </div>
-                  <div className="text-left flex-1 min-w-0">
-                    <p className="font-semibold text-gray-800 text-xs truncate">Can Aksoy</p>
-                    <p className="text-[10px] text-gray-500">İngilizce</p>
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            {/* ========== SEKRETERLER ========== */}
-            <div className="mb-4">
-              <h4 className="text-xs font-semibold text-orange-600 uppercase tracking-wider mb-2 flex items-center gap-2">
-                <span>📋</span> Sekreterler
-              </h4>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => handleUserSelect('sekreter1')}
-                  className="p-3 rounded-xl border-2 border-gray-200 hover:border-orange-500 hover:bg-orange-50 transition-all flex items-center gap-2"
-                >
-                  <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                    <span className="text-sm">📋</span>
-                  </div>
-                  <div className="text-left flex-1 min-w-0">
-                    <p className="font-semibold text-gray-800 text-xs truncate">Fatma Şahin</p>
-                    <p className="text-[10px] text-gray-500">Merkez</p>
-                  </div>
-                </button>
-                <button
-                  onClick={() => handleUserSelect('sekreter2')}
-                  className="p-3 rounded-xl border-2 border-gray-200 hover:border-orange-500 hover:bg-orange-50 transition-all flex items-center gap-2"
-                >
-                  <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                    <span className="text-sm">📋</span>
-                  </div>
-                  <div className="text-left flex-1 min-w-0">
-                    <p className="font-semibold text-gray-800 text-xs truncate">Selin Kara</p>
-                    <p className="text-[10px] text-gray-500">Kadıköy</p>
-                  </div>
-                </button>
+                {renderTestUserButton('ogretmen_matematik', testUsers.ogretmen_matematik)}
+                {renderTestUserButton('ogretmen_turkce', testUsers.ogretmen_turkce)}
+                {renderTestUserButton('ogretmen_ingilizce', testUsers.ogretmen_ingilizce)}
+                {renderTestUserButton('ogretmen_fen', testUsers.ogretmen_fen)}
+                {renderTestUserButton('ogretmen_sosyal', testUsers.ogretmen_sosyal)}
+                {renderTestUserButton('ogretmen_fizik', testUsers.ogretmen_fizik)}
               </div>
             </div>
 
             {/* ========== ÖĞRENCİLER ========== */}
             <div className="mb-4">
               <h4 className="text-xs font-semibold text-cyan-600 uppercase tracking-wider mb-2 flex items-center gap-2">
-                <span>🎓</span> Öğrenciler
+                <span>🎓</span> Öğrenciler (Her seviyeden)
               </h4>
               
               {/* Lise */}
-              <p className="text-[10px] text-gray-400 mb-1 ml-1">Lise (TYT/AYT)</p>
-              <div className="grid grid-cols-3 gap-2 mb-2">
+              <p className="text-[10px] text-gray-400 mb-1 ml-1">Lise (9-12)</p>
+              <div className="grid grid-cols-4 gap-2 mb-2">
                 <button
-                  onClick={() => handleUserSelect('ogrenci_lise_12')}
-                  className="p-2 rounded-lg border-2 border-gray-200 hover:border-cyan-500 hover:bg-cyan-50 transition-all text-center"
+                  onClick={() => handleBypassLogin('ogrenci_12a')}
+                  disabled={bypassLoading}
+                  className="p-2 rounded-lg border-2 border-gray-200 hover:border-cyan-500 hover:bg-cyan-50 transition-all text-center disabled:opacity-50"
                 >
                   <span className="text-lg">🎓</span>
-                  <p className="font-semibold text-gray-800 text-[10px]">Arda T.</p>
-                  <p className="text-[9px] text-gray-500">12-A</p>
+                  <p className="font-semibold text-gray-800 text-[10px]">12-A</p>
                 </button>
                 <button
-                  onClick={() => handleUserSelect('ogrenci_lise_11')}
-                  className="p-2 rounded-lg border-2 border-gray-200 hover:border-cyan-500 hover:bg-cyan-50 transition-all text-center"
+                  onClick={() => handleBypassLogin('ogrenci_11a')}
+                  disabled={bypassLoading}
+                  className="p-2 rounded-lg border-2 border-gray-200 hover:border-cyan-500 hover:bg-cyan-50 transition-all text-center disabled:opacity-50"
                 >
                   <span className="text-lg">🎓</span>
-                  <p className="font-semibold text-gray-800 text-[10px]">Buse K.</p>
-                  <p className="text-[9px] text-gray-500">11-B</p>
+                  <p className="font-semibold text-gray-800 text-[10px]">11-A</p>
                 </button>
                 <button
-                  onClick={() => handleUserSelect('ogrenci_lise_10')}
-                  className="p-2 rounded-lg border-2 border-gray-200 hover:border-cyan-500 hover:bg-cyan-50 transition-all text-center"
+                  onClick={() => handleBypassLogin('ogrenci_10a')}
+                  disabled={bypassLoading}
+                  className="p-2 rounded-lg border-2 border-gray-200 hover:border-cyan-500 hover:bg-cyan-50 transition-all text-center disabled:opacity-50"
                 >
                   <span className="text-lg">🎓</span>
-                  <p className="font-semibold text-gray-800 text-[10px]">Emre A.</p>
-                  <p className="text-[9px] text-gray-500">10-A</p>
+                  <p className="font-semibold text-gray-800 text-[10px]">10-A</p>
+                </button>
+                <button
+                  onClick={() => handleBypassLogin('ogrenci_9a')}
+                  disabled={bypassLoading}
+                  className="p-2 rounded-lg border-2 border-gray-200 hover:border-cyan-500 hover:bg-cyan-50 transition-all text-center disabled:opacity-50"
+                >
+                  <span className="text-lg">🎓</span>
+                  <p className="font-semibold text-gray-800 text-[10px]">9-A</p>
                 </button>
               </div>
 
               {/* Ortaokul */}
-              <p className="text-[10px] text-gray-400 mb-1 ml-1">Ortaokul (LGS)</p>
-              <div className="grid grid-cols-3 gap-2 mb-2">
+              <p className="text-[10px] text-gray-400 mb-1 ml-1">Ortaokul (5-8)</p>
+              <div className="grid grid-cols-4 gap-2">
                 <button
-                  onClick={() => handleUserSelect('ogrenci_8')}
-                  className="p-2 rounded-lg border-2 border-gray-200 hover:border-cyan-500 hover:bg-cyan-50 transition-all text-center"
+                  onClick={() => handleBypassLogin('ogrenci_8a')}
+                  disabled={bypassLoading}
+                  className="p-2 rounded-lg border-2 border-gray-200 hover:border-cyan-500 hover:bg-cyan-50 transition-all text-center disabled:opacity-50"
                 >
                   <span className="text-lg">📖</span>
-                  <p className="font-semibold text-gray-800 text-[10px]">Deniz Y.</p>
-                  <p className="text-[9px] text-gray-500">8-A</p>
+                  <p className="font-semibold text-gray-800 text-[10px]">8-A</p>
                 </button>
                 <button
-                  onClick={() => handleUserSelect('ogrenci_7')}
-                  className="p-2 rounded-lg border-2 border-gray-200 hover:border-cyan-500 hover:bg-cyan-50 transition-all text-center"
+                  onClick={() => handleBypassLogin('ogrenci_7a')}
+                  disabled={bypassLoading}
+                  className="p-2 rounded-lg border-2 border-gray-200 hover:border-cyan-500 hover:bg-cyan-50 transition-all text-center disabled:opacity-50"
                 >
                   <span className="text-lg">📖</span>
-                  <p className="font-semibold text-gray-800 text-[10px]">Sude Ö.</p>
-                  <p className="text-[9px] text-gray-500">7-B</p>
+                  <p className="font-semibold text-gray-800 text-[10px]">7-A</p>
                 </button>
                 <button
-                  onClick={() => handleUserSelect('ogrenci_4')}
-                  className="p-2 rounded-lg border-2 border-gray-200 hover:border-cyan-500 hover:bg-cyan-50 transition-all text-center"
+                  onClick={() => handleBypassLogin('ogrenci_6a')}
+                  disabled={bypassLoading}
+                  className="p-2 rounded-lg border-2 border-gray-200 hover:border-cyan-500 hover:bg-cyan-50 transition-all text-center disabled:opacity-50"
+                >
+                  <span className="text-lg">📖</span>
+                  <p className="font-semibold text-gray-800 text-[10px]">6-A</p>
+                </button>
+                <button
+                  onClick={() => handleBypassLogin('ogrenci_5a')}
+                  disabled={bypassLoading}
+                  className="p-2 rounded-lg border-2 border-gray-200 hover:border-cyan-500 hover:bg-cyan-50 transition-all text-center disabled:opacity-50"
                 >
                   <span className="text-lg">✏️</span>
-                  <p className="font-semibold text-gray-800 text-[10px]">Yusuf E.</p>
-                  <p className="text-[9px] text-gray-500">4-A</p>
+                  <p className="font-semibold text-gray-800 text-[10px]">5-A</p>
                 </button>
               </div>
+            </div>
+
+            {/* Bilgi notu */}
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-xs text-blue-700">
+                💡 <strong>Mesajlaşma testi için:</strong> Farklı sekmelerde farklı kullanıcılarla giriş yaparak birbirinize mesaj atabilirsiniz. Tüm kullanıcılar Maltepe Zambak kursuna ait.
+              </p>
             </div>
 
             <button
@@ -853,66 +725,6 @@ export default function LoginPage() {
               className="w-full mt-2 py-2 text-gray-500 hover:text-gray-700 text-sm border-t border-gray-100 pt-4"
             >
               İptal
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ROL SEÇİMİ Modal - Çoklu rol sahibi kullanıcılar için */}
-      {showRoleSelect && selectedUser && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <div className="text-center mb-6">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-100 rounded-full mb-3">
-                <span className="text-3xl">🔄</span>
-              </div>
-              <h3 className="text-xl font-bold text-gray-800">Rol Seçimi</h3>
-              <p className="text-gray-600 mt-1 font-medium">{selectedUser.ad} {selectedUser.soyad}</p>
-              <p className="text-gray-500 text-sm mt-1">Hangi rol ile giriş yapmak istersiniz?</p>
-            </div>
-
-            <div className="space-y-3">
-              {selectedUser.roles.map((role, index) => {
-                const colorClasses = getColorClasses(role.color);
-                return (
-                  <button
-                    key={index}
-                    onClick={() => handleRoleSelect(index)}
-                    className={`w-full p-4 rounded-xl border-2 border-gray-200 ${colorClasses.border} ${colorClasses.bg} transition-all flex items-center gap-4`}
-                  >
-                    <div className={`w-12 h-12 ${colorClasses.iconBg} rounded-full flex items-center justify-center`}>
-                      <span className="text-xl">{role.icon}</span>
-                    </div>
-                    <div className="text-left flex-1">
-                      <p className="font-semibold text-gray-800">{role.label}</p>
-                      <p className="text-sm text-gray-500">{role.description}</p>
-                    </div>
-                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="mt-6 p-3 bg-gray-50 rounded-lg">
-              <p className="text-xs text-gray-500 text-center">
-                💡 Giriş yaptıktan sonra profil menüsünden rol değiştirebilirsiniz.
-              </p>
-            </div>
-
-            <button
-              onClick={() => {
-                setShowRoleSelect(false);
-                setSelectedUser(null);
-                setShowBypass(true);
-              }}
-              className="w-full mt-4 py-2 text-gray-500 hover:text-gray-700 text-sm flex items-center justify-center gap-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              Geri Dön
             </button>
           </div>
         </div>

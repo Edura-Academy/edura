@@ -37,11 +37,11 @@ export const uploadProfilePhoto = async (req: Request, res: Response) => {
       });
     }
 
-    // Dosya boyutu kontrolü (2MB)
-    if (file.size > 2 * 1024 * 1024) {
+    // Dosya boyutu kontrolü (8MB)
+    if (file.size > 8 * 1024 * 1024) {
       return res.status(400).json({
         success: false,
-        error: 'Dosya boyutu 2MB\'dan büyük olamaz',
+        error: 'Dosya boyutu 8MB\'dan büyük olamaz',
       });
     }
 
@@ -202,6 +202,137 @@ export const getProfilePhoto = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       error: 'Fotoğraf alınırken bir hata oluştu',
+    });
+  }
+};
+
+/**
+ * Belge yükle (PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX)
+ */
+export const uploadDocument = async (req: Request, res: Response) => {
+  try {
+    const file = req.file;
+    const { documentType, userId, userType } = req.body;
+
+    // Dosya kontrolü
+    if (!file) {
+      return res.status(400).json({
+        success: false,
+        error: 'Dosya bulunamadı',
+      });
+    }
+
+    // Dosya boyutu kontrolü (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      return res.status(400).json({
+        success: false,
+        error: 'Dosya boyutu 10MB\'dan büyük olamaz',
+      });
+    }
+
+    // Dosya türü kontrolü
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-powerpoint',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    ];
+
+    if (!allowedTypes.includes(file.mimetype)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Sadece PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX dosyaları yüklenebilir',
+      });
+    }
+
+    // Firebase'e yükle
+    const folder = documentType ? `documents/${documentType}` : 'documents';
+    const uploadResult = await uploadToFirebase(file, folder);
+
+    if (!uploadResult.success) {
+      return res.status(500).json({
+        success: false,
+        error: uploadResult.error,
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: 'Belge başarıyla yüklendi',
+      data: {
+        url: uploadResult.url,
+        originalName: file.originalname,
+        size: file.size,
+        mimeType: file.mimetype,
+      },
+    });
+  } catch (error) {
+    console.error('Upload document error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Belge yüklenirken bir hata oluştu',
+    });
+  }
+};
+
+/**
+ * Grup fotoğrafı yükle
+ */
+export const uploadGroupPhoto = async (req: Request, res: Response) => {
+  try {
+    const file = req.file;
+    const { groupId } = req.params;
+
+    // Dosya kontrolü
+    if (!file) {
+      return res.status(400).json({
+        success: false,
+        error: 'Dosya bulunamadı',
+      });
+    }
+
+    // Dosya boyutu kontrolü (8MB)
+    if (file.size > 8 * 1024 * 1024) {
+      return res.status(400).json({
+        success: false,
+        error: 'Dosya boyutu 8MB\'dan büyük olamaz',
+      });
+    }
+
+    // Dosya türü kontrolü
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+    if (!allowedTypes.includes(file.mimetype)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Sadece JPG ve PNG dosyaları yüklenebilir',
+      });
+    }
+
+    // Firebase'e yükle
+    const uploadResult = await uploadToFirebase(file, 'group-photos');
+
+    if (!uploadResult.success) {
+      return res.status(500).json({
+        success: false,
+        error: uploadResult.error,
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: 'Grup fotoğrafı başarıyla yüklendi',
+      data: {
+        url: uploadResult.url,
+      },
+    });
+  } catch (error) {
+    console.error('Upload group photo error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Grup fotoğrafı yüklenirken bir hata oluştu',
     });
   }
 };

@@ -581,7 +581,12 @@ export default function AdminPage() {
                     <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-2xl z-20 border border-gray-200 overflow-hidden">
                       <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
                         <h3 className="font-bold text-gray-900">Bildirimler</h3>
-                        <button className="text-xs text-violet-600 hover:text-violet-700">Tümünü okundu işaretle</button>
+                        <button 
+                          onClick={() => alert('Tüm bildirimler okundu olarak işaretlendi!')}
+                          className="text-xs text-violet-600 hover:text-violet-700"
+                        >
+                          Tümünü okundu işaretle
+                        </button>
                       </div>
                       <div className="max-h-80 overflow-y-auto">
                         <div className="px-4 py-3 hover:bg-gray-50 border-l-4 border-violet-500 bg-violet-50/50">

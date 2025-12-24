@@ -505,7 +505,7 @@ export default function PersonelDashboard() {
                   <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50">
                     <div className="p-4 border-b border-slate-100 flex justify-between items-center">
                       <h3 className="font-semibold text-slate-800">Bildirimler</h3>
-                      <button 
+                      <button
                         onClick={() => {
                           setShowTumBildirimlerModal(true);
                           setOpenDropdown(null);

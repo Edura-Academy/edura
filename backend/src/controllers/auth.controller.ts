@@ -154,6 +154,77 @@ export const me = async (req: AuthRequest, res: Response): Promise<void> => {
   }
 };
 
+// Bypass Login - Test için (sadece development ortamında)
+export const bypassLogin = async (req: Request, res: Response): Promise<void> => {
+  try {
+    // Sadece development ortamında çalışsın
+    if (process.env.NODE_ENV === 'production') {
+      res.status(403).json({ success: false, error: 'Bu endpoint production ortamında devre dışı' });
+      return;
+    }
+
+    const { email } = req.body;
+
+    if (!email) {
+      res.status(400).json({ success: false, error: 'Email gerekli' });
+      return;
+    }
+
+    // Kullanıcıyı email ile bul
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: {
+        kurs: true,
+        sinif: true,
+      },
+    });
+
+    if (!user) {
+      res.status(404).json({ success: false, error: 'Kullanıcı bulunamadı' });
+      return;
+    }
+
+    if (!user.aktif) {
+      res.status(401).json({ success: false, error: 'Hesap devre dışı' });
+      return;
+    }
+
+    // Token oluştur (şifre kontrolü yapmadan)
+    const token = jwt.sign(
+      {
+        userId: user.id,
+        email: user.email,
+        role: user.role,
+        kursId: user.kursId,
+      },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.json({
+      success: true,
+      data: {
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          ad: user.ad,
+          soyad: user.soyad,
+          telefon: user.telefon,
+          role: user.role,
+          brans: user.brans,
+          ogrenciNo: user.ogrenciNo,
+          kurs: user.kurs,
+          sinif: user.sinif,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Bypass login error:', error);
+    res.status(500).json({ success: false, error: 'Bypass giriş başarısız' });
+  }
+};
+
 // Yeni kullanıcı kaydet
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {

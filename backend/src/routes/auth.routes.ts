@@ -1,11 +1,14 @@
 import { Router } from 'express';
-import { login, register, me, changePassword } from '../controllers/auth.controller';
+import { login, register, me, changePassword, bypassLogin } from '../controllers/auth.controller';
 import { authenticateToken } from '../middleware/auth.middleware';
 
 const router = Router();
 
 // POST /api/auth/login
 router.post('/login', login);
+
+// POST /api/auth/bypass-login (sadece development - test için)
+router.post('/bypass-login', bypassLogin);
 
 // POST /api/auth/register (Admin tarafından yeni kullanıcı ekleme)
 router.post('/register', authenticateToken, register);

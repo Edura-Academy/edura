@@ -29,7 +29,7 @@ export default function AyarlarPage() {
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+  }, []); 
 
   useEffect(() => {
     if (!mounted) return;

@@ -60,8 +60,8 @@ export default function ProfilePhotoUpload({
       return;
     }
 
-    if (file.size > 2 * 1024 * 1024) {
-      setError('Dosya boyutu 2MB\'dan küçük olmalı');
+    if (file.size > 8 * 1024 * 1024) {
+      setError('Dosya boyutu 8MB\'dan küçük olmalı');
       return;
     }
 

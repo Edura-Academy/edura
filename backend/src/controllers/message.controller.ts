@@ -1,18 +1,18 @@
 import { Response } from 'express';
 import prisma from '../lib/prisma';
-import { Role, ConversationType, MessageStatus } from '@prisma/client';
 import { AuthRequest } from '../types';
-
-// ==================== KONUŞMALAR ====================
+import { ConversationType } from '@prisma/client';
 
 // Kullanıcının tüm konuşmalarını getir
-export const getConversations = async (req: AuthRequest, res: Response) => {
+export const getConversations = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?.userId;
     if (!userId) {
-      return res.status(401).json({ error: 'Yetkisiz erişim' });
+      res.status(401).json({ success: false, error: 'Yetkilendirme gerekli' });
+      return;
     }
 
+    // Kullanıcının üye olduğu tüm konuşmaları getir
     const conversations = await prisma.conversation.findMany({
       where: {
         uyeler: {
@@ -23,7 +23,13 @@ export const getConversations = async (req: AuthRequest, res: Response) => {
         uyeler: {
           include: {
             user: {
-              select: { id: true, ad: true, soyad: true, role: true, brans: true }
+              select: {
+                id: true,
+                ad: true,
+                soyad: true,
+                role: true,
+                brans: true,
+              }
             }
           }
         },
@@ -32,7 +38,11 @@ export const getConversations = async (req: AuthRequest, res: Response) => {
           take: 1,
           include: {
             gonderen: {
-              select: { id: true, ad: true, soyad: true }
+              select: {
+                id: true,
+                ad: true,
+                soyad: true,
+              }
             }
           }
         }
@@ -40,115 +50,73 @@ export const getConversations = async (req: AuthRequest, res: Response) => {
       orderBy: { updatedAt: 'desc' }
     });
 
-    // Okunmamış mesaj sayısını hesapla
+    // Her konuşma için okunmamış mesaj sayısını hesapla
     const conversationsWithUnread = await Promise.all(
       conversations.map(async (conv) => {
+        const member = conv.uyeler.find(u => u.userId === userId);
         const unreadCount = await prisma.message.count({
           where: {
             conversationId: conv.id,
             gonderenId: { not: userId },
-            durum: MessageStatus.OKUNMADI,
             okuyanlar: {
               none: { userId }
-            }
+            },
+            silindi: false
           }
         });
 
         return {
-          ...conv,
+          id: conv.id,
+          tip: conv.tip,
+          ad: conv.ad || (conv.tip === 'OZEL' 
+            ? conv.uyeler.find(u => u.userId !== userId)?.user.ad + ' ' + conv.uyeler.find(u => u.userId !== userId)?.user.soyad
+            : 'Konuşma'),
+          resimUrl: conv.resimUrl,
+          sonMesaj: conv.mesajlar[0] ? {
+            icerik: conv.mesajlar[0].icerik,
+            gonderenAd: conv.mesajlar[0].gonderen.ad,
+            tarih: conv.mesajlar[0].createdAt
+          } : null,
           okunmamis: unreadCount,
-          sonMesaj: conv.mesajlar[0] || null
+          uyeler: conv.uyeler.map(u => ({
+            id: u.user.id,
+            ad: u.user.ad + ' ' + u.user.soyad,
+            rol: u.user.role,
+            brans: u.user.brans,
+            grupRol: u.rolAd,
+            online: false // TODO: Online durumu için ayrı bir sistem gerekli
+          })),
+          sabitle: member?.sabitle || false,
+          seslesiz: member?.seslesiz || false,
+          createdAt: conv.createdAt,
+          updatedAt: conv.updatedAt,
         };
       })
     );
 
-    res.json(conversationsWithUnread);
-  } catch (error) {
-    console.error('Konuşmalar alınırken hata:', error);
-    res.status(500).json({ error: 'Sunucu hatası' });
-  }
-};
-
-// Yeni konuşma oluştur veya mevcut olanı getir (1-1 için)
-export const createOrGetConversation = async (req: AuthRequest, res: Response) => {
-  try {
-    const userId = req.user?.id;
-    const { targetUserId, tip = 'OZEL' } = req.body;
-
-    if (!userId) {
-      return res.status(401).json({ error: 'Yetkisiz erişim' });
-    }
-
-    if (!targetUserId) {
-      return res.status(400).json({ error: 'Hedef kullanıcı ID gerekli' });
-    }
-
-    // 1-1 konuşma için mevcut olanı bul
-    if (tip === 'OZEL') {
-      const existingConversation = await prisma.conversation.findFirst({
-        where: {
-          tip: ConversationType.OZEL,
-          AND: [
-            { uyeler: { some: { userId } } },
-            { uyeler: { some: { userId: targetUserId } } }
-          ]
-        },
-        include: {
-          uyeler: {
-            include: {
-              user: { select: { id: true, ad: true, soyad: true, role: true, brans: true } }
-            }
-          }
-        }
-      });
-
-      if (existingConversation) {
-        return res.json(existingConversation);
-      }
-    }
-
-    // Yeni konuşma oluştur
-    const conversation = await prisma.conversation.create({
-      data: {
-        tip: tip as ConversationType,
-        olusturanId: userId,
-        uyeler: {
-          create: [
-            { userId, rolAd: 'admin' },
-            { userId: targetUserId, rolAd: 'uye' }
-          ]
-        }
-      },
-      include: {
-        uyeler: {
-          include: {
-            user: { select: { id: true, ad: true, soyad: true, role: true, brans: true } }
-          }
-        }
-      }
+    res.json({
+      success: true,
+      data: conversationsWithUnread
     });
-
-    res.status(201).json(conversation);
   } catch (error) {
-    console.error('Konuşma oluşturulurken hata:', error);
-    res.status(500).json({ error: 'Sunucu hatası' });
+    console.error('Get conversations error:', error);
+    res.status(500).json({ success: false, error: 'Konuşmalar alınamadı' });
   }
 };
 
-// ==================== MESAJLAR ====================
-
-// Konuşmadaki mesajları getir
-export const getMessages = async (req: AuthRequest, res: Response) => {
+// Konuşmanın mesajlarını getir
+export const getMessages = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?.userId;
     const { conversationId } = req.params;
     const { limit = 50, before } = req.query;
 
     if (!userId) {
-      return res.status(401).json({ error: 'Yetkisiz erişim' });
+      res.status(401).json({ success: false, error: 'Yetkilendirme gerekli' });
+      return;
     }
 
-    // Kullanıcının bu konuşmaya erişimi var mı kontrol et
+    // Kullanıcının bu konuşmaya üye olduğunu kontrol et
     const membership = await prisma.conversationMember.findUnique({
       where: {
         conversationId_userId: { conversationId, userId }
@@ -156,9 +124,11 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
     });
 
     if (!membership) {
-      return res.status(403).json({ error: 'Bu konuşmaya erişim izniniz yok' });
+      res.status(403).json({ success: false, error: 'Bu konuşmaya erişim yetkiniz yok' });
+      return;
     }
 
+    // Mesajları getir
     const messages = await prisma.message.findMany({
       where: {
         conversationId,
@@ -167,14 +137,22 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
       },
       include: {
         gonderen: {
-          select: { id: true, ad: true, soyad: true, role: true, brans: true }
+          select: {
+            id: true,
+            ad: true,
+            soyad: true,
+            role: true,
+          }
         },
         okuyanlar: {
-          select: { userId: true, okunmaTarihi: true }
+          select: {
+            userId: true,
+            okunmaTarihi: true
+          }
         }
       },
-      orderBy: { createdAt: 'desc' },
-      take: parseInt(limit as string)
+      orderBy: { createdAt: 'asc' },
+      take: Number(limit)
     });
 
     // Mesajları okundu olarak işaretle
@@ -186,35 +164,51 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
       await prisma.messageRead.createMany({
         data: unreadMessageIds.map(mesajId => ({
           mesajId,
-          userId
+          userId,
         })),
         skipDuplicates: true
       });
     }
 
-    res.json(messages.reverse()); // Eski mesajlar önce
+    res.json({
+      success: true,
+      data: messages.map(m => ({
+        id: m.id,
+        gonderenId: m.gonderenId,
+        gonderenAd: m.gonderen.ad + ' ' + m.gonderen.soyad,
+        gonderenRol: m.gonderen.role,
+        icerik: m.icerik,
+        dosyaUrl: m.dosyaUrl,
+        dosyaTip: m.dosyaTip,
+        tarih: m.createdAt,
+        okundu: m.okuyanlar.length > 0,
+        duzenlendi: m.duzenlendi,
+      }))
+    });
   } catch (error) {
-    console.error('Mesajlar alınırken hata:', error);
-    res.status(500).json({ error: 'Sunucu hatası' });
+    console.error('Get messages error:', error);
+    res.status(500).json({ success: false, error: 'Mesajlar alınamadı' });
   }
 };
 
 // Mesaj gönder
-export const sendMessage = async (req: AuthRequest, res: Response) => {
+export const sendMessage = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?.userId;
     const { conversationId } = req.params;
-    const { icerik, baslik, dosyaUrl, dosyaTip, yanitladigiMesajId } = req.body;
+    const { icerik, dosyaUrl, dosyaTip, yanitladigiMesajId } = req.body;
 
     if (!userId) {
-      return res.status(401).json({ error: 'Yetkisiz erişim' });
+      res.status(401).json({ success: false, error: 'Yetkilendirme gerekli' });
+      return;
     }
 
     if (!icerik?.trim()) {
-      return res.status(400).json({ error: 'Mesaj içeriği gerekli' });
+      res.status(400).json({ success: false, error: 'Mesaj içeriği gerekli' });
+      return;
     }
 
-    // Kullanıcının bu konuşmaya erişimi var mı kontrol et
+    // Kullanıcının bu konuşmaya üye olduğunu kontrol et
     const membership = await prisma.conversationMember.findUnique({
       where: {
         conversationId_userId: { conversationId, userId }
@@ -222,7 +216,8 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
     });
 
     if (!membership) {
-      return res.status(403).json({ error: 'Bu konuşmaya mesaj gönderme izniniz yok' });
+      res.status(403).json({ success: false, error: 'Bu konuşmaya erişim yetkiniz yok' });
+      return;
     }
 
     // Mesajı oluştur
@@ -231,14 +226,18 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
         conversationId,
         gonderenId: userId,
         icerik: icerik.trim(),
-        baslik,
         dosyaUrl,
         dosyaTip,
-        yanitladigiMesajId
+        yanitladigiMesajId,
       },
       include: {
         gonderen: {
-          select: { id: true, ad: true, soyad: true, role: true, brans: true }
+          select: {
+            id: true,
+            ad: true,
+            soyad: true,
+            role: true,
+          }
         }
       }
     });
@@ -249,147 +248,357 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
       data: { updatedAt: new Date() }
     });
 
-    // Diğer üyelere bildirim gönder
-    const otherMembers = await prisma.conversationMember.findMany({
-      where: {
-        conversationId,
-        userId: { not: userId },
-        seslesiz: false
-      },
-      select: { userId: true }
-    });
-
-    if (otherMembers.length > 0) {
-      await prisma.notification.createMany({
-        data: otherMembers.map(member => ({
-          userId: member.userId,
-          tip: 'BILDIRIM',
-          baslik: 'Yeni Mesaj',
-          mesaj: `${message.gonderen.ad} ${message.gonderen.soyad}: ${icerik.substring(0, 50)}${icerik.length > 50 ? '...' : ''}`
-        }))
-      });
-    }
-
-    res.status(201).json(message);
-  } catch (error) {
-    console.error('Mesaj gönderilirken hata:', error);
-    res.status(500).json({ error: 'Sunucu hatası' });
-  }
-};
-
-// Mesajı okundu olarak işaretle
-export const markAsRead = async (req: AuthRequest, res: Response) => {
-  try {
-    const userId = req.user?.id;
-    const { conversationId } = req.params;
-
-    if (!userId) {
-      return res.status(401).json({ error: 'Yetkisiz erişim' });
-    }
-
-    // Konuşmadaki okunmamış mesajları bul
-    const unreadMessages = await prisma.message.findMany({
-      where: {
-        conversationId,
-        gonderenId: { not: userId },
-        okuyanlar: {
-          none: { userId }
-        }
-      },
-      select: { id: true }
-    });
-
-    // Tümünü okundu olarak işaretle
-    if (unreadMessages.length > 0) {
-      await prisma.messageRead.createMany({
-        data: unreadMessages.map(m => ({
-          mesajId: m.id,
-          userId
-        })),
-        skipDuplicates: true
-      });
-    }
-
-    res.json({ success: true, markedCount: unreadMessages.length });
-  } catch (error) {
-    console.error('Mesajlar okundu işaretlenirken hata:', error);
-    res.status(500).json({ error: 'Sunucu hatası' });
-  }
-};
-
-// ==================== GRUP KONUŞMALARI ====================
-
-// Sınıf grubu oluştur/getir
-export const getOrCreateClassGroup = async (req: AuthRequest, res: Response) => {
-  try {
-    const userId = req.user?.id;
-    const { sinifId } = req.params;
-
-    if (!userId) {
-      return res.status(401).json({ error: 'Yetkisiz erişim' });
-    }
-
-    // Mevcut sınıf grubunu bul
-    let classGroup = await prisma.conversation.findFirst({
-      where: {
-        tip: ConversationType.SINIF,
-        sinifId
-      },
-      include: {
-        uyeler: {
-          include: {
-            user: { select: { id: true, ad: true, soyad: true, role: true } }
-          }
-        }
+    // Gönderen otomatik olarak mesajı okumuş sayılsın
+    await prisma.messageRead.create({
+      data: {
+        mesajId: message.id,
+        userId,
       }
     });
 
-    if (!classGroup) {
-      // Sınıf bilgilerini al
-      const sinif = await prisma.sinif.findUnique({
-        where: { id: sinifId },
+    res.status(201).json({
+      success: true,
+      data: {
+        id: message.id,
+        gonderenId: message.gonderenId,
+        gonderenAd: message.gonderen.ad + ' ' + message.gonderen.soyad,
+        gonderenRol: message.gonderen.role,
+        icerik: message.icerik,
+        dosyaUrl: message.dosyaUrl,
+        dosyaTip: message.dosyaTip,
+        tarih: message.createdAt,
+        okundu: true,
+      }
+    });
+  } catch (error) {
+    console.error('Send message error:', error);
+    res.status(500).json({ success: false, error: 'Mesaj gönderilemedi' });
+  }
+};
+
+// Yeni konuşma oluştur (1-1)
+export const createConversation = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    const { targetUserId, tip, ad, uyeIds } = req.body;
+
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Yetkilendirme gerekli' });
+      return;
+    }
+
+    // 1-1 konuşma için
+    if (tip === 'OZEL' || !tip) {
+      if (!targetUserId) {
+        res.status(400).json({ success: false, error: 'Hedef kullanıcı ID gerekli' });
+        return;
+      }
+
+      // Mevcut konuşma var mı kontrol et
+      const existingConversation = await prisma.conversation.findFirst({
+        where: {
+          tip: 'OZEL',
+          AND: [
+            { uyeler: { some: { userId } } },
+            { uyeler: { some: { userId: targetUserId } } }
+          ]
+        },
         include: {
-          ogrenciler: { select: { id: true } },
-          dersler: {
-            include: { ogretmen: { select: { id: true } } }
+          uyeler: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  ad: true,
+                  soyad: true,
+                  role: true,
+                }
+              }
+            }
           }
         }
       });
 
-      if (!sinif) {
-        return res.status(404).json({ error: 'Sınıf bulunamadı' });
+      if (existingConversation) {
+        res.json({
+          success: true,
+          data: {
+            id: existingConversation.id,
+            tip: existingConversation.tip,
+            ad: existingConversation.uyeler.find(u => u.userId !== userId)?.user.ad + ' ' + existingConversation.uyeler.find(u => u.userId !== userId)?.user.soyad,
+            uyeler: existingConversation.uyeler.map(u => ({
+              id: u.user.id,
+              ad: u.user.ad + ' ' + u.user.soyad,
+              rol: u.user.role,
+            })),
+            existing: true
+          }
+        });
+        return;
       }
 
-      // Sınıf grubunu oluştur
-      const ogretmenIds = [...new Set(sinif.dersler.map(d => d.ogretmen.id))];
-      const ogrenciIds = sinif.ogrenciler.map(o => o.id);
-
-      classGroup = await prisma.conversation.create({
+      // Yeni konuşma oluştur
+      const conversation = await prisma.conversation.create({
         data: {
-          tip: ConversationType.SINIF,
-          ad: `${sinif.ad} Sınıf Grubu`,
-          sinifId,
+          tip: 'OZEL',
           olusturanId: userId,
           uyeler: {
             create: [
-              ...ogretmenIds.map(id => ({ userId: id, rolAd: 'ogretmen' })),
-              ...ogrenciIds.map(id => ({ userId: id, rolAd: 'ogrenci' }))
+              { userId },
+              { userId: targetUserId }
             ]
           }
         },
         include: {
           uyeler: {
             include: {
-              user: { select: { id: true, ad: true, soyad: true, role: true } }
+              user: {
+                select: {
+                  id: true,
+                  ad: true,
+                  soyad: true,
+                  role: true,
+                }
+              }
             }
           }
         }
       });
+
+      res.status(201).json({
+        success: true,
+        data: {
+          id: conversation.id,
+          tip: conversation.tip,
+          ad: conversation.uyeler.find(u => u.userId !== userId)?.user.ad + ' ' + conversation.uyeler.find(u => u.userId !== userId)?.user.soyad,
+          uyeler: conversation.uyeler.map(u => ({
+            id: u.user.id,
+            ad: u.user.ad + ' ' + u.user.soyad,
+            rol: u.user.role,
+          })),
+          existing: false
+        }
+      });
+      return;
     }
 
-    res.json(classGroup);
+    // Grup konuşması oluştur
+    if (!ad?.trim()) {
+      res.status(400).json({ success: false, error: 'Grup adı gerekli' });
+      return;
+    }
+
+    if (!uyeIds || uyeIds.length === 0) {
+      res.status(400).json({ success: false, error: 'En az bir üye seçmelisiniz' });
+      return;
+    }
+
+    const allMemberIds = [userId, ...uyeIds];
+
+    const conversation = await prisma.conversation.create({
+      data: {
+        tip: tip as ConversationType,
+        ad: ad.trim(),
+        olusturanId: userId,
+        uyeler: {
+          create: allMemberIds.map((id, index) => ({
+            userId: id,
+            rolAd: id === userId ? 'admin' : 'uye'
+          }))
+        }
+      },
+      include: {
+        uyeler: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                ad: true,
+                soyad: true,
+                role: true,
+              }
+            }
+          }
+        }
+      }
+    });
+
+    res.status(201).json({
+      success: true,
+      data: {
+        id: conversation.id,
+        tip: conversation.tip,
+        ad: conversation.ad,
+        uyeler: conversation.uyeler.map(u => ({
+          id: u.user.id,
+          ad: u.user.ad + ' ' + u.user.soyad,
+          rol: u.user.role,
+          grupRol: u.rolAd,
+        })),
+      }
+    });
   } catch (error) {
-    console.error('Sınıf grubu oluşturulurken hata:', error);
-    res.status(500).json({ error: 'Sunucu hatası' });
+    console.error('Create conversation error:', error);
+    res.status(500).json({ success: false, error: 'Konuşma oluşturulamadı' });
+  }
+};
+
+// Konuşmadaki kullanıcıları getir (yeni mesaj için arama)
+export const getAvailableUsers = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    const kursId = req.user?.kursId;
+    const { search, type } = req.query;
+
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Yetkilendirme gerekli' });
+      return;
+    }
+
+    let whereClause: any = {
+      id: { not: userId },
+      aktif: true,
+    };
+
+    // Kurs bazlı filtreleme
+    if (kursId) {
+      whereClause.kursId = kursId;
+    }
+
+    // Tip bazlı filtreleme
+    if (type === 'personel') {
+      whereClause.role = { in: ['mudur', 'ogretmen', 'sekreter'] };
+    } else if (type === 'ogrenci') {
+      whereClause.role = 'ogrenci';
+    }
+
+    // Arama
+    if (search) {
+      whereClause.OR = [
+        { ad: { contains: search as string } },
+        { soyad: { contains: search as string } },
+        { email: { contains: search as string } },
+      ];
+    }
+
+    const users = await prisma.user.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        ad: true,
+        soyad: true,
+        role: true,
+        brans: true,
+        sinif: {
+          select: {
+            ad: true
+          }
+        }
+      },
+      take: 20,
+      orderBy: [
+        { role: 'asc' },
+        { ad: 'asc' }
+      ]
+    });
+
+    res.json({
+      success: true,
+      data: users.map(u => ({
+        id: u.id,
+        ad: u.ad,
+        soyad: u.soyad,
+        rol: u.role,
+        brans: u.brans,
+        sinif: u.sinif?.ad,
+      }))
+    });
+  } catch (error) {
+    console.error('Get available users error:', error);
+    res.status(500).json({ success: false, error: 'Kullanıcılar alınamadı' });
+  }
+};
+
+// Son mesajları getir (polling için)
+export const getNewMessages = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    const { conversationId } = req.params;
+    const { after } = req.query;
+
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Yetkilendirme gerekli' });
+      return;
+    }
+
+    // Kullanıcının bu konuşmaya üye olduğunu kontrol et
+    const membership = await prisma.conversationMember.findUnique({
+      where: {
+        conversationId_userId: { conversationId, userId }
+      }
+    });
+
+    if (!membership) {
+      res.status(403).json({ success: false, error: 'Bu konuşmaya erişim yetkiniz yok' });
+      return;
+    }
+
+    // Belirli bir tarihten sonraki mesajları getir
+    const messages = await prisma.message.findMany({
+      where: {
+        conversationId,
+        silindi: false,
+        createdAt: { gt: new Date(after as string) }
+      },
+      include: {
+        gonderen: {
+          select: {
+            id: true,
+            ad: true,
+            soyad: true,
+            role: true,
+          }
+        },
+        okuyanlar: {
+          select: {
+            userId: true,
+          }
+        }
+      },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    // Yeni mesajları okundu olarak işaretle
+    const unreadMessageIds = messages
+      .filter(m => m.gonderenId !== userId && !m.okuyanlar.some(o => o.userId === userId))
+      .map(m => m.id);
+
+    if (unreadMessageIds.length > 0) {
+      await prisma.messageRead.createMany({
+        data: unreadMessageIds.map(mesajId => ({
+          mesajId,
+          userId,
+        })),
+        skipDuplicates: true
+      });
+    }
+
+    res.json({
+      success: true,
+      data: messages.map(m => ({
+        id: m.id,
+        gonderenId: m.gonderenId,
+        gonderenAd: m.gonderen.ad + ' ' + m.gonderen.soyad,
+        gonderenRol: m.gonderen.role,
+        icerik: m.icerik,
+        dosyaUrl: m.dosyaUrl,
+        dosyaTip: m.dosyaTip,
+        tarih: m.createdAt,
+        okundu: m.okuyanlar.length > 0,
+      }))
+    });
+  } catch (error) {
+    console.error('Get new messages error:', error);
+    res.status(500).json({ success: false, error: 'Yeni mesajlar alınamadı' });
   }
 };

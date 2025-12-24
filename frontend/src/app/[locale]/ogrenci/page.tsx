@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import ClientOnlyDate from '../../../components/ClientOnlyDate';
-import YeniMesajModal from '../../../components/YeniMesajModal';
 import {
   mockOgrenci,
   mockDersler,
@@ -35,7 +34,6 @@ export default function OgrenciDashboard() {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [showProfilModal, setShowProfilModal] = useState(false);
   const [showSifreModal, setShowSifreModal] = useState(false);
-  const [showYeniMesajModal, setShowYeniMesajModal] = useState(false);
   const [yeniSifre, setYeniSifre] = useState('');
   const [yeniSifreTekrar, setYeniSifreTekrar] = useState('');
 
@@ -109,15 +107,15 @@ export default function OgrenciDashboard() {
               {/* Sağ Menü */}
               <div ref={dropdownRef} className="flex items-center gap-2">
                 {/* Yeni Mesaj */}
-                <button
-                  onClick={() => setShowYeniMesajModal(true)}
+                <Link
+                  href="/ogrenci/mesajlar"
                   className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-600"
-                  title="Yeni Mesaj"
+                  title="Mesajlar"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                   </svg>
-                </button>
+                </Link>
 
                 {/* Bildirimler */}
                 <div className="relative">
@@ -425,15 +423,15 @@ export default function OgrenciDashboard() {
                           <p className="font-medium text-slate-900 text-sm truncate">{ogretmen.ad} {ogretmen.soyad}</p>
                           <p className="text-xs text-slate-500">{ogretmen.brans}</p>
                         </div>
-                        <button
-                          onClick={() => setShowYeniMesajModal(true)}
+                        <Link
+                          href="/ogrenci/mesajlar"
                           className="p-2 hover:bg-slate-200 rounded-lg transition-colors"
                           title="Mesaj Gönder"
                         >
                           <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                           </svg>
-                        </button>
+                        </Link>
                       </div>
                     </div>
                   ))}
@@ -467,8 +465,6 @@ export default function OgrenciDashboard() {
         </main>
 
         {/* Modaller */}
-        <YeniMesajModal isOpen={showYeniMesajModal} onClose={() => setShowYeniMesajModal(false)} />
-        
         {showProfilModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[100]">
             <div className="bg-white rounded-xl max-w-lg w-full shadow-2xl">
@@ -529,13 +525,13 @@ export default function OgrenciDashboard() {
           {/* Sağ taraf butonları */}
           <div ref={dropdownRef} className="flex items-center gap-3">
             {/* Yeni Mesaj Butonu */}
-            <button
-              onClick={() => setShowYeniMesajModal(true)}
+            <Link
+              href="/ogrenci/mesajlar"
               className="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-full hover:shadow-lg transition-all hover:from-green-600 hover:to-green-700 active:scale-95 font-semibold text-sm flex items-center gap-2"
             >
-              <span>✉️</span>
-              <span className="hidden sm:inline">Yeni Mesaj</span>
-            </button>
+              <span>💬</span>
+              <span className="hidden sm:inline">Mesajlar</span>
+            </Link>
 
             {/* Bildirimler */}
             <div className="relative">
@@ -875,12 +871,12 @@ export default function OgrenciDashboard() {
                     </div>
                   </div>
                 </div>
-                <button
-                  onClick={() => setShowYeniMesajModal(true)}
-                  className="w-full mt-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold py-2 rounded-xl hover:shadow-lg transition-all hover:from-blue-600 hover:to-blue-700 active:scale-95 text-sm"
+                <Link
+                  href="/ogrenci/mesajlar"
+                  className="w-full mt-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold py-2 rounded-xl hover:shadow-lg transition-all hover:from-blue-600 hover:to-blue-700 active:scale-95 text-sm text-center block"
                 >
                   💬 Mesaj Gönder
-                </button>
+                </Link>
               </div>
             ))}
           </div>
@@ -968,12 +964,6 @@ export default function OgrenciDashboard() {
           </div>
         )}
       </main>
-
-      {/* Yeni Mesaj Modal */}
-      <YeniMesajModal 
-        isOpen={showYeniMesajModal} 
-        onClose={() => setShowYeniMesajModal(false)} 
-      />
 
       {/* Profil Düzenleme Modal */}
       {showProfilModal && (
