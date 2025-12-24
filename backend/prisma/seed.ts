@@ -395,6 +395,83 @@ async function main() {
   }
   console.log('');
 
+  // ==================== 9. GRUP KONUŞMALARI ====================
+  console.log('💬 Grup konuşmaları oluşturuluyor...');
+  
+  // Her kurs için öğretmenler grubu ve personel grubu oluştur
+  for (const kursData of kurslarData) {
+    const kursId = kurslar[kursData.kod];
+    
+    // Bu kurstaki tüm personeli bul
+    const kursPersonel = await prisma.user.findMany({
+      where: {
+        kursId,
+        role: { in: ['mudur', 'ogretmen', 'sekreter'] },
+        aktif: true
+      },
+      select: { id: true, role: true }
+    });
+    
+    // Bu kurstaki tüm öğretmenleri bul (müdür dahil)
+    const kursOgretmenler = await prisma.user.findMany({
+      where: {
+        kursId,
+        OR: [
+          { role: 'ogretmen' },
+          { role: 'mudur', brans: { not: null } }
+        ],
+        aktif: true
+      },
+      select: { id: true, role: true }
+    });
+    
+    // Müdürü bul (grup yöneticisi olacak)
+    const mudur = kursPersonel.find(p => p.role === 'mudur');
+    
+    if (kursPersonel.length > 0) {
+      // Personel Grubu oluştur
+      const personelGrubu = await prisma.conversation.upsert({
+        where: { id: `personel-grup-${kursData.kod}` },
+        update: {},
+        create: {
+          id: `personel-grup-${kursData.kod}`,
+          tip: 'PERSONEL',
+          ad: `${kursData.ad} - Personel`,
+          olusturanId: mudur?.id,
+          uyeler: {
+            create: kursPersonel.map(p => ({
+              userId: p.id,
+              rolAd: p.role === 'mudur' ? 'admin' : 'uye'
+            }))
+          }
+        }
+      });
+      console.log(`   ✅ ${kursData.ad} - Personel grubu (${kursPersonel.length} üye)`);
+    }
+    
+    if (kursOgretmenler.length > 0) {
+      // Öğretmenler Grubu oluştur
+      const ogretmenGrubu = await prisma.conversation.upsert({
+        where: { id: `ogretmen-grup-${kursData.kod}` },
+        update: {},
+        create: {
+          id: `ogretmen-grup-${kursData.kod}`,
+          tip: 'OGRETMEN',
+          ad: `${kursData.ad} - Öğretmenler`,
+          olusturanId: mudur?.id,
+          uyeler: {
+            create: kursOgretmenler.map(p => ({
+              userId: p.id,
+              rolAd: p.role === 'mudur' ? 'admin' : 'uye'
+            }))
+          }
+        }
+      });
+      console.log(`   ✅ ${kursData.ad} - Öğretmenler grubu (${kursOgretmenler.length} üye)`);
+    }
+  }
+  console.log('');
+
   // ==================== ÖZET ====================
   console.log('═══════════════════════════════════════════════════════════');
   console.log('🎉 SEED TAMAMLANDI!');
