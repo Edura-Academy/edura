@@ -1,6 +1,7 @@
 import { bucket, firebaseEnabled } from '../config/firebase';
 import { v4 as uuidv4 } from 'uuid';
 import * as path from 'path';
+import * as fs from 'fs';
 
 interface UploadResult {
   success: boolean;
@@ -8,20 +9,94 @@ interface UploadResult {
   error?: string;
 }
 
+// Local uploads klasörü
+const UPLOADS_DIR = path.join(__dirname, '../../uploads');
+
+// Uploads klasörünü oluştur (yoksa)
+const ensureUploadsDir = (folder: string) => {
+  const fullPath = path.join(UPLOADS_DIR, folder);
+  if (!fs.existsSync(fullPath)) {
+    fs.mkdirSync(fullPath, { recursive: true });
+  }
+  return fullPath;
+};
+
 /**
- * Dosyayı Firebase Storage'a yükler
+ * Dosyayı local dosya sistemine yükler (fallback)
+ */
+export const uploadToLocal = async (
+  file: Express.Multer.File,
+  folder: string = 'profiles'
+): Promise<UploadResult> => {
+  try {
+    // Uploads klasörünü oluştur
+    const uploadDir = ensureUploadsDir(folder);
+    
+    // Benzersiz dosya adı oluştur
+    const fileExtension = path.extname(file.originalname);
+    const fileName = `${uuidv4()}${fileExtension}`;
+    const filePath = path.join(uploadDir, fileName);
+
+    // Dosyayı kaydet
+    fs.writeFileSync(filePath, file.buffer);
+
+    // API URL'ini belirle
+    const apiUrl = process.env.API_URL || 'http://localhost:5000';
+    const publicUrl = `${apiUrl}/uploads/${folder}/${fileName}`;
+
+    console.log(`✅ Local upload successful: ${publicUrl}`);
+
+    return {
+      success: true,
+      url: publicUrl,
+    };
+  } catch (error) {
+    console.error('Local upload error:', error);
+    return {
+      success: false,
+      error: 'Dosya yüklenirken bir hata oluştu',
+    };
+  }
+};
+
+/**
+ * Local dosya sisteminden dosya siler
+ */
+export const deleteFromLocal = async (fileUrl: string): Promise<boolean> => {
+  try {
+    const apiUrl = process.env.API_URL || 'http://localhost:3001';
+    const baseUrl = `${apiUrl}/uploads/`;
+    
+    if (!fileUrl.startsWith(baseUrl)) {
+      return false;
+    }
+
+    const relativePath = fileUrl.replace(baseUrl, '');
+    const filePath = path.join(UPLOADS_DIR, relativePath);
+
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error('Local delete error:', error);
+    return false;
+  }
+};
+
+/**
+ * Dosyayı Firebase Storage'a veya local'e yükler
  */
 export const uploadToFirebase = async (
   file: Express.Multer.File,
   folder: string = 'profiles',
   makePublic: boolean = true
 ): Promise<UploadResult> => {
-  // Firebase etkin değilse hata döndür
+  // Firebase etkin değilse local'e yükle
   if (!firebaseEnabled || !bucket) {
-    return {
-      success: false,
-      error: 'Firebase Storage is not configured. File upload disabled.',
-    };
+    console.log('⚠️ Firebase not configured, using local storage fallback');
+    return uploadToLocal(file, folder);
   }
 
   try {
@@ -63,9 +138,15 @@ export const uploadToFirebase = async (
 };
 
 /**
- * Firebase Storage'dan dosya siler
+ * Firebase Storage'dan veya local'den dosya siler
  */
 export const deleteFromFirebase = async (fileUrl: string): Promise<boolean> => {
+  // Local URL kontrolü
+  const apiUrl = process.env.API_URL || 'http://localhost:3001';
+  if (fileUrl.startsWith(apiUrl)) {
+    return deleteFromLocal(fileUrl);
+  }
+
   // Firebase etkin değilse false döndür
   if (!firebaseEnabled || !bucket) {
     return false;

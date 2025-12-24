@@ -736,15 +736,23 @@ export default function MesajlarPage() {
             >
               {/* Avatar */}
               <div className="relative flex-shrink-0">
-                <div className={`w-[44px] h-[44px] rounded-full flex items-center justify-center text-white font-semibold text-lg ${
-                  konusma.tip === 'OGRETMEN' 
-                    ? 'bg-gradient-to-br from-[#9B59B6] to-[#8E44AD]'
-                    : konusma.tip === 'PERSONEL'
-                      ? 'bg-gradient-to-br from-[#3498DB] to-[#2980B9]'
-                      : 'bg-gradient-to-br from-[#27AE60] to-[#219653]'
-                }`}>
-                  {getKonusmaIcon(konusma.tip) || konusma.ad.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                </div>
+                {konusma.resimUrl ? (
+                  <img 
+                    src={konusma.resimUrl} 
+                    alt={konusma.ad}
+                    className="w-[44px] h-[44px] rounded-full object-cover"
+                  />
+                ) : (
+                  <div className={`w-[44px] h-[44px] rounded-full flex items-center justify-center text-white font-semibold text-lg ${
+                    konusma.tip === 'OGRETMEN' 
+                      ? 'bg-gradient-to-br from-[#9B59B6] to-[#8E44AD]'
+                      : konusma.tip === 'PERSONEL'
+                        ? 'bg-gradient-to-br from-[#3498DB] to-[#2980B9]'
+                        : 'bg-gradient-to-br from-[#27AE60] to-[#219653]'
+                  }`}>
+                    {getKonusmaIcon(konusma.tip) || konusma.ad.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                  </div>
+                )}
                 {konusma.tip === 'OZEL' && konusma.uyeler[0]?.online && (
                   <div className="absolute bottom-0 right-0 w-3 h-3 bg-[#27AE60] rounded-full border-2 border-white"></div>
                 )}
@@ -811,15 +819,23 @@ export default function MesajlarPage() {
                     className={`flex items-center gap-3 ${seciliKonusma.tip !== 'OZEL' ? 'hover:bg-[#FAFAFA] rounded-lg p-2 -m-2 transition-colors cursor-pointer' : 'cursor-default'}`}
                   >
                     <div className="relative">
-                      <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center text-white font-semibold text-lg ${
-                        seciliKonusma.tip === 'OGRETMEN' 
-                          ? 'bg-gradient-to-br from-[#9B59B6] to-[#8E44AD]'
-                          : seciliKonusma.tip === 'PERSONEL'
-                            ? 'bg-gradient-to-br from-[#3498DB] to-[#2980B9]'
-                            : 'bg-gradient-to-br from-[#27AE60] to-[#219653]'
-                      }`}>
-                        {getKonusmaIcon(seciliKonusma.tip) || seciliKonusma.ad.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                      </div>
+                      {seciliKonusma.resimUrl ? (
+                        <img 
+                          src={seciliKonusma.resimUrl} 
+                          alt={seciliKonusma.ad}
+                          className="w-[42px] h-[42px] rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center text-white font-semibold text-lg ${
+                          seciliKonusma.tip === 'OGRETMEN' 
+                            ? 'bg-gradient-to-br from-[#9B59B6] to-[#8E44AD]'
+                            : seciliKonusma.tip === 'PERSONEL'
+                              ? 'bg-gradient-to-br from-[#3498DB] to-[#2980B9]'
+                              : 'bg-gradient-to-br from-[#27AE60] to-[#219653]'
+                        }`}>
+                          {getKonusmaIcon(seciliKonusma.tip) || seciliKonusma.ad.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                        </div>
+                      )}
                     </div>
                     <div>
                       <h2 className="font-medium text-base text-black/85 text-left">{seciliKonusma.ad}</h2>
@@ -1451,13 +1467,21 @@ export default function MesajlarPage() {
 
             {/* Grup Avatar ve İsim */}
             <div className="p-6 text-center border-b border-slate-200">
-              <div className={`w-24 h-24 mx-auto rounded-full flex items-center justify-center text-white text-4xl font-bold mb-4 ${
-                seciliKonusma.tip === 'ogretmenler' 
-                  ? 'bg-gradient-to-br from-purple-400 to-purple-600'
-                  : 'bg-gradient-to-br from-blue-400 to-blue-600'
-              }`}>
-                {getKonusmaIcon(seciliKonusma.tip) || '👥'}
-              </div>
+              {seciliKonusma.resimUrl ? (
+                <img 
+                  src={seciliKonusma.resimUrl} 
+                  alt={seciliKonusma.ad}
+                  className="w-24 h-24 mx-auto rounded-full object-cover mb-4"
+                />
+              ) : (
+                <div className={`w-24 h-24 mx-auto rounded-full flex items-center justify-center text-white text-4xl font-bold mb-4 ${
+                  seciliKonusma.tip === 'ogretmenler' 
+                    ? 'bg-gradient-to-br from-purple-400 to-purple-600'
+                    : 'bg-gradient-to-br from-blue-400 to-blue-600'
+                }`}>
+                  {getKonusmaIcon(seciliKonusma.tip) || '👥'}
+                </div>
+              )}
               <h2 className="text-xl font-bold text-slate-800 mb-1">{seciliKonusma.ad}</h2>
               <p className="text-sm text-slate-500">Grup • {seciliKonusma.uyeler.length} üye</p>
             </div>
