@@ -140,6 +140,12 @@ export default function MesajlarPage() {
         // İlk konuşmayı seç (eğer seçili değilse)
         if (data.data.length > 0 && !seciliKonusma) {
           setSeciliKonusma(data.data[0]);
+        } else if (seciliKonusma) {
+          // Seçili konuşma varsa güncel verisini al
+          const updatedConv = data.data.find((c: Konusma) => c.id === seciliKonusma.id);
+          if (updatedConv) {
+            setSeciliKonusma(updatedConv);
+          }
         }
       }
     } catch (error) {
@@ -542,6 +548,11 @@ export default function MesajlarPage() {
 
               // Başarılı yükleme
               alert('Grup fotoğrafı başarıyla güncellendi!');
+              
+              // Seçili konuşmayı yeni resim URL'i ile güncelle
+              if (seciliKonusma) {
+                setSeciliKonusma(prev => prev ? {...prev, resimUrl: data.data.url} : null);
+              }
               
               // Konuşma listesini yenile
               fetchConversations();
