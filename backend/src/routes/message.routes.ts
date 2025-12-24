@@ -6,6 +6,10 @@ import {
   createConversation,
   getAvailableUsers,
   getNewMessages,
+  updateConversationName,
+  updateMemberRole,
+  removeMember,
+  addMember,
 } from '../controllers/message.controller';
 import { authenticateToken } from '../middleware/auth.middleware';
 
@@ -17,6 +21,14 @@ router.use(authenticateToken);
 // Konuşmalar
 router.get('/conversations', getConversations);
 router.post('/conversations', createConversation);
+
+// Konuşma ayarları
+router.put('/conversations/:conversationId/name', updateConversationName);
+
+// Üye yönetimi
+router.post('/conversations/:conversationId/members', addMember);
+router.put('/conversations/:conversationId/members/:memberId/role', updateMemberRole);
+router.delete('/conversations/:conversationId/members/:memberId', removeMember);
 
 // Kullanıcılar (yeni mesaj için)
 router.get('/users', getAvailableUsers);

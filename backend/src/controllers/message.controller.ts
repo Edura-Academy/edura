@@ -602,3 +602,209 @@ export const getNewMessages = async (req: AuthRequest, res: Response): Promise<v
     res.status(500).json({ success: false, error: 'Yeni mesajlar alınamadı' });
   }
 };
+
+// Grup adını güncelle
+export const updateConversationName = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    const { conversationId } = req.params;
+    const { ad } = req.body;
+
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Yetkilendirme gerekli' });
+      return;
+    }
+
+    if (!ad || !ad.trim()) {
+      res.status(400).json({ success: false, error: 'Grup adı boş olamaz' });
+      return;
+    }
+
+    // Kullanıcının bu konuşmada yönetici olup olmadığını kontrol et
+    const member = await prisma.conversationMember.findFirst({
+      where: {
+        conversationId,
+        userId,
+        rolAd: 'admin'
+      }
+    });
+
+    if (!member) {
+      res.status(403).json({ success: false, error: 'Bu işlem için yönetici yetkisi gerekli' });
+      return;
+    }
+
+    // Grup adını güncelle
+    const updated = await prisma.conversation.update({
+      where: { id: conversationId },
+      data: { ad: ad.trim() }
+    });
+
+    res.json({
+      success: true,
+      message: 'Grup adı güncellendi',
+      data: { ad: updated.ad }
+    });
+  } catch (error) {
+    console.error('Update conversation name error:', error);
+    res.status(500).json({ success: false, error: 'Grup adı güncellenemedi' });
+  }
+};
+
+// Üyeyi yönetici yap veya yöneticilikten düşür
+export const updateMemberRole = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    const { conversationId, memberId } = req.params;
+    const { role } = req.body; // 'admin' veya 'uye'
+
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Yetkilendirme gerekli' });
+      return;
+    }
+
+    // İşlemi yapan kişinin yönetici olup olmadığını kontrol et
+    const requester = await prisma.conversationMember.findFirst({
+      where: {
+        conversationId,
+        userId,
+        rolAd: 'admin'
+      }
+    });
+
+    if (!requester) {
+      res.status(403).json({ success: false, error: 'Bu işlem için yönetici yetkisi gerekli' });
+      return;
+    }
+
+    // Hedef üyeyi bul
+    const targetMember = await prisma.conversationMember.findFirst({
+      where: {
+        conversationId,
+        userId: memberId
+      }
+    });
+
+    if (!targetMember) {
+      res.status(404).json({ success: false, error: 'Üye bulunamadı' });
+      return;
+    }
+
+    // Üyenin rolünü güncelle
+    await prisma.conversationMember.update({
+      where: { id: targetMember.id },
+      data: { rolAd: role }
+    });
+
+    res.json({
+      success: true,
+      message: role === 'admin' ? 'Üye yönetici yapıldı' : 'Üye yöneticilikten düşürüldü'
+    });
+  } catch (error) {
+    console.error('Update member role error:', error);
+    res.status(500).json({ success: false, error: 'Üye rolü güncellenemedi' });
+  }
+};
+
+// Üyeyi gruptan çıkar
+export const removeMember = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    const { conversationId, memberId } = req.params;
+
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Yetkilendirme gerekli' });
+      return;
+    }
+
+    // Kendi kendini çıkarma (gruptan ayrılma) her zaman izinli
+    const isSelfRemove = userId === memberId;
+
+    if (!isSelfRemove) {
+      // Başkasını çıkarmak için yönetici olmalı
+      const requester = await prisma.conversationMember.findFirst({
+        where: {
+          conversationId,
+          userId,
+          rolAd: 'admin'
+        }
+      });
+
+      if (!requester) {
+        res.status(403).json({ success: false, error: 'Bu işlem için yönetici yetkisi gerekli' });
+        return;
+      }
+    }
+
+    // Hedef üyeyi bul ve sil
+    const targetMember = await prisma.conversationMember.findFirst({
+      where: {
+        conversationId,
+        userId: memberId
+      }
+    });
+
+    if (!targetMember) {
+      res.status(404).json({ success: false, error: 'Üye bulunamadı' });
+      return;
+    }
+
+    await prisma.conversationMember.delete({
+      where: { id: targetMember.id }
+    });
+
+    res.json({
+      success: true,
+      message: isSelfRemove ? 'Gruptan ayrıldınız' : 'Üye gruptan çıkarıldı'
+    });
+  } catch (error) {
+    console.error('Remove member error:', error);
+    res.status(500).json({ success: false, error: 'Üye çıkarılamadı' });
+  }
+};
+
+// Gruba üye ekle
+export const addMember = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    const { conversationId } = req.params;
+    const { userIds } = req.body; // Array of user IDs
+
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Yetkilendirme gerekli' });
+      return;
+    }
+
+    // İşlemi yapan kişinin yönetici olup olmadığını kontrol et
+    const requester = await prisma.conversationMember.findFirst({
+      where: {
+        conversationId,
+        userId,
+        rolAd: 'admin'
+      }
+    });
+
+    if (!requester) {
+      res.status(403).json({ success: false, error: 'Bu işlem için yönetici yetkisi gerekli' });
+      return;
+    }
+
+    // Yeni üyeleri ekle
+    const newMembers = await prisma.conversationMember.createMany({
+      data: userIds.map((uid: string) => ({
+        conversationId,
+        userId: uid,
+        rolAd: 'uye'
+      })),
+      skipDuplicates: true
+    });
+
+    res.json({
+      success: true,
+      message: `${newMembers.count} üye eklendi`
+    });
+  } catch (error) {
+    console.error('Add member error:', error);
+    res.status(500).json({ success: false, error: 'Üye eklenemedi' });
+  }
+};

@@ -500,8 +500,8 @@ export default function MesajlarPage() {
   };
 
   // Grup ayarı tıklama handler
-  const handleGrupAyarClick = (action: string) => {
-    if (!isGrupYoneticisi()) {
+  const handleGrupAyarClick = async (action: string) => {
+    if (!isGrupYoneticisi() && action !== 'ayril') {
       setShowAdminWarning(true);
       return;
     }
@@ -566,17 +566,55 @@ export default function MesajlarPage() {
         break;
       case 'ad':
         const yeniAd = prompt('Yeni grup adını girin:', seciliKonusma?.ad);
-        if (yeniAd && yeniAd.trim()) {
-          alert(`Grup adı "${yeniAd}" olarak değiştirildi!`);
+        if (yeniAd && yeniAd.trim() && yeniAd !== seciliKonusma?.ad) {
+          try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_URL}/messages/conversations/${seciliKonusma?.id}/name`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({ ad: yeniAd.trim() }),
+            });
+            const data = await response.json();
+            if (data.success) {
+              // Seçili konuşmayı güncelle
+              setSeciliKonusma(prev => prev ? { ...prev, ad: yeniAd.trim() } : null);
+              fetchConversations();
+              alert('Grup adı güncellendi!');
+            } else {
+              alert(data.error || 'Grup adı güncellenemedi');
+            }
+          } catch (err) {
+            console.error('Update name error:', err);
+            alert('Grup adı güncellenirken bir hata oluştu');
+          }
         }
-        break;
-      case 'bildirim':
-        alert('Bildirim ayarları açılıyor...');
         break;
       case 'ayril':
         if (confirm('Gruptan ayrılmak istediğinizden emin misiniz?')) {
-          alert('Gruptan ayrıldınız!');
-          setShowGrupProfil(false);
+          try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_URL}/messages/conversations/${seciliKonusma?.id}/members/${currentUser?.id}`, {
+              method: 'DELETE',
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            });
+            const data = await response.json();
+            if (data.success) {
+              setShowGrupProfil(false);
+              setSeciliKonusma(null);
+              fetchConversations();
+              alert('Gruptan ayrıldınız!');
+            } else {
+              alert(data.error || 'Gruptan ayrılınamadı');
+            }
+          } catch (err) {
+            console.error('Leave group error:', err);
+            alert('Gruptan ayrılırken bir hata oluştu');
+          }
         }
         break;
     }
@@ -1338,11 +1376,16 @@ export default function MesajlarPage() {
               }`}>
                 {selectedUye.ad.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
               </div>
-              <h3 className="text-xl font-bold text-slate-800">{selectedUye.ad}</h3>
-              <p className="text-sm text-slate-600 mt-1">{selectedUye.rol}</p>
-              {selectedUye.rol === 'Müdür' && (
-                <span className="inline-block mt-2 text-xs bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full font-medium">
-                  👑 Yönetici
+              <h3 className="text-xl font-bold text-slate-800 flex items-center justify-center gap-2">
+                {selectedUye.ad}
+                {selectedUye.id === currentUser?.id && (
+                  <span className="text-sm text-slate-500 font-normal">~ Siz</span>
+                )}
+              </h3>
+              <p className="text-sm text-slate-600 mt-1">{selectedUye.rol || selectedUye.brans}</p>
+              {selectedUye.grupRol === 'admin' && (
+                <span className="inline-block mt-2 text-xs bg-green-100 text-green-700 px-3 py-1 rounded-full font-medium">
+                  👑 Grup Yöneticisi
                 </span>
               )}
             </div>
@@ -1360,29 +1403,51 @@ export default function MesajlarPage() {
                   <span className="text-sm font-medium text-slate-700">Üyeyi Görüntüle</span>
                 </button>
 
-                <button 
-                  onClick={() => handleUyeyleMesajlasma(selectedUye)}
-                  className="w-full p-3 text-left hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-3"
-                >
-                  <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center">
-                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                    </svg>
-                  </div>
-                  <span className="text-sm font-medium text-slate-700">Mesaj Gönder</span>
-                </button>
+                {selectedUye.id !== currentUser?.id && (
+                  <button 
+                    onClick={() => handleUyeyleMesajlasma(selectedUye)}
+                    className="w-full p-3 text-left hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-3"
+                  >
+                    <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center">
+                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                      </svg>
+                    </div>
+                    <span className="text-sm font-medium text-slate-700">Mesaj Gönder</span>
+                  </button>
+                )}
 
-                {/* Yönetici Özellikleri */}
-                {isGrupYoneticisi() && (
+                {/* Yönetici Özellikleri - Sadece başkalarına uygulanabilir */}
+                {isGrupYoneticisi() && selectedUye.id !== currentUser?.id && (
                   <>
                     <div className="border-t border-slate-200 my-2"></div>
                     
-                    {selectedUye.rol === 'Müdür' ? (
+                    {selectedUye.grupRol === 'admin' ? (
                       <button 
-                        onClick={() => {
+                        onClick={async () => {
                           if (confirm(`${selectedUye.ad} yönetici rolünden düşürülsün mü?`)) {
-                            alert(`${selectedUye.ad} artık yönetici değil`);
-                            setShowUyeMenu(false);
+                            try {
+                              const token = localStorage.getItem('token');
+                              const response = await fetch(`${API_URL}/messages/conversations/${seciliKonusma?.id}/members/${selectedUye.id}/role`, {
+                                method: 'PUT',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                  Authorization: `Bearer ${token}`,
+                                },
+                                body: JSON.stringify({ role: 'uye' }),
+                              });
+                              const data = await response.json();
+                              if (data.success) {
+                                fetchConversations();
+                                setShowUyeMenu(false);
+                                alert(`${selectedUye.ad} artık yönetici değil`);
+                              } else {
+                                alert(data.error || 'İşlem başarısız');
+                              }
+                            } catch (err) {
+                              console.error('Update role error:', err);
+                              alert('Rol güncellenirken bir hata oluştu');
+                            }
                           }
                         }}
                         className="w-full p-3 text-left hover:bg-orange-50 rounded-lg transition-colors flex items-center gap-3"
@@ -1390,14 +1455,34 @@ export default function MesajlarPage() {
                         <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
                           <User size={20} className="text-orange-600" />
                         </div>
-                        <span className="text-sm font-medium text-orange-700">Yönetici Rolünden Düşür</span>
+                        <span className="text-sm font-medium text-orange-700">Yöneticilikten Düşür</span>
                       </button>
                     ) : (
                       <button 
-                        onClick={() => {
+                        onClick={async () => {
                           if (confirm(`${selectedUye.ad} yönetici yapılsın mı?`)) {
-                            alert(`${selectedUye.ad} artık yönetici!`);
-                            setShowUyeMenu(false);
+                            try {
+                              const token = localStorage.getItem('token');
+                              const response = await fetch(`${API_URL}/messages/conversations/${seciliKonusma?.id}/members/${selectedUye.id}/role`, {
+                                method: 'PUT',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                  Authorization: `Bearer ${token}`,
+                                },
+                                body: JSON.stringify({ role: 'admin' }),
+                              });
+                              const data = await response.json();
+                              if (data.success) {
+                                fetchConversations();
+                                setShowUyeMenu(false);
+                                alert(`${selectedUye.ad} artık yönetici!`);
+                              } else {
+                                alert(data.error || 'İşlem başarısız');
+                              }
+                            } catch (err) {
+                              console.error('Update role error:', err);
+                              alert('Rol güncellenirken bir hata oluştu');
+                            }
                           }
                         }}
                         className="w-full p-3 text-left hover:bg-yellow-50 rounded-lg transition-colors flex items-center gap-3"
@@ -1410,10 +1495,28 @@ export default function MesajlarPage() {
                     )}
 
                     <button 
-                      onClick={() => {
+                      onClick={async () => {
                         if (confirm(`${selectedUye.ad} gruptan çıkarılsın mı?`)) {
-                          alert(`${selectedUye.ad} gruptan çıkarıldı`);
-                          setShowUyeMenu(false);
+                          try {
+                            const token = localStorage.getItem('token');
+                            const response = await fetch(`${API_URL}/messages/conversations/${seciliKonusma?.id}/members/${selectedUye.id}`, {
+                              method: 'DELETE',
+                              headers: {
+                                Authorization: `Bearer ${token}`,
+                              },
+                            });
+                            const data = await response.json();
+                            if (data.success) {
+                              fetchConversations();
+                              setShowUyeMenu(false);
+                              alert(`${selectedUye.ad} gruptan çıkarıldı`);
+                            } else {
+                              alert(data.error || 'İşlem başarısız');
+                            }
+                          } catch (err) {
+                            console.error('Remove member error:', err);
+                            alert('Üye çıkarılırken bir hata oluştu');
+                          }
                         }
                       }}
                       className="w-full p-3 text-left hover:bg-red-50 rounded-lg transition-colors flex items-center gap-3"
@@ -1538,12 +1641,14 @@ export default function MesajlarPage() {
                       <div className="flex-1 text-left">
                         <p className="font-medium text-slate-800 flex items-center gap-2">
                           {uye.ad}
-                          {uye.rol === 'Müdür' && <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">Yönetici</span>}
+                          {uye.id === currentUser?.id && (
+                            <span className="text-xs text-slate-500">~ Siz</span>
+                          )}
                         </p>
-                        <p className="text-xs text-slate-500">{uye.rol}</p>
+                        <p className="text-xs text-slate-500">{uye.rol || uye.brans}</p>
                       </div>
-                      {uye.online && (
-                        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                      {uye.grupRol === 'admin' && (
+                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Grup Yöneticisi</span>
                       )}
                       <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -1576,13 +1681,6 @@ export default function MesajlarPage() {
                       <span className="text-sm font-medium text-slate-700">Grup Adını Düzenle</span>
                       {!isGrupYoneticisi() && <span className="block text-xs text-slate-400 mt-0.5">Sadece yöneticiler</span>}
                     </div>
-                  </button>
-                  <button 
-                    onClick={() => handleGrupAyarClick('bildirim')}
-                    className="w-full p-3 text-left hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-3"
-                  >
-                    <span className="text-xl">📢</span>
-                    <span className="text-sm font-medium text-slate-700">Bildirim Ayarları</span>
                   </button>
                   <button 
                     onClick={() => handleGrupAyarClick('ayril')}
