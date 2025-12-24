@@ -1564,62 +1564,108 @@ export default function MesajlarPage() {
         </div>
       )}
 
-      {/* Grup Profil Modal */}
-      {showGrupProfil && seciliKonusma && seciliKonusma.tip !== 'ozel' && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden max-h-[90vh] flex flex-col">
-            {/* Header */}
-            <div className="p-4 bg-blue-600 text-white flex justify-between items-center">
-              <h3 className="text-lg font-bold">Grup Bilgileri</h3>
+      {/* Grup Profil Panel - WhatsApp tarzı sağdan açılan */}
+      <div className={`fixed inset-y-0 right-0 w-full sm:w-[420px] bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out ${
+        showGrupProfil && seciliKonusma && seciliKonusma.tip !== 'ozel' ? 'translate-x-0' : 'translate-x-full'
+      }`}>
+        {seciliKonusma && seciliKonusma.tip !== 'ozel' && (
+          <div className="h-full flex flex-col">
+            {/* Header - WhatsApp tarzı */}
+            <div className="bg-[#008069] text-white px-4 py-3 flex items-center gap-4">
               <button
                 onClick={() => setShowGrupProfil(false)}
-                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                className="p-2 hover:bg-white/10 rounded-full transition-colors"
               >
-                <X size={20} />
+                <X size={24} />
               </button>
+              <span className="text-lg font-medium">Grup bilgisi</span>
             </div>
 
-            {/* Grup Avatar ve İsim */}
-            <div className="p-6 text-center border-b border-slate-200">
-              {seciliKonusma.resimUrl ? (
-                <img 
-                  src={seciliKonusma.resimUrl} 
-                  alt={seciliKonusma.ad}
-                  className="w-24 h-24 mx-auto rounded-full object-cover mb-4"
-                />
-              ) : (
-                <div className={`w-24 h-24 mx-auto rounded-full flex items-center justify-center text-white text-4xl font-bold mb-4 ${
-                  seciliKonusma.tip === 'ogretmenler' 
-                    ? 'bg-gradient-to-br from-purple-400 to-purple-600'
-                    : 'bg-gradient-to-br from-blue-400 to-blue-600'
-                }`}>
-                  {getKonusmaIcon(seciliKonusma.tip) || '👥'}
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto bg-[#F0F2F5]">
+              {/* Grup Avatar ve İsim */}
+              <div className="bg-white p-6 text-center">
+                <div className="relative inline-block">
+                  {seciliKonusma.resimUrl ? (
+                    <img 
+                      src={seciliKonusma.resimUrl} 
+                      alt={seciliKonusma.ad}
+                      className="w-[200px] h-[200px] mx-auto rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className={`w-[200px] h-[200px] mx-auto rounded-full flex items-center justify-center text-white text-6xl font-bold ${
+                      seciliKonusma.tip === 'OGRETMEN' 
+                        ? 'bg-gradient-to-br from-purple-400 to-purple-600'
+                        : 'bg-gradient-to-br from-[#00A884] to-[#008069]'
+                    }`}>
+                      {getKonusmaIcon(seciliKonusma.tip) || '👥'}
+                    </div>
+                  )}
+                  {isGrupYoneticisi() && (
+                    <button 
+                      onClick={() => handleGrupAyarClick('resim')}
+                      className="absolute bottom-2 right-2 w-12 h-12 bg-[#00A884] rounded-full flex items-center justify-center text-white shadow-lg hover:bg-[#008069] transition-colors"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
-              )}
-              <h2 className="text-xl font-bold text-slate-800 mb-1">{seciliKonusma.ad}</h2>
-              <p className="text-sm text-slate-500">Grup • {seciliKonusma.uyeler.length} üye</p>
-            </div>
+                <h2 className="text-2xl font-normal text-[#111B21] mt-4">{seciliKonusma.ad}</h2>
+                <p className="text-sm text-[#667781] mt-1">Grup · {seciliKonusma.uyeler.length} üye</p>
+              </div>
 
-            {/* Üyeler Listesi */}
-            <div className="flex-1 overflow-y-auto">
-              <div className="p-4">
-                <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center justify-between">
-                  <span>👥 Grup Üyeleri ({seciliKonusma.uyeler.length})</span>
+              {/* Boşluk */}
+              <div className="h-3"></div>
+
+              {/* Grup Açıklaması / Ayarlar */}
+              <div className="bg-white">
+                {isGrupYoneticisi() && (
                   <button 
-                    onClick={() => {
-                      if (!isGrupYoneticisi()) {
-                        setShowAdminWarning(true);
-                      } else {
-                        setShowUyeEkleModal(true);
-                      }
-                    }}
-                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-700 text-white rounded-full font-medium transition-all hover:shadow-lg hover:from-blue-600 hover:to-blue-800"
+                    onClick={() => handleGrupAyarClick('ad')}
+                    className="w-full px-6 py-4 text-left hover:bg-[#F5F6F6] transition-colors flex items-center gap-4"
                   >
-                    <Plus size={16} />
-                    <span className="text-xs">Üye Ekle</span>
+                    <div className="w-10 h-10 bg-[#00A884] rounded-full flex items-center justify-center">
+                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <span className="text-[#008069] text-base">Grup adını düzenle</span>
+                    </div>
                   </button>
-                </h3>
-                <div className="space-y-2">
+                )}
+              </div>
+
+              {/* Boşluk */}
+              <div className="h-3"></div>
+
+              {/* Üyeler Bölümü */}
+              <div className="bg-white">
+                <div className="px-6 py-4 flex items-center justify-between">
+                  <span className="text-sm text-[#008069] font-medium">{seciliKonusma.uyeler.length} üye</span>
+                  <button className="p-2 hover:bg-[#F5F6F6] rounded-full transition-colors">
+                    <Search size={20} className="text-[#54656F]" />
+                  </button>
+                </div>
+
+                {/* Üye Ekle Butonu */}
+                {isGrupYoneticisi() && (
+                  <button 
+                    onClick={() => setShowUyeEkleModal(true)}
+                    className="w-full px-6 py-3 text-left hover:bg-[#F5F6F6] transition-colors flex items-center gap-4"
+                  >
+                    <div className="w-12 h-12 bg-[#00A884] rounded-full flex items-center justify-center">
+                      <Plus size={24} className="text-white" />
+                    </div>
+                    <span className="text-[#111B21] text-base">Üye ekle</span>
+                  </button>
+                )}
+
+                {/* Üye Listesi */}
+                <div>
                   {seciliKonusma.uyeler.map((uye, index) => (
                     <button
                       key={index}
@@ -1627,73 +1673,64 @@ export default function MesajlarPage() {
                         setSelectedUye(uye);
                         setShowUyeMenu(true);
                       }}
-                      className="w-full flex items-center gap-3 p-3 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
+                      className="w-full px-6 py-3 text-left hover:bg-[#F5F6F6] transition-colors flex items-center gap-4"
                     >
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold ${
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-medium ${
                         uye.rol === 'Müdür'
                           ? 'bg-gradient-to-br from-amber-400 to-amber-600'
                           : uye.rol === 'Sekreter'
                             ? 'bg-gradient-to-br from-pink-400 to-pink-600'
-                            : 'bg-gradient-to-br from-slate-400 to-slate-600'
+                            : 'bg-gradient-to-br from-[#00A884] to-[#008069]'
                       }`}>
                         {uye.ad.split(' ').map(n => n[0]).join('').slice(0, 2)}
                       </div>
-                      <div className="flex-1 text-left">
-                        <p className="font-medium text-slate-800 flex items-center gap-2">
-                          {uye.ad}
-                          {uye.id === currentUser?.id && (
-                            <span className="text-xs text-slate-500">~ Siz</span>
-                          )}
-                        </p>
-                        <p className="text-xs text-slate-500">{uye.rol || uye.brans}</p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[#111B21] text-base font-normal truncate">
+                            {uye.id === currentUser?.id ? 'Siz' : uye.ad}
+                          </span>
+                        </div>
+                        <p className="text-sm text-[#667781] truncate">{uye.rol || uye.brans}</p>
                       </div>
                       {uye.grupRol === 'admin' && (
-                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Grup Yöneticisi</span>
+                        <span className="text-xs bg-[#E7FCE8] text-[#1FA855] px-2 py-1 rounded">Grup yöneticisi</span>
                       )}
-                      <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Grup Ayarları */}
-              <div className="p-4 border-t border-slate-200">
-                <h3 className="text-sm font-semibold text-slate-700 mb-3">⚙️ Grup Ayarları</h3>
-                <div className="space-y-2">
-                  <button 
-                    onClick={() => handleGrupAyarClick('resim')}
-                    className="w-full p-3 text-left hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-3"
-                  >
-                    <span className="text-xl">🖼️</span>
-                    <div className="flex-1">
-                      <span className="text-sm font-medium text-slate-700">Grup Resmini Değiştir</span>
-                      {!isGrupYoneticisi() && <span className="block text-xs text-slate-400 mt-0.5">Sadece yöneticiler</span>}
-                    </div>
-                  </button>
-                  <button 
-                    onClick={() => handleGrupAyarClick('ad')}
-                    className="w-full p-3 text-left hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-3"
-                  >
-                    <span className="text-xl">✏️</span>
-                    <div className="flex-1">
-                      <span className="text-sm font-medium text-slate-700">Grup Adını Düzenle</span>
-                      {!isGrupYoneticisi() && <span className="block text-xs text-slate-400 mt-0.5">Sadece yöneticiler</span>}
-                    </div>
-                  </button>
-                  <button 
-                    onClick={() => handleGrupAyarClick('ayril')}
-                    className="w-full p-3 text-left hover:bg-red-50 rounded-lg transition-colors flex items-center gap-3 text-red-600"
-                  >
-                    <span className="text-xl">🚪</span>
-                    <span className="text-sm font-medium">Gruptan Ayrıl</span>
-                  </button>
-                </div>
+              {/* Boşluk */}
+              <div className="h-3"></div>
+
+              {/* Gruptan Çık */}
+              <div className="bg-white">
+                <button 
+                  onClick={() => handleGrupAyarClick('ayril')}
+                  className="w-full px-6 py-4 text-left hover:bg-[#F5F6F6] transition-colors flex items-center gap-4"
+                >
+                  <div className="w-10 h-10 flex items-center justify-center">
+                    <svg className="w-6 h-6 text-[#EA0038]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                  </div>
+                  <span className="text-[#EA0038] text-base">Gruptan çık</span>
+                </button>
               </div>
+
+              {/* Alt Boşluk */}
+              <div className="h-6"></div>
             </div>
           </div>
-        </div>
+        )}
+      </div>
+
+      {/* Overlay - Panel açıkken arka planı karart */}
+      {showGrupProfil && seciliKonusma && seciliKonusma.tip !== 'ozel' && (
+        <div 
+          className="fixed inset-0 bg-black/30 z-40"
+          onClick={() => setShowGrupProfil(false)}
+        />
       )}
       {/* Medya Modal - Personel */}
       {showMedyaModal && (
