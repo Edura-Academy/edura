@@ -1,5 +1,15 @@
 import { Request, Response } from 'express';
-import { uploadToFirebase, deleteFromFirebase } from '../services/upload.service';
+import { 
+  uploadToFirebase, 
+  deleteFromFirebase,
+  getProfilePhotoPath,
+  getGroupPhotoPath,
+  getCourseLogoPath,
+  getCourseHomeworkPath,
+  getCourseDocumentPath,
+  getStudentDocumentPath,
+  getDocumentPath
+} from '../services/upload.service';
 import prisma from '../lib/prisma';
 
 // Kullanıcı türüne göre tablo ve ID alanı eşlemesi
@@ -14,6 +24,7 @@ const userTableMap: Record<string, { table: string; idField: string; photoField:
 
 /**
  * Profil fotoğrafı yükle
+ * POST /api/upload/profile/:userType/:userId
  */
 export const uploadProfilePhoto = async (req: Request, res: Response) => {
   try {
@@ -46,11 +57,11 @@ export const uploadProfilePhoto = async (req: Request, res: Response) => {
     }
 
     // Dosya türü kontrolü
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
     if (!allowedTypes.includes(file.mimetype)) {
       return res.status(400).json({
         success: false,
-        error: 'Sadece JPG ve PNG dosyaları yüklenebilir',
+        error: 'Sadece JPG, PNG ve WebP dosyaları yüklenebilir',
       });
     }
 
@@ -71,8 +82,10 @@ export const uploadProfilePhoto = async (req: Request, res: Response) => {
       await deleteFromFirebase(existingUser[tableInfo.photoField]);
     }
 
-    // Yeni fotoğrafı Firebase'e yükle
-    const folder = userType === 'kurs' ? 'logos' : 'profiles';
+    // Yeni fotoğrafı yükle - organize klasör yapısı
+    const folder = userType === 'kurs' 
+      ? getCourseLogoPath(userId)
+      : getProfilePhotoPath(userType, userId);
     const uploadResult = await uploadToFirebase(file, folder);
 
     if (!uploadResult.success) {
@@ -83,7 +96,7 @@ export const uploadProfilePhoto = async (req: Request, res: Response) => {
     }
 
     // Veritabanını güncelle
-    const updatedUser = await (prisma as any)[tableInfo.table].update({
+    await (prisma as any)[tableInfo.table].update({
       where: { [tableInfo.idField]: parseInt(userId) },
       data: { [tableInfo.photoField]: uploadResult.url },
     });
@@ -106,6 +119,7 @@ export const uploadProfilePhoto = async (req: Request, res: Response) => {
 
 /**
  * Profil fotoğrafını sil
+ * DELETE /api/upload/profile/:userType/:userId
  */
 export const deleteProfilePhoto = async (req: Request, res: Response) => {
   try {
@@ -140,7 +154,7 @@ export const deleteProfilePhoto = async (req: Request, res: Response) => {
       });
     }
 
-    // Firebase'den sil
+    // Storage'dan sil
     await deleteFromFirebase(existingUser[tableInfo.photoField]);
 
     // Veritabanını güncelle
@@ -164,6 +178,7 @@ export const deleteProfilePhoto = async (req: Request, res: Response) => {
 
 /**
  * Profil fotoğrafını getir
+ * GET /api/upload/profile/:userType/:userId
  */
 export const getProfilePhoto = async (req: Request, res: Response) => {
   try {
@@ -207,12 +222,14 @@ export const getProfilePhoto = async (req: Request, res: Response) => {
 };
 
 /**
- * Belge yükle (PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX)
+ * Genel belge yükle (PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX)
+ * POST /api/upload/document
+ * Body: { documentType: 'odev' | 'sinav' | 'rapor' | 'diger' }
  */
 export const uploadDocument = async (req: Request, res: Response) => {
   try {
     const file = req.file;
-    const { documentType, userId, userType } = req.body;
+    const { documentType } = req.body;
 
     // Dosya kontrolü
     if (!file) {
@@ -248,8 +265,8 @@ export const uploadDocument = async (req: Request, res: Response) => {
       });
     }
 
-    // Firebase'e yükle
-    const folder = documentType ? `documents/${documentType}` : 'documents';
+    // Organize klasör yapısı
+    const folder = getDocumentPath(documentType || 'diger');
     const uploadResult = await uploadToFirebase(file, folder);
 
     if (!uploadResult.success) {
@@ -280,6 +297,7 @@ export const uploadDocument = async (req: Request, res: Response) => {
 
 /**
  * Grup fotoğrafı yükle
+ * POST /api/upload/group/:groupId
  */
 export const uploadGroupPhoto = async (req: Request, res: Response) => {
   try {
@@ -303,16 +321,34 @@ export const uploadGroupPhoto = async (req: Request, res: Response) => {
     }
 
     // Dosya türü kontrolü
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
     if (!allowedTypes.includes(file.mimetype)) {
       return res.status(400).json({
         success: false,
-        error: 'Sadece JPG ve PNG dosyaları yüklenebilir',
+        error: 'Sadece JPG, PNG ve WebP dosyaları yüklenebilir',
       });
     }
 
-    // Firebase'e yükle
-    const uploadResult = await uploadToFirebase(file, 'group-photos');
+    // Konuşmayı bul
+    const conversation = await prisma.conversation.findUnique({
+      where: { id: groupId },
+    });
+
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        error: 'Konuşma bulunamadı',
+      });
+    }
+
+    // Eski fotoğrafı sil (varsa)
+    if (conversation.resimUrl) {
+      await deleteFromFirebase(conversation.resimUrl);
+    }
+
+    // Organize klasör yapısı - groups/{groupId}/
+    const folder = getGroupPhotoPath(groupId);
+    const uploadResult = await uploadToFirebase(file, folder);
 
     if (!uploadResult.success) {
       return res.status(500).json({
@@ -320,6 +356,12 @@ export const uploadGroupPhoto = async (req: Request, res: Response) => {
         error: uploadResult.error,
       });
     }
+
+    // Veritabanını güncelle
+    await prisma.conversation.update({
+      where: { id: groupId },
+      data: { resimUrl: uploadResult.url },
+    });
 
     return res.json({
       success: true,
@@ -333,6 +375,171 @@ export const uploadGroupPhoto = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       error: 'Grup fotoğrafı yüklenirken bir hata oluştu',
+    });
+  }
+};
+
+/**
+ * Ödev belgesi yükle
+ * POST /api/upload/homework/:kursId/:odevId?
+ */
+export const uploadHomeworkDocument = async (req: Request, res: Response) => {
+  try {
+    const file = req.file;
+    const { kursId, odevId } = req.params;
+
+    // Dosya kontrolü
+    if (!file) {
+      return res.status(400).json({
+        success: false,
+        error: 'Dosya bulunamadı',
+      });
+    }
+
+    // Dosya boyutu kontrolü (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      return res.status(400).json({
+        success: false,
+        error: 'Dosya boyutu 10MB\'dan büyük olamaz',
+      });
+    }
+
+    // Organize klasör yapısı - courses/{kursId}/odevler/{odevId}/
+    const folder = getCourseHomeworkPath(kursId, odevId);
+    const uploadResult = await uploadToFirebase(file, folder);
+
+    if (!uploadResult.success) {
+      return res.status(500).json({
+        success: false,
+        error: uploadResult.error,
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: 'Ödev belgesi başarıyla yüklendi',
+      data: {
+        url: uploadResult.url,
+        originalName: file.originalname,
+        size: file.size,
+        mimeType: file.mimetype,
+      },
+    });
+  } catch (error) {
+    console.error('Upload homework document error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Ödev belgesi yüklenirken bir hata oluştu',
+    });
+  }
+};
+
+/**
+ * Kurs belgesi yükle
+ * POST /api/upload/course/:kursId/document
+ */
+export const uploadCourseDocument = async (req: Request, res: Response) => {
+  try {
+    const file = req.file;
+    const { kursId } = req.params;
+
+    // Dosya kontrolü
+    if (!file) {
+      return res.status(400).json({
+        success: false,
+        error: 'Dosya bulunamadı',
+      });
+    }
+
+    // Dosya boyutu kontrolü (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      return res.status(400).json({
+        success: false,
+        error: 'Dosya boyutu 10MB\'dan büyük olamaz',
+      });
+    }
+
+    // Organize klasör yapısı - courses/{kursId}/belgeler/
+    const folder = getCourseDocumentPath(kursId);
+    const uploadResult = await uploadToFirebase(file, folder);
+
+    if (!uploadResult.success) {
+      return res.status(500).json({
+        success: false,
+        error: uploadResult.error,
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: 'Kurs belgesi başarıyla yüklendi',
+      data: {
+        url: uploadResult.url,
+        originalName: file.originalname,
+        size: file.size,
+        mimeType: file.mimetype,
+      },
+    });
+  } catch (error) {
+    console.error('Upload course document error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Kurs belgesi yüklenirken bir hata oluştu',
+    });
+  }
+};
+
+/**
+ * Öğrenci belgesi yükle
+ * POST /api/upload/student/:ogrenciId/document
+ */
+export const uploadStudentDocument = async (req: Request, res: Response) => {
+  try {
+    const file = req.file;
+    const { ogrenciId } = req.params;
+
+    // Dosya kontrolü
+    if (!file) {
+      return res.status(400).json({
+        success: false,
+        error: 'Dosya bulunamadı',
+      });
+    }
+
+    // Dosya boyutu kontrolü (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      return res.status(400).json({
+        success: false,
+        error: 'Dosya boyutu 10MB\'dan büyük olamaz',
+      });
+    }
+
+    // Organize klasör yapısı - students/{ogrenciId}/belgeler/
+    const folder = getStudentDocumentPath(ogrenciId);
+    const uploadResult = await uploadToFirebase(file, folder);
+
+    if (!uploadResult.success) {
+      return res.status(500).json({
+        success: false,
+        error: uploadResult.error,
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: 'Öğrenci belgesi başarıyla yüklendi',
+      data: {
+        url: uploadResult.url,
+        originalName: file.originalname,
+        size: file.size,
+        mimeType: file.mimetype,
+      },
+    });
+  } catch (error) {
+    console.error('Upload student document error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Öğrenci belgesi yüklenirken bir hata oluştu',
     });
   }
 };

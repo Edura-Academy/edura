@@ -12,7 +12,37 @@ interface UploadResult {
 // Local uploads klasörü
 const UPLOADS_DIR = path.join(__dirname, '../../uploads');
 
-// Uploads klasörünü oluştur (yoksa)
+// ==================== KLASÖR YAPISI ====================
+/**
+ * uploads/
+ * ├── profiles/
+ * │   ├── admin/
+ * │   ├── mudur/
+ * │   ├── ogretmen/
+ * │   ├── ogrenci/
+ * │   └── sekreter/
+ * ├── groups/
+ * │   └── {groupId}/
+ * ├── courses/
+ * │   └── {kursId}/
+ * │       ├── logo/
+ * │       ├── odevler/
+ * │       │   └── {odevId}/
+ * │       └── belgeler/
+ * ├── students/
+ * │   └── {ogrenciId}/
+ * │       └── belgeler/
+ * └── documents/
+ *     ├── odev/
+ *     ├── sinav/
+ *     └── diger/
+ */
+
+// ==================== HELPER FONKSİYONLAR ====================
+
+/**
+ * Uploads klasörünü oluştur (yoksa)
+ */
 const ensureUploadsDir = (folder: string) => {
   const fullPath = path.join(UPLOADS_DIR, folder);
   if (!fs.existsSync(fullPath)) {
@@ -20,6 +50,69 @@ const ensureUploadsDir = (folder: string) => {
   }
   return fullPath;
 };
+
+/**
+ * Profil fotoğrafı için klasör yolu oluştur
+ * @param userType - admin, mudur, ogretmen, ogrenci, sekreter
+ * @param userId - Kullanıcı ID'si
+ */
+export const getProfilePhotoPath = (userType: string, userId: number | string): string => {
+  return `profiles/${userType.toLowerCase()}/${userId}`;
+};
+
+/**
+ * Grup fotoğrafı için klasör yolu oluştur
+ * @param groupId - Grup (Conversation) ID'si
+ */
+export const getGroupPhotoPath = (groupId: string): string => {
+  return `groups/${groupId}`;
+};
+
+/**
+ * Kurs logosu için klasör yolu oluştur
+ * @param kursId - Kurs ID'si
+ */
+export const getCourseLogoPath = (kursId: number | string): string => {
+  return `courses/${kursId}/logo`;
+};
+
+/**
+ * Kurs ödev belgesi için klasör yolu oluştur
+ * @param kursId - Kurs ID'si
+ * @param odevId - Ödev ID'si (opsiyonel)
+ */
+export const getCourseHomeworkPath = (kursId: number | string, odevId?: number | string): string => {
+  if (odevId) {
+    return `courses/${kursId}/odevler/${odevId}`;
+  }
+  return `courses/${kursId}/odevler`;
+};
+
+/**
+ * Kurs genel belgeleri için klasör yolu oluştur
+ * @param kursId - Kurs ID'si
+ */
+export const getCourseDocumentPath = (kursId: number | string): string => {
+  return `courses/${kursId}/belgeler`;
+};
+
+/**
+ * Öğrenci belgesi için klasör yolu oluştur
+ * @param ogrenciId - Öğrenci ID'si
+ */
+export const getStudentDocumentPath = (ogrenciId: number | string): string => {
+  return `students/${ogrenciId}/belgeler`;
+};
+
+/**
+ * Genel belge yükleme için klasör yolu oluştur
+ * @param documentType - odev, sinav, rapor, diger
+ */
+export const getDocumentPath = (documentType: string = 'diger'): string => {
+  return `documents/${documentType.toLowerCase()}`;
+};
+
+// ==================== UPLOAD FONKSİYONLARI ====================
 
 /**
  * Dosyayı local dosya sistemine yükler (fallback)
@@ -64,7 +157,7 @@ export const uploadToLocal = async (
  */
 export const deleteFromLocal = async (fileUrl: string): Promise<boolean> => {
   try {
-    const apiUrl = process.env.API_URL || 'http://localhost:3001';
+    const apiUrl = process.env.API_URL || 'http://localhost:5000';
     const baseUrl = `${apiUrl}/uploads/`;
     
     if (!fileUrl.startsWith(baseUrl)) {
@@ -76,6 +169,7 @@ export const deleteFromLocal = async (fileUrl: string): Promise<boolean> => {
 
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
+      console.log(`✅ Local delete successful: ${fileUrl}`);
       return true;
     }
     return false;
@@ -124,6 +218,8 @@ export const uploadToFirebase = async (
     // Public URL'i al
     const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
 
+    console.log(`✅ Firebase upload successful: ${publicUrl}`);
+
     return {
       success: true,
       url: publicUrl,
@@ -142,7 +238,7 @@ export const uploadToFirebase = async (
  */
 export const deleteFromFirebase = async (fileUrl: string): Promise<boolean> => {
   // Local URL kontrolü
-  const apiUrl = process.env.API_URL || 'http://localhost:3001';
+  const apiUrl = process.env.API_URL || 'http://localhost:5000';
   if (fileUrl.startsWith(apiUrl)) {
     return deleteFromLocal(fileUrl);
   }
@@ -172,9 +268,91 @@ export const deleteFromFirebase = async (fileUrl: string): Promise<boolean> => {
 
     // Dosyayı sil
     await file.delete();
+    console.log(`✅ Firebase delete successful: ${fileUrl}`);
     return true;
   } catch (error) {
     console.error('Firebase delete error:', error);
     return false;
   }
+};
+
+// ==================== HAZIR UPLOAD FONKSİYONLARI ====================
+
+/**
+ * Profil fotoğrafı yükle
+ */
+export const uploadProfilePhoto = async (
+  file: Express.Multer.File,
+  userType: string,
+  userId: number | string
+): Promise<UploadResult> => {
+  const folder = getProfilePhotoPath(userType, userId);
+  return uploadToFirebase(file, folder);
+};
+
+/**
+ * Grup fotoğrafı yükle
+ */
+export const uploadGroupPhoto = async (
+  file: Express.Multer.File,
+  groupId: string
+): Promise<UploadResult> => {
+  const folder = getGroupPhotoPath(groupId);
+  return uploadToFirebase(file, folder);
+};
+
+/**
+ * Kurs logosu yükle
+ */
+export const uploadCourseLogo = async (
+  file: Express.Multer.File,
+  kursId: number | string
+): Promise<UploadResult> => {
+  const folder = getCourseLogoPath(kursId);
+  return uploadToFirebase(file, folder);
+};
+
+/**
+ * Ödev belgesi yükle
+ */
+export const uploadHomeworkDocument = async (
+  file: Express.Multer.File,
+  kursId: number | string,
+  odevId?: number | string
+): Promise<UploadResult> => {
+  const folder = getCourseHomeworkPath(kursId, odevId);
+  return uploadToFirebase(file, folder);
+};
+
+/**
+ * Kurs belgesi yükle
+ */
+export const uploadCourseDocument = async (
+  file: Express.Multer.File,
+  kursId: number | string
+): Promise<UploadResult> => {
+  const folder = getCourseDocumentPath(kursId);
+  return uploadToFirebase(file, folder);
+};
+
+/**
+ * Öğrenci belgesi yükle
+ */
+export const uploadStudentDocument = async (
+  file: Express.Multer.File,
+  ogrenciId: number | string
+): Promise<UploadResult> => {
+  const folder = getStudentDocumentPath(ogrenciId);
+  return uploadToFirebase(file, folder);
+};
+
+/**
+ * Genel belge yükle
+ */
+export const uploadDocument = async (
+  file: Express.Multer.File,
+  documentType: string = 'diger'
+): Promise<UploadResult> => {
+  const folder = getDocumentPath(documentType);
+  return uploadToFirebase(file, folder);
 };

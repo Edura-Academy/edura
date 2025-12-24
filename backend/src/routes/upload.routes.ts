@@ -5,11 +5,16 @@ import {
   deleteProfilePhoto, 
   getProfilePhoto,
   uploadDocument,
-  uploadGroupPhoto
+  uploadGroupPhoto,
+  uploadHomeworkDocument,
+  uploadCourseDocument,
+  uploadStudentDocument
 } from '../controllers/upload.controller';
 import { authenticateToken } from '../middleware/auth.middleware';
 
 const router = Router();
+
+// ==================== MULTER KONFİGÜRASYONLARI ====================
 
 // Multer konfigürasyonu - Resimler için (profil, grup fotoğrafları)
 const uploadImage = multer({
@@ -53,10 +58,21 @@ const uploadDoc = multer({
   },
 });
 
+// Multer konfigürasyonu - Tüm dosyalar için (öğrenci belgeleri vb.)
+const uploadAny = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+});
+
 // ==================== PROFİL FOTOĞRAFI ====================
 
-// Profil fotoğrafı yükle
-// POST /api/upload/profile/:userType/:userId
+/**
+ * Profil fotoğrafı yükle
+ * POST /api/upload/profile/:userType/:userId
+ * userType: admin | mudur | sekreter | ogretmen | ogrenci | kurs
+ */
 router.post(
   '/profile/:userType/:userId',
   authenticateToken,
@@ -64,16 +80,20 @@ router.post(
   uploadProfilePhoto
 );
 
-// Profil fotoğrafını sil
-// DELETE /api/upload/profile/:userType/:userId
+/**
+ * Profil fotoğrafını sil
+ * DELETE /api/upload/profile/:userType/:userId
+ */
 router.delete(
   '/profile/:userType/:userId',
   authenticateToken,
   deleteProfilePhoto
 );
 
-// Profil fotoğrafını getir
-// GET /api/upload/profile/:userType/:userId
+/**
+ * Profil fotoğrafını getir
+ * GET /api/upload/profile/:userType/:userId
+ */
 router.get(
   '/profile/:userType/:userId',
   getProfilePhoto
@@ -81,8 +101,11 @@ router.get(
 
 // ==================== GRUP FOTOĞRAFI ====================
 
-// Grup fotoğrafı yükle
-// POST /api/upload/group/:groupId
+/**
+ * Grup fotoğrafı yükle
+ * POST /api/upload/group/:groupId
+ * Klasör: groups/{groupId}/
+ */
 router.post(
   '/group/:groupId',
   authenticateToken,
@@ -90,11 +113,68 @@ router.post(
   uploadGroupPhoto
 );
 
-// ==================== BELGE YÜKLEME ====================
+// ==================== ÖDEV BELGELERİ ====================
 
-// Belge yükle (PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX)
-// POST /api/upload/document
-// Body: { documentType: 'odev' | 'sinav' | 'rapor' | 'diger' }
+/**
+ * Ödev belgesi yükle (ödevId olmadan - genel)
+ * POST /api/upload/homework/:kursId
+ * Klasör: courses/{kursId}/odevler/
+ */
+router.post(
+  '/homework/:kursId',
+  authenticateToken,
+  uploadAny.single('document'),
+  uploadHomeworkDocument
+);
+
+/**
+ * Ödev belgesi yükle (ödevId ile - spesifik ödev için)
+ * POST /api/upload/homework/:kursId/:odevId
+ * Klasör: courses/{kursId}/odevler/{odevId}/
+ */
+router.post(
+  '/homework/:kursId/:odevId',
+  authenticateToken,
+  uploadAny.single('document'),
+  uploadHomeworkDocument
+);
+
+// ==================== KURS BELGELERİ ====================
+
+/**
+ * Kurs belgesi yükle
+ * POST /api/upload/course/:kursId/document
+ * Klasör: courses/{kursId}/belgeler/
+ */
+router.post(
+  '/course/:kursId/document',
+  authenticateToken,
+  uploadAny.single('document'),
+  uploadCourseDocument
+);
+
+// ==================== ÖĞRENCİ BELGELERİ ====================
+
+/**
+ * Öğrenci belgesi yükle
+ * POST /api/upload/student/:ogrenciId/document
+ * Klasör: students/{ogrenciId}/belgeler/
+ */
+router.post(
+  '/student/:ogrenciId/document',
+  authenticateToken,
+  uploadAny.single('document'),
+  uploadStudentDocument
+);
+
+// ==================== GENEL BELGE YÜKLEME ====================
+
+/**
+ * Genel belge yükle (PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX)
+ * POST /api/upload/document
+ * Body: { documentType: 'odev' | 'sinav' | 'rapor' | 'diger' }
+ * Klasör: documents/{documentType}/
+ */
 router.post(
   '/document',
   authenticateToken,
