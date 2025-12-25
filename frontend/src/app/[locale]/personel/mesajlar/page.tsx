@@ -91,6 +91,9 @@ export default function MesajlarPage() {
   const [profilUye, setProfilUye] = useState<any>(null);
   const [showUyeEkleModal, setShowUyeEkleModal] = useState(false);
   const [secilenYeniUyeler, setSecilenYeniUyeler] = useState<string[]>([]);
+  const [uyeEkleSearchQuery, setUyeEkleSearchQuery] = useState('');
+  const [uyeEkleUsers, setUyeEkleUsers] = useState<AvailableUser[]>([]);
+  const [uyeEkleLoading, setUyeEkleLoading] = useState(false);
   const [showMedyaModal, setShowMedyaModal] = useState(false);
   const [showSikayetModal, setShowSikayetModal] = useState(false);
   const [sikayetMesaj, setSikayetMesaj] = useState('');
@@ -1430,7 +1433,7 @@ export default function MesajlarPage() {
                 {/* Yönetici Özellikleri - Sadece başkalarına uygulanabilir */}
                 {isGrupYoneticisi() && selectedUye.id !== currentUser?.id && (
                   
-                  <>
+<>
                     <div className="border-t border-slate-200 my-2"></div>
                     
                     {selectedUye.grupRol === 'admin' ? (
@@ -1665,7 +1668,25 @@ export default function MesajlarPage() {
                 {/* Üye Ekle Butonu */}
                 {isGrupYoneticisi() && (
                   <button 
-                    onClick={() => setShowUyeEkleModal(true)}
+                    onClick={async () => {
+                      setShowUyeEkleModal(true);
+                      setUyeEkleLoading(true);
+                      setUyeEkleSearchQuery('');
+                      setSecilenYeniUyeler([]);
+                      try {
+                        const response = await fetch(`${API_URL}/messages/users`, {
+                          headers: getAuthHeaders()
+                        });
+                        const data = await response.json();
+                        if (data.success) {
+                          setUyeEkleUsers(data.data);
+                        }
+                      } catch (err) {
+                        console.error('Kullanıcılar yüklenemedi:', err);
+                      } finally {
+                        setUyeEkleLoading(false);
+                      }
+                    }}
                     className="w-full px-6 py-3 text-left hover:bg-[#F5F6F6] transition-colors flex items-center gap-4"
                   >
                     <div className="w-12 h-12 bg-[#00A884] rounded-full flex items-center justify-center">
@@ -1843,60 +1864,143 @@ export default function MesajlarPage() {
 
       {/* Üye Ekleme Modal - Personel */}
       {showUyeEkleModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden">
-            <div className="p-4 bg-blue-600 text-white flex items-center justify-between">
-              <h3 className="text-lg font-bold">Gruba Üye Ekle</h3>
-              <button onClick={() => { setShowUyeEkleModal(false); setSecilenYeniUyeler([]); }} className="p-2 hover:bg-white/20 rounded-lg">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="p-4 bg-[#008069] text-white flex items-center justify-between flex-shrink-0">
+              <h3 className="text-lg font-medium">Üye ekle</h3>
+              <button onClick={() => { setShowUyeEkleModal(false); setSecilenYeniUyeler([]); setUyeEkleSearchQuery(''); }} className="p-2 hover:bg-white/20 rounded-lg">
                 <X size={20} />
               </button>
             </div>
-            <div className="p-4 max-h-96 overflow-y-auto">
-              <p className="text-sm text-slate-600 mb-4">Gruba eklemek istediğiniz kişileri seçin:</p>
-              <div className="space-y-2">
-                {availableUsers.map((user) => {
-                  const uyeAd = `${user.ad} ${user.soyad}`;
-                  const mevcutMu = seciliKonusma?.uyeler.some(u => u.ad === uyeAd);
-                  if (mevcutMu) return null;
-                  const seciliMi = secilenYeniUyeler.includes(user.id);
-                  
-                  return (
-                    <button
-                      key={user.id}
-                      onClick={() => {
-                        if (seciliMi) {
-                          setSecilenYeniUyeler(prev => prev.filter(id => id !== user.id));
-                        } else {
-                          setSecilenYeniUyeler(prev => [...prev, user.id]);
-                        }
-                      }}
-                      className={`w-full p-3 rounded-xl flex items-center gap-3 transition-all ${
-                        seciliMi ? 'bg-blue-50 border-2 border-blue-500' : 'bg-slate-50 hover:bg-slate-100 border-2 border-transparent'
-                      }`}
-                    >
-                      <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
-                        {user.ad.charAt(0)}
-                      </div>
-                      <div className="flex-1 text-left">
-                        <p className="font-medium text-slate-900">{uyeAd}</p>
-                        <p className="text-xs text-slate-500">
-                          {user.rol === 'mudur' ? 'Müdür' : user.rol === 'sekreter' ? 'Sekreter' : user.rol === 'ogretmen' ? `${user.brans} Öğretmeni` : 'Öğrenci'}
-                        </p>
-                      </div>
-                      {seciliMi && (
-                        <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      )}
-                    </button>
-                  );
-                })}
+            
+            {/* Arama Alanı */}
+            <div className="p-3 bg-[#F0F2F5] flex-shrink-0">
+              <div className="relative">
+                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#54656F]" />
+                <input
+                  type="text"
+                  placeholder="Kişi ara..."
+                  value={uyeEkleSearchQuery}
+                  onChange={(e) => setUyeEkleSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 bg-white rounded-lg text-sm border-0 focus:outline-none focus:ring-2 focus:ring-[#00A884]"
+                />
               </div>
             </div>
-            <div className="p-4 bg-slate-50 flex gap-3">
-              <button onClick={() => { setShowUyeEkleModal(false); setSecilenYeniUyeler([]); }} className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-100">
-                İptal
-              </button>
+
+            {/* Seçilen Üyeler */}
+            {secilenYeniUyeler.length > 0 && (
+              <div className="px-4 py-2 bg-[#F0F2F5] flex-shrink-0 border-b border-slate-200">
+                <div className="flex flex-wrap gap-2">
+                  {secilenYeniUyeler.map(userId => {
+                    const user = uyeEkleUsers.find(u => u.id === userId);
+                    if (!user) return null;
+                    return (
+                      <div key={userId} className="flex items-center gap-1 bg-[#00A884] text-white text-sm px-2 py-1 rounded-full">
+                        <span>{user.ad}</span>
+                        <button 
+                          onClick={() => setSecilenYeniUyeler(prev => prev.filter(id => id !== userId))}
+                          className="hover:bg-white/20 rounded-full p-0.5"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Kullanıcı Listesi */}
+            <div className="flex-1 overflow-y-auto">
+              {uyeEkleLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00A884]"></div>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {uyeEkleUsers
+                    .filter(user => {
+                      // Mevcut üyeleri filtrele
+                      const uyeAd = `${user.ad} ${user.soyad}`;
+                      const mevcutMu = seciliKonusma?.uyeler.some(u => u.ad === uyeAd || u.id === user.id);
+                      if (mevcutMu) return false;
+                      
+                      // Arama filtresi
+                      if (uyeEkleSearchQuery) {
+                        const searchLower = uyeEkleSearchQuery.toLowerCase();
+                        return uyeAd.toLowerCase().includes(searchLower) || 
+                               (user.brans && user.brans.toLowerCase().includes(searchLower));
+                      }
+                      return true;
+                    })
+                    .map((user) => {
+                      const uyeAd = `${user.ad} ${user.soyad}`;
+                      const seciliMi = secilenYeniUyeler.includes(user.id);
+                      
+                      return (
+                        <button
+                          key={user.id}
+                          onClick={() => {
+                            if (seciliMi) {
+                              setSecilenYeniUyeler(prev => prev.filter(id => id !== user.id));
+                            } else {
+                              setSecilenYeniUyeler(prev => [...prev, user.id]);
+                            }
+                          }}
+                          className={`w-full px-4 py-3 flex items-center gap-3 transition-all ${
+                            seciliMi ? 'bg-[#E7FCE8]' : 'hover:bg-[#F5F6F6]'
+                          }`}
+                        >
+                          <div className={`w-11 h-11 rounded-full flex items-center justify-center text-white font-medium ${
+                            user.rol === 'mudur' 
+                              ? 'bg-gradient-to-br from-amber-400 to-amber-600'
+                              : user.rol === 'sekreter'
+                                ? 'bg-gradient-to-br from-pink-400 to-pink-600'
+                                : 'bg-gradient-to-br from-[#00A884] to-[#008069]'
+                          }`}>
+                            {user.ad.charAt(0)}{user.soyad?.charAt(0) || ''}
+                          </div>
+                          <div className="flex-1 text-left min-w-0">
+                            <p className="font-medium text-[#111B21] truncate">{uyeAd}</p>
+                            <p className="text-xs text-[#667781] truncate">
+                              {user.rol === 'mudur' ? 'Müdür' : user.rol === 'sekreter' ? 'Sekreter' : user.rol === 'ogretmen' ? `${user.brans || ''} Öğretmeni` : 'Öğrenci'}
+                            </p>
+                          </div>
+                          {seciliMi && (
+                            <div className="w-6 h-6 bg-[#00A884] rounded-full flex items-center justify-center">
+                              <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  
+                  {/* Sonuç yok */}
+                  {uyeEkleUsers.filter(user => {
+                    const uyeAd = `${user.ad} ${user.soyad}`;
+                    const mevcutMu = seciliKonusma?.uyeler.some(u => u.ad === uyeAd || u.id === user.id);
+                    if (mevcutMu) return false;
+                    if (uyeEkleSearchQuery) {
+                      const searchLower = uyeEkleSearchQuery.toLowerCase();
+                      return uyeAd.toLowerCase().includes(searchLower);
+                    }
+                    return true;
+                  }).length === 0 && !uyeEkleLoading && (
+                    <div className="text-center py-12 text-[#667781]">
+                      <Users size={48} className="mx-auto mb-3 opacity-50" />
+                      <p className="text-sm">
+                        {uyeEkleSearchQuery ? 'Sonuç bulunamadı' : 'Eklenebilecek kişi yok'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            {/* Footer */}
+            <div className="p-4 bg-white border-t border-slate-200 flex-shrink-0">
               <button
                 onClick={async () => {
                   if (secilenYeniUyeler.length > 0 && seciliKonusma) {
@@ -1925,6 +2029,7 @@ export default function MesajlarPage() {
                       }
                       setShowUyeEkleModal(false);
                       setSecilenYeniUyeler([]);
+                      setUyeEkleSearchQuery('');
                     } catch (err) {
                       console.error('Add members error:', err);
                       alert('Üyeler eklenirken bir hata oluştu');
@@ -1932,11 +2037,16 @@ export default function MesajlarPage() {
                   }
                 }}
                 disabled={secilenYeniUyeler.length === 0}
-                className={`flex-1 px-4 py-2 rounded-lg font-medium ${
-                  secilenYeniUyeler.length === 0 ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'
+                className={`w-full py-3 rounded-full font-medium flex items-center justify-center gap-2 transition-all ${
+                  secilenYeniUyeler.length === 0 
+                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
+                    : 'bg-[#00A884] text-white hover:bg-[#008069]'
                 }`}
               >
-                Ekle ({secilenYeniUyeler.length})
+                <Plus size={20} />
+                {secilenYeniUyeler.length > 0 
+                  ? `${secilenYeniUyeler.length} kişiyi ekle` 
+                  : 'Kişi seçin'}
               </button>
             </div>
           </div>
