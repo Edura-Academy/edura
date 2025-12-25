@@ -128,6 +128,11 @@ export const getMessages = async (req: AuthRequest, res: Response): Promise<void
       return;
     }
 
+    // Konuşmanın toplam üye sayısını al
+    const memberCount = await prisma.conversationMember.count({
+      where: { conversationId }
+    });
+
     // Mesajları getir
     const messages = await prisma.message.findMany({
       where: {
@@ -172,18 +177,28 @@ export const getMessages = async (req: AuthRequest, res: Response): Promise<void
 
     res.json({
       success: true,
-      data: messages.map(m => ({
-        id: m.id,
-        gonderenId: m.gonderenId,
-        gonderenAd: m.gonderen.ad + ' ' + m.gonderen.soyad,
-        gonderenRol: m.gonderen.role,
-        icerik: m.icerik,
-        dosyaUrl: m.dosyaUrl,
-        dosyaTip: m.dosyaTip,
-        tarih: m.createdAt,
-        okundu: m.okuyanlar.length > 0,
-        duzenlendi: m.duzenlendi,
-      }))
+      data: messages.map(m => {
+        // Gönderen hariç diğer üyelerin tamamı okudu mu?
+        // Okuyanlar sayısı >= (toplam üye - 1 gönderen) ise herkes okumuş demektir
+        const okuyanlarSayisi = m.okuyanlar.length;
+        const gerekliOkumaSayisi = memberCount - 1; // gönderen hariç
+        const tumuyelerOkudu = okuyanlarSayisi >= gerekliOkumaSayisi;
+        
+        return {
+          id: m.id,
+          gonderenId: m.gonderenId,
+          gonderenAd: m.gonderen.ad + ' ' + m.gonderen.soyad,
+          gonderenRol: m.gonderen.role,
+          icerik: m.icerik,
+          dosyaUrl: m.dosyaUrl,
+          dosyaTip: m.dosyaTip,
+          tarih: m.createdAt,
+          okundu: tumuyelerOkudu, // Tüm üyeler okuduysa true
+          okuyanlarSayisi,
+          toplamUyeSayisi: memberCount,
+          duzenlendi: m.duzenlendi,
+        };
+      })
     });
   } catch (error) {
     console.error('Get messages error:', error);
@@ -256,6 +271,11 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
       }
     });
 
+    // Konuşmanın toplam üye sayısını al
+    const memberCount = await prisma.conversationMember.count({
+      where: { conversationId }
+    });
+
     res.status(201).json({
       success: true,
       data: {
@@ -267,7 +287,9 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
         dosyaUrl: message.dosyaUrl,
         dosyaTip: message.dosyaTip,
         tarih: message.createdAt,
-        okundu: true,
+        okundu: memberCount <= 2, // 1-1 konuşmada veya 2 kişilik grupta otomatik okundu, yoksa false
+        okuyanlarSayisi: 1, // Sadece gönderen okumuş
+        toplamUyeSayisi: memberCount,
       }
     });
   } catch (error) {
@@ -543,6 +565,11 @@ export const getNewMessages = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
+    // Konuşmanın toplam üye sayısını al
+    const memberCount = await prisma.conversationMember.count({
+      where: { conversationId }
+    });
+
     // Belirli bir tarihten sonraki mesajları getir
     const messages = await prisma.message.findMany({
       where: {
@@ -585,17 +612,25 @@ export const getNewMessages = async (req: AuthRequest, res: Response): Promise<v
 
     res.json({
       success: true,
-      data: messages.map(m => ({
-        id: m.id,
-        gonderenId: m.gonderenId,
-        gonderenAd: m.gonderen.ad + ' ' + m.gonderen.soyad,
-        gonderenRol: m.gonderen.role,
-        icerik: m.icerik,
-        dosyaUrl: m.dosyaUrl,
-        dosyaTip: m.dosyaTip,
-        tarih: m.createdAt,
-        okundu: m.okuyanlar.length > 0,
-      }))
+      data: messages.map(m => {
+        const okuyanlarSayisi = m.okuyanlar.length;
+        const gerekliOkumaSayisi = memberCount - 1;
+        const tumuyelerOkudu = okuyanlarSayisi >= gerekliOkumaSayisi;
+        
+        return {
+          id: m.id,
+          gonderenId: m.gonderenId,
+          gonderenAd: m.gonderen.ad + ' ' + m.gonderen.soyad,
+          gonderenRol: m.gonderen.role,
+          icerik: m.icerik,
+          dosyaUrl: m.dosyaUrl,
+          dosyaTip: m.dosyaTip,
+          tarih: m.createdAt,
+          okundu: tumuyelerOkudu,
+          okuyanlarSayisi,
+          toplamUyeSayisi: memberCount,
+        };
+      })
     });
   } catch (error) {
     console.error('Get new messages error:', error);
@@ -766,11 +801,11 @@ export const removeMember = async (req: AuthRequest, res: Response): Promise<voi
 // Gruba üye ekle
 export const addMember = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.userId;
+    const currentUserId = req.user?.userId;
     const { conversationId } = req.params;
-    const { userIds } = req.body; // Array of user IDs
+    const { userId, userIds } = req.body; // Tek userId veya array userIds
 
-    if (!userId) {
+    if (!currentUserId) {
       res.status(401).json({ success: false, error: 'Yetkilendirme gerekli' });
       return;
     }
@@ -779,7 +814,7 @@ export const addMember = async (req: AuthRequest, res: Response): Promise<void> 
     const requester = await prisma.conversationMember.findFirst({
       where: {
         conversationId,
-        userId,
+        userId: currentUserId,
         rolAd: 'admin'
       }
     });
@@ -789,9 +824,17 @@ export const addMember = async (req: AuthRequest, res: Response): Promise<void> 
       return;
     }
 
+    // userId veya userIds'i normalize et
+    const idsToAdd = userIds ? userIds : (userId ? [userId] : []);
+    
+    if (idsToAdd.length === 0) {
+      res.status(400).json({ success: false, error: 'En az bir kullanıcı ID gerekli' });
+      return;
+    }
+
     // Yeni üyeleri ekle
     const newMembers = await prisma.conversationMember.createMany({
-      data: userIds.map((uid: string) => ({
+      data: idsToAdd.map((uid: string) => ({
         conversationId,
         userId: uid,
         rolAd: 'uye'

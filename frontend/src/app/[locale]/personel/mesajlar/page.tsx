@@ -110,6 +110,12 @@ export default function MesajlarPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const lastMessageTimeRef = useRef<string | null>(null);
+  const seciliKonusmaRef = useRef<Konusma | null>(null);
+  
+  // seciliKonusma değiştiğinde ref'i de güncelle
+  useEffect(() => {
+    seciliKonusmaRef.current = seciliKonusma;
+  }, [seciliKonusma]);
 
   // Token ve kullanıcı bilgisini al
   const getAuthHeaders = useCallback(() => {
@@ -129,7 +135,7 @@ export default function MesajlarPage() {
   }, []);
 
   // Konuşmaları API'den çek
-  const fetchConversations = useCallback(async () => {
+  const fetchConversations = useCallback(async (selectFirst: boolean = false) => {
     try {
       const response = await fetch(`${API_URL}/messages/conversations`, {
         headers: getAuthHeaders()
@@ -137,12 +143,16 @@ export default function MesajlarPage() {
       const data = await response.json();
       if (data.success) {
         setKonusmalar(data.data);
-        // İlk konuşmayı seç (eğer seçili değilse)
-        if (data.data.length > 0 && !seciliKonusma) {
+        
+        // Ref'ten mevcut seçili konuşmayı al (döngüyü önlemek için)
+        const currentSelected = seciliKonusmaRef.current;
+        
+        // İlk yüklemede veya selectFirst parametresi true ise ilk konuşmayı seç
+        if (selectFirst && data.data.length > 0 && !currentSelected) {
           setSeciliKonusma(data.data[0]);
-        } else if (seciliKonusma) {
+        } else if (currentSelected) {
           // Seçili konuşma varsa güncel verisini al
-          const updatedConv = data.data.find((c: Konusma) => c.id === seciliKonusma.id);
+          const updatedConv = data.data.find((c: Konusma) => c.id === currentSelected.id);
           if (updatedConv) {
             setSeciliKonusma(updatedConv);
           }
@@ -153,7 +163,7 @@ export default function MesajlarPage() {
     } finally {
       setLoading(false);
     }
-  }, [getAuthHeaders, seciliKonusma]);
+  }, [getAuthHeaders]);
 
   // Mesajları API'den çek
   const fetchMessages = useCallback(async (conversationId: string) => {
@@ -204,7 +214,7 @@ export default function MesajlarPage() {
 
   // İlk yüklemede konuşmaları çek
   useEffect(() => {
-    fetchConversations();
+    fetchConversations(true); // true = ilk konuşmayı seç
   }, [fetchConversations]);
 
   // Konuşma değiştiğinde mesajları çek
@@ -975,8 +985,8 @@ export default function MesajlarPage() {
                             <span className="text-[11px] text-black/40">{formatSaat(mesaj.tarih)}</span>
                             {isBenimMesajim && (
                               mesaj.okundu 
-                                ? <CheckCheck size={14} className="text-[#53BDEB]" />
-                                : <Check size={14} className="text-black/30" />
+                                ? <CheckCheck size={14} className="text-[#53BDEB]" /> // Mavi çift tık - tüm üyeler okudu
+                                : <CheckCheck size={14} className="text-black/30" /> // Gri çift tık - henüz herkese ulaşmadı
                             )}
                           </div>
                         </div>
@@ -1419,6 +1429,7 @@ export default function MesajlarPage() {
 
                 {/* Yönetici Özellikleri - Sadece başkalarına uygulanabilir */}
                 {isGrupYoneticisi() && selectedUye.id !== currentUser?.id && (
+                  
                   <>
                     <div className="border-t border-slate-200 my-2"></div>
                     
@@ -1887,11 +1898,37 @@ export default function MesajlarPage() {
                 İptal
               </button>
               <button
-                onClick={() => {
-                  if (secilenYeniUyeler.length > 0) {
-                    alert(`${secilenYeniUyeler.length} kişi gruba eklendi!`);
-                    setShowUyeEkleModal(false);
-                    setSecilenYeniUyeler([]);
+                onClick={async () => {
+                  if (secilenYeniUyeler.length > 0 && seciliKonusma) {
+                    try {
+                      const token = localStorage.getItem('token');
+                      // Her bir üye için API çağrısı yap
+                      const results = await Promise.all(
+                        secilenYeniUyeler.map(userId => 
+                          fetch(`${API_URL}/messages/conversations/${seciliKonusma.id}/members`, {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json',
+                              Authorization: `Bearer ${token}`,
+                            },
+                            body: JSON.stringify({ userId }),
+                          }).then(res => res.json())
+                        )
+                      );
+                      
+                      const basarili = results.filter(r => r.success).length;
+                      if (basarili > 0) {
+                        fetchConversations();
+                        alert(`${basarili} kişi gruba eklendi!`);
+                      } else {
+                        alert('Üyeler eklenirken bir hata oluştu');
+                      }
+                      setShowUyeEkleModal(false);
+                      setSecilenYeniUyeler([]);
+                    } catch (err) {
+                      console.error('Add members error:', err);
+                      alert('Üyeler eklenirken bir hata oluştu');
+                    }
                   }
                 }}
                 disabled={secilenYeniUyeler.length === 0}
