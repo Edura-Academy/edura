@@ -2,20 +2,26 @@
 
 > ⚠️ **BU DOSYA GEÇİCİDİR - İŞ BİTTİKTEN SONRA SİLİNECEKTİR**
 
-## 📍 Kaldığımız Yer
+## 📍 Tamamlanan Sistemler
 
-**Branch:** `feat/odev-sistemi`
+### 1. ✅ Ödev Sistemi (`feat/odev-sistemi`)
+- Backend route ve controller
+- Öğretmen ödev sayfası (oluştur, değerlendir)
+- Öğrenci ödev sayfası (görüntüle, teslim et)
+- E-posta ve push notification entegrasyonu
 
-**Tamamlanan TODO'lar:**
-1. ✅ Backend odev route'ları oluşturuldu (`backend/src/routes/odev.routes.ts`)
-2. ✅ Resend ile email servisi oluşturuldu (`backend/src/services/email.service.ts`)
-3. ✅ Firebase FCM push notification servisi oluşturuldu (`backend/src/services/push.service.ts`)
-4. ✅ Öğretmen ödev sayfası (`frontend/src/app/[locale]/personel/odevler/page.tsx`)
-5. ✅ Öğrenci ödev sayfası (`frontend/src/app/[locale]/ogrenci/odevler/page.tsx`)
+### 2. ✅ Yoklama/Devamsızlık Sistemi (`feat/yoklama-sistemi`)
+- Backend route ve controller
+- Öğretmen yoklama alma sayfası (QR kod destekli)
+- Öğrenci devamsızlık görüntüleme sayfası
+- Otomatik veli/öğrenci bildirimi
 
-**Yapılması Gerekenler:**
-6. ✅ Bildirim entegrasyonu (controller'larda push service kullanımı)
-7. ✅ Dashboard'a ödev linki ekleme
+### 3. ✅ Duyuru Sistemi (`feat/duyuru-sistemi`)
+- Backend route ve controller
+- Personel duyuru yönetim sayfası
+- Genel duyuru görüntüleme sayfası
+- Hedef kitle seçimi, öncelik seviyeleri
+- Okunma takibi ve push notification
 
 ---
 
@@ -80,12 +86,14 @@ NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789:web:abc123
 
 ## 🔧 Son Yapılan İşlem
 
-Öğrenci ödev sayfası (`frontend/src/app/[locale]/ogrenci/odevler/page.tsx`) oluşturuldu.
-Dashboard'lara ödev linkleri eklendi.
+Duyuru sistemi tamamlandı. Tüm 3 temel sistem hazır.
 
-**Sonraki Adım:** 
-1. Bildirim entegrasyonu (Push notifications)
-2. Test ve commit
+**Sonraki Sistemler (Sırasıyla):**
+1. ⏳ Veli Portalı (3-4 gün)
+2. ⏳ Ödeme Sistemi - iyzico (3-4 gün)
+3. ⏳ Online Sınav (4-5 gün)
+4. ⏳ Ders Programı - FullCalendar (2-3 gün)
+5. ⏳ Dashboard & Raporlar - Recharts (3-4 gün)
 
 ---
 
