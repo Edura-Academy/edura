@@ -5,12 +5,35 @@ import { AuthRequest } from '../types';
 
 // ==================== ÖDEV YÖNETİMİ (Öğretmen) ====================
 
+// Öğretmenin derslerini getir (ödev oluştururken seçmek için)
+export const getTeacherCourses = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Yetkisiz erişim' });
+    }
+
+    const courses = await prisma.course.findMany({
+      where: { ogretmenId: userId, aktif: true },
+      include: {
+        sinif: { select: { id: true, ad: true, seviye: true } }
+      },
+      orderBy: { ad: 'asc' }
+    });
+
+    res.json({ success: true, data: courses });
+  } catch (error) {
+    console.error('Dersler alınırken hata:', error);
+    res.status(500).json({ success: false, error: 'Sunucu hatası' });
+  }
+};
+
 // Öğretmenin tüm ödevlerini getir
 export const getTeacherHomeworks = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     if (!userId) {
-      return res.status(401).json({ error: 'Yetkisiz erişim' });
+      return res.status(401).json({ success: false, error: 'Yetkisiz erişim' });
     }
 
     const odevler = await prisma.odev.findMany({
@@ -41,10 +64,10 @@ export const getTeacherHomeworks = async (req: AuthRequest, res: Response) => {
       }
     }));
 
-    res.json(odevlerWithStats);
+    res.json({ success: true, data: odevlerWithStats });
   } catch (error) {
     console.error('Ödevler alınırken hata:', error);
-    res.status(500).json({ error: 'Sunucu hatası' });
+    res.status(500).json({ success: false, error: 'Sunucu hatası' });
   }
 };
 
@@ -55,11 +78,11 @@ export const createHomework = async (req: AuthRequest, res: Response) => {
     const { baslik, aciklama, courseId, sonTeslimTarihi, maxPuan = 100 } = req.body;
 
     if (!userId) {
-      return res.status(401).json({ error: 'Yetkisiz erişim' });
+      return res.status(401).json({ success: false, error: 'Yetkisiz erişim' });
     }
 
     if (!baslik || !courseId || !sonTeslimTarihi) {
-      return res.status(400).json({ error: 'Başlık, ders ve son teslim tarihi gerekli' });
+      return res.status(400).json({ success: false, error: 'Başlık, ders ve son teslim tarihi gerekli' });
     }
 
     // Dersi kontrol et ve öğretmenin bu derse erişimi var mı
@@ -75,7 +98,7 @@ export const createHomework = async (req: AuthRequest, res: Response) => {
     });
 
     if (!course) {
-      return res.status(403).json({ error: 'Bu derse ödev ekleme yetkiniz yok' });
+      return res.status(403).json({ success: false, error: 'Bu derse ödev ekleme yetkiniz yok' });
     }
 
     // Ödevi oluştur
@@ -106,10 +129,133 @@ export const createHomework = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    res.status(201).json(odev);
+    res.status(201).json({ success: true, data: odev });
   } catch (error) {
     console.error('Ödev oluşturulurken hata:', error);
-    res.status(500).json({ error: 'Sunucu hatası' });
+    res.status(500).json({ success: false, error: 'Sunucu hatası' });
+  }
+};
+
+// Tek bir ödevi getir
+export const getHomeworkById = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const { odevId } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Yetkisiz erişim' });
+    }
+
+    const odev = await prisma.odev.findUnique({
+      where: { id: odevId },
+      include: {
+        course: {
+          include: {
+            sinif: { select: { id: true, ad: true } }
+          }
+        },
+        ogretmen: { select: { id: true, ad: true, soyad: true } },
+        teslimler: {
+          include: {
+            ogrenci: { select: { id: true, ad: true, soyad: true, ogrenciNo: true } }
+          },
+          orderBy: { teslimTarihi: 'desc' }
+        }
+      }
+    });
+
+    if (!odev) {
+      return res.status(404).json({ success: false, error: 'Ödev bulunamadı' });
+    }
+
+    // İstatistikleri hesapla
+    const stats = {
+      toplamOgrenci: odev.teslimler.length,
+      teslimEdilen: odev.teslimler.filter(t => t.durum !== OdevDurum.BEKLEMEDE).length,
+      degerlendirilen: odev.teslimler.filter(t => t.durum === OdevDurum.DEGERLENDIRILDI).length,
+      bekleyen: odev.teslimler.filter(t => t.durum === OdevDurum.TESLIM_EDILDI).length
+    };
+
+    res.json({ success: true, data: { ...odev, stats } });
+  } catch (error) {
+    console.error('Ödev alınırken hata:', error);
+    res.status(500).json({ success: false, error: 'Sunucu hatası' });
+  }
+};
+
+// Ödevi güncelle
+export const updateHomework = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const { odevId } = req.params;
+    const { baslik, aciklama, sonTeslimTarihi, maxPuan, aktif } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Yetkisiz erişim' });
+    }
+
+    // Ödevin öğretmene ait olduğunu kontrol et
+    const existingOdev = await prisma.odev.findFirst({
+      where: { id: odevId, ogretmenId: userId }
+    });
+
+    if (!existingOdev) {
+      return res.status(403).json({ success: false, error: 'Bu ödevi düzenleme yetkiniz yok' });
+    }
+
+    const updatedOdev = await prisma.odev.update({
+      where: { id: odevId },
+      data: {
+        ...(baslik && { baslik }),
+        ...(aciklama !== undefined && { aciklama }),
+        ...(sonTeslimTarihi && { sonTeslimTarihi: new Date(sonTeslimTarihi) }),
+        ...(maxPuan && { maxPuan }),
+        ...(aktif !== undefined && { aktif })
+      },
+      include: {
+        course: { include: { sinif: true } }
+      }
+    });
+
+    res.json({ success: true, data: updatedOdev });
+  } catch (error) {
+    console.error('Ödev güncellenirken hata:', error);
+    res.status(500).json({ success: false, error: 'Sunucu hatası' });
+  }
+};
+
+// Ödevi sil
+export const deleteHomework = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const { odevId } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Yetkisiz erişim' });
+    }
+
+    // Ödevin öğretmene ait olduğunu kontrol et
+    const existingOdev = await prisma.odev.findFirst({
+      where: { id: odevId, ogretmenId: userId }
+    });
+
+    if (!existingOdev) {
+      return res.status(403).json({ success: false, error: 'Bu ödevi silme yetkiniz yok' });
+    }
+
+    // Önce teslimleri sil, sonra ödevi
+    await prisma.odevTeslim.deleteMany({
+      where: { odevId }
+    });
+
+    await prisma.odev.delete({
+      where: { id: odevId }
+    });
+
+    res.json({ success: true, message: 'Ödev başarıyla silindi' });
+  } catch (error) {
+    console.error('Ödev silinirken hata:', error);
+    res.status(500).json({ success: false, error: 'Sunucu hatası' });
   }
 };
 
@@ -121,11 +267,11 @@ export const gradeHomework = async (req: AuthRequest, res: Response) => {
     const { puan, ogretmenYorumu } = req.body;
 
     if (!userId) {
-      return res.status(401).json({ error: 'Yetkisiz erişim' });
+      return res.status(401).json({ success: false, error: 'Yetkisiz erişim' });
     }
 
     if (puan === undefined || puan === null) {
-      return res.status(400).json({ error: 'Puan gerekli' });
+      return res.status(400).json({ success: false, error: 'Puan gerekli' });
     }
 
     // Teslimi bul ve öğretmenin yetkisini kontrol et
@@ -138,16 +284,16 @@ export const gradeHomework = async (req: AuthRequest, res: Response) => {
     });
 
     if (!teslim) {
-      return res.status(404).json({ error: 'Teslim bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Teslim bulunamadı' });
     }
 
     if (teslim.odev.ogretmenId !== userId) {
-      return res.status(403).json({ error: 'Bu ödevi değerlendirme yetkiniz yok' });
+      return res.status(403).json({ success: false, error: 'Bu ödevi değerlendirme yetkiniz yok' });
     }
 
     // Puanı kontrol et
     if (puan < 0 || puan > teslim.odev.maxPuan) {
-      return res.status(400).json({ error: `Puan 0 ile ${teslim.odev.maxPuan} arasında olmalı` });
+      return res.status(400).json({ success: false, error: `Puan 0 ile ${teslim.odev.maxPuan} arasında olmalı` });
     }
 
     // Teslimi güncelle
@@ -174,10 +320,10 @@ export const gradeHomework = async (req: AuthRequest, res: Response) => {
       }
     });
 
-    res.json(updatedTeslim);
+    res.json({ success: true, data: updatedTeslim });
   } catch (error) {
     console.error('Ödev değerlendirilirken hata:', error);
-    res.status(500).json({ error: 'Sunucu hatası' });
+    res.status(500).json({ success: false, error: 'Sunucu hatası' });
   }
 };
 
@@ -188,7 +334,7 @@ export const getStudentHomeworks = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     if (!userId) {
-      return res.status(401).json({ error: 'Yetkisiz erişim' });
+      return res.status(401).json({ success: false, error: 'Yetkisiz erişim' });
     }
 
     // Öğrencinin sınıfını bul
@@ -198,7 +344,7 @@ export const getStudentHomeworks = async (req: AuthRequest, res: Response) => {
     });
 
     if (!student?.sinifId) {
-      return res.status(400).json({ error: 'Öğrenci sınıfı bulunamadı' });
+      return res.status(400).json({ success: false, error: 'Öğrenci sınıfı bulunamadı' });
     }
 
     // Sınıfın derslerine ait ödevleri getir
@@ -224,10 +370,10 @@ export const getStudentHomeworks = async (req: AuthRequest, res: Response) => {
       gecikmisMi: new Date() > odev.sonTeslimTarihi && !odev.teslimler[0]
     }));
 
-    res.json(odevlerWithStatus);
+    res.json({ success: true, data: odevlerWithStatus });
   } catch (error) {
     console.error('Öğrenci ödevleri alınırken hata:', error);
-    res.status(500).json({ error: 'Sunucu hatası' });
+    res.status(500).json({ success: false, error: 'Sunucu hatası' });
   }
 };
 
@@ -239,7 +385,7 @@ export const submitHomework = async (req: AuthRequest, res: Response) => {
     const { aciklama, dosyaUrl } = req.body;
 
     if (!userId) {
-      return res.status(401).json({ error: 'Yetkisiz erişim' });
+      return res.status(401).json({ success: false, error: 'Yetkisiz erişim' });
     }
 
     // Ödevi kontrol et
@@ -249,7 +395,7 @@ export const submitHomework = async (req: AuthRequest, res: Response) => {
     });
 
     if (!odev) {
-      return res.status(404).json({ error: 'Ödev bulunamadı' });
+      return res.status(404).json({ success: false, error: 'Ödev bulunamadı' });
     }
 
     // Öğrencinin bu sınıfta olup olmadığını kontrol et
@@ -258,7 +404,7 @@ export const submitHomework = async (req: AuthRequest, res: Response) => {
     });
 
     if (!student) {
-      return res.status(403).json({ error: 'Bu ödevi teslim etme yetkiniz yok' });
+      return res.status(403).json({ success: false, error: 'Bu ödevi teslim etme yetkiniz yok' });
     }
 
     // Mevcut teslimi kontrol et
@@ -267,7 +413,7 @@ export const submitHomework = async (req: AuthRequest, res: Response) => {
     });
 
     if (existingTeslim && existingTeslim.durum === OdevDurum.DEGERLENDIRILDI) {
-      return res.status(400).json({ error: 'Bu ödev zaten değerlendirilmiş' });
+      return res.status(400).json({ success: false, error: 'Bu ödev zaten değerlendirilmiş' });
     }
 
     // Teslimi oluştur veya güncelle
@@ -298,9 +444,9 @@ export const submitHomework = async (req: AuthRequest, res: Response) => {
       }
     });
 
-    res.status(201).json(teslim);
+    res.status(201).json({ success: true, data: teslim });
   } catch (error) {
     console.error('Ödev teslim edilirken hata:', error);
-    res.status(500).json({ error: 'Sunucu hatası' });
+    res.status(500).json({ success: false, error: 'Sunucu hatası' });
   }
 };
