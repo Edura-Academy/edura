@@ -430,6 +430,16 @@ export default function PersonelDashboard() {
               <span>Sınavlar</span>
             </button>
           )}
+
+          {(personel.role === 'mudur' || personel.role === 'ogretmen') && (
+            <Link
+              href="/personel/odevler"
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 transition-all"
+            >
+              <FileText size={20} />
+              <span>Ödevler</span>
+            </Link>
+          )}
           
           <Link
             href="/personel/mesajlar"

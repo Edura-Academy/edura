@@ -2,6 +2,7 @@ import { Response } from 'express';
 import prisma from '../lib/prisma';
 import { AuthRequest } from '../types';
 import { ConversationType } from '@prisma/client';
+import { pushService } from '../services/push.service';
 
 // Kullanıcının tüm konuşmalarını getir
 export const getConversations = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -271,10 +272,29 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
       }
     });
 
-    // Konuşmanın toplam üye sayısını al
-    const memberCount = await prisma.conversationMember.count({
-      where: { conversationId }
+    // Konuşmanın toplam üye sayısını al ve diğer üyelere push notification gönder
+    const allMembers = await prisma.conversationMember.findMany({
+      where: { conversationId },
+      select: { userId: true }
     });
+    const memberCount = allMembers.length;
+
+    // Gönderen hariç diğer üyelere push notification (arka planda)
+    const otherMemberIds = allMembers
+      .map(m => m.userId)
+      .filter(id => id !== userId);
+
+    if (otherMemberIds.length > 0) {
+      pushService.sendToUsers(otherMemberIds, {
+        title: `💬 ${message.gonderen.ad} ${message.gonderen.soyad}`,
+        body: icerik.length > 50 ? icerik.substring(0, 50) + '...' : icerik,
+        click_action: `/tr/${message.gonderen.role === 'ogrenci' ? 'ogrenci' : 'personel'}/mesajlar`,
+        data: {
+          type: 'NEW_MESSAGE',
+          conversationId
+        }
+      }).catch(err => console.error('Push notification hatası:', err));
+    }
 
     res.status(201).json({
       success: true,

@@ -10,22 +10,82 @@
 1. ✅ Backend odev route'ları oluşturuldu (`backend/src/routes/odev.routes.ts`)
 2. ✅ Resend ile email servisi oluşturuldu (`backend/src/services/email.service.ts`)
 3. ✅ Firebase FCM push notification servisi oluşturuldu (`backend/src/services/push.service.ts`)
-4. 🔄 **Öğretmen ödev sayfası** - DEVAM EDİYOR (`frontend/src/app/[locale]/personel/odevler/page.tsx`)
+4. ✅ Öğretmen ödev sayfası (`frontend/src/app/[locale]/personel/odevler/page.tsx`)
+5. ✅ Öğrenci ödev sayfası (`frontend/src/app/[locale]/ogrenci/odevler/page.tsx`)
 
 **Yapılması Gerekenler:**
-5. ⏳ Öğrenci ödev sayfası (`frontend/src/app/[locale]/ogrenci/odevler/page.tsx`)
-6. ⏳ Bildirim entegrasyonu (controller'larda push service kullanımı)
+6. ✅ Bildirim entegrasyonu (controller'larda push service kullanımı)
+7. ✅ Dashboard'a ödev linki ekleme
+
+---
+
+## 🚀 KURULUM ADIMLARI (ÜRETİME ALMAK İÇİN)
+
+### 1. Resend - E-posta Servisi
+- **URL:** https://resend.com
+- **Ücretsiz Limit:** 3000 e-posta/ay, 100 e-posta/gün
+- **Adımlar:**
+  1. resend.com'a git ve ücretsiz kayıt ol
+  2. Dashboard'dan API Key oluştur
+  3. Backend `.env` dosyasına ekle: `RESEND_API_KEY=re_xxxxx`
+  4. Kendi domain'ini doğrula (isteğe bağlı, yoksa onboarding@resend.dev kullanılır)
+
+### 2. Firebase - Push Notification & Storage
+- **URL:** https://console.firebase.google.com
+- **Ücretsiz Limit:** Push sınırsız, Storage 5GB
+- **Adımlar:**
+  1. Firebase Console'da yeni proje oluştur
+  2. Project Settings > Service Accounts > "Generate new private key"
+  3. JSON dosyasını `backend/firebase-service-account.json` olarak kaydet
+  4. Project Settings > Cloud Messaging > Web Push certificates (VAPID key)
+  5. Frontend `.env.local` dosyasına Firebase config'i ekle:
+     ```
+     NEXT_PUBLIC_FIREBASE_API_KEY=xxx
+     NEXT_PUBLIC_FIREBASE_PROJECT_ID=xxx
+     NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=xxx
+     NEXT_PUBLIC_FIREBASE_APP_ID=xxx
+     ```
+
+### 3. Backend .env Dosyası (Tam Liste)
+```env
+DATABASE_URL=postgresql://user:password@localhost:5432/edura
+JWT_SECRET=cok-gizli-bir-anahtar-32-karakter
+PORT=5000
+
+# Resend E-posta
+RESEND_API_KEY=re_xxxxxxxxxxxx
+EMAIL_FROM=Edura <noreply@yourdomain.com>
+
+# Frontend URL (e-posta linkleri için)
+FRONTEND_URL=http://localhost:3000
+
+# Firebase (Service Account JSON dosyası kullanılıyor)
+FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+```
+
+### 4. Frontend .env.local Dosyası
+```env
+NEXT_PUBLIC_API_URL=http://localhost:5000/api
+
+# Firebase Config
+NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSy...
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789
+NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789:web:abc123
+```
 
 ---
 
 ## 🔧 Son Yapılan İşlem
 
-Öğretmen ödev sayfası (`frontend/src/app/[locale]/personel/odevler/page.tsx`) oluşturuldu.
+Öğrenci ödev sayfası (`frontend/src/app/[locale]/ogrenci/odevler/page.tsx`) oluşturuldu.
+Dashboard'lara ödev linkleri eklendi.
 
 **Sonraki Adım:** 
-1. Lint kontrolü yapılmalı
-2. Commit atılmalı
-3. Öğrenci ödev sayfası oluşturulmalı
+1. Bildirim entegrasyonu (Push notifications)
+2. Test ve commit
 
 ---
 
@@ -43,6 +103,9 @@
 
 ### Frontend
 - `frontend/src/app/[locale]/personel/odevler/page.tsx` [YENİ]
+- `frontend/src/app/[locale]/ogrenci/odevler/page.tsx` [YENİ]
+- `frontend/src/app/[locale]/ogrenci/page.tsx` [GÜNCELLENDİ - ödev linki]
+- `frontend/src/app/[locale]/personel/page.tsx` [GÜNCELLENDİ - ödev linki]
 - `frontend/public/firebase-messaging-sw.js` [YENİ]
 
 ---
@@ -168,5 +231,5 @@ NEXT_PUBLIC_FIREBASE_APP_ID=...
 ---
 
 **Son Güncelleme:** 25 Aralık 2024
-**Sohbet:** Bu sohbetin context'i doldu, yeni sohbette devam edilecek
+**Sohbet:** Ödev sistemi tamamlandı - frontend sayfaları hazır
 

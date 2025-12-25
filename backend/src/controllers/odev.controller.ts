@@ -3,6 +3,7 @@ import prisma from '../lib/prisma';
 import { OdevDurum, Role } from '@prisma/client';
 import { AuthRequest } from '../types';
 import { emailService } from '../services/email.service';
+import { pushService } from '../services/push.service';
 
 // ==================== ÖDEV YÖNETİMİ (Öğretmen) ====================
 
@@ -154,6 +155,16 @@ export const createHomework = async (req: AuthRequest, res: Response) => {
           })
         )
       ).catch(err => console.error('E-posta gönderme hatası:', err));
+
+      // Push notification gönder (arka planda)
+      pushService.notifyNewHomework(
+        ogrenciler.map(o => o.id),
+        {
+          dersAd: course.ad,
+          odevBaslik: baslik,
+          sonTeslimTarihi: sonTeslimFormatli
+        }
+      ).catch(err => console.error('Push notification hatası:', err));
     }
 
     res.status(201).json({ success: true, data: odev });
@@ -356,6 +367,13 @@ export const gradeHomework = async (req: AuthRequest, res: Response) => {
       ogretmenYorumu
     }).catch(err => console.error('E-posta gönderme hatası:', err));
 
+    // Push notification gönder (arka planda)
+    pushService.notifyHomeworkGraded(teslim.ogrenciId, {
+      odevBaslik: teslim.odev.baslik,
+      puan,
+      maxPuan: teslim.odev.maxPuan
+    }).catch(err => console.error('Push notification hatası:', err));
+
     res.json({ success: true, data: updatedTeslim });
   } catch (error) {
     console.error('Ödev değerlendirilirken hata:', error);
@@ -479,6 +497,12 @@ export const submitHomework = async (req: AuthRequest, res: Response) => {
         mesaj: `${student.ad} ${student.soyad} "${odev.baslik}" ödevini teslim etti.`
       }
     });
+
+    // Öğretmene push notification gönder (arka planda)
+    pushService.notifyHomeworkSubmitted(odev.ogretmenId, {
+      ogrenciAd: `${student.ad} ${student.soyad}`,
+      odevBaslik: odev.baslik
+    }).catch(err => console.error('Push notification hatası:', err));
 
     res.status(201).json({ success: true, data: teslim });
   } catch (error) {
