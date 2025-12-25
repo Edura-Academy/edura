@@ -23,6 +23,26 @@
 - Hedef kitle seçimi, öncelik seviyeleri
 - Okunma takibi ve push notification
 
+### 4. ✅ Veli Portalı (`feat/veli-portali`)
+- Çocuk listesi ve detay sayfaları
+- Not, devamsızlık, ödev takibi
+- Öğretmenle mesajlaşma
+- Ders programı görüntüleme
+
+### 5. ✅ Ödeme Sistemi (`feat/odeme-sistemi`)
+- iyzico entegrasyonu
+- Ödeme planları ve taksitlendirme
+- Öğrenci/veli ödeme sayfaları
+- Personel ödeme yönetimi
+
+### 6. ✅ Online Sınav Modülü (`feat/online-sinav`)
+- Çoktan seçmeli ve D/Y soru tipleri
+- Süre takibi ve otomatik bitirme
+- Soru karıştırma ve geri dönüş ayarları
+- Otomatik puanlama ve sonuç analizi
+- Öğretmen sınav oluşturma/yayınlama
+- Öğrenci sınav çözme/sonuç görme
+
 ---
 
 ## 🚀 KURULUM ADIMLARI (ÜRETİME ALMAK İÇİN)
@@ -86,7 +106,7 @@ NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789:web:abc123
 
 ## 🔧 Son Yapılan İşlem
 
-Ödeme Sistemi (iyzico) tamamlandı! 5 temel sistem hazır.
+Online Sınav Sistemi tamamlandı! 6 temel sistem hazır.
 
 **Tamamlanan Sistemler:**
 1. ✅ Ödev Sistemi
@@ -94,13 +114,13 @@ NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789:web:abc123
 3. ✅ Duyuru Sistemi
 4. ✅ Veli Portalı
 5. ✅ Ödeme Sistemi (iyzico)
+6. ✅ Online Sınav Modülü
 
 **Sonraki Sistemler (Sırasıyla):**
-1. ⏳ Online Sınav (4-5 gün)
-2. ⏳ Ders Programı - FullCalendar (2-3 gün)
-3. ⏳ Dashboard & Raporlar - Recharts (3-4 gün)
-4. ⏳ PWA Desteği (1-2 gün)
-5. ⏳ Canlı Ders - WebRTC/Jitsi (3-4 gün)
+1. ⏳ Ders Programı - FullCalendar (2-3 gün)
+2. ⏳ Dashboard & Raporlar - Recharts (3-4 gün)
+3. ⏳ PWA Desteği (1-2 gün)
+4. ⏳ Canlı Ders - WebRTC/Jitsi (3-4 gün)
 
 ---
 

@@ -451,6 +451,16 @@ export default function PersonelDashboard() {
             </Link>
           )}
 
+          {(personel.role === 'mudur' || personel.role === 'ogretmen') && (
+            <Link
+              href="/personel/online-sinav"
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 transition-all"
+            >
+              <FileText size={20} />
+              <span>Online Sınav</span>
+            </Link>
+          )}
+
           <Link
             href="/personel/duyurular"
             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 transition-all"

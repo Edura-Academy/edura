@@ -131,6 +131,10 @@ model User {
   odemeler              Odeme[] @relation("OgrenciOdemeleri")
   onayladigiOdemeler    Odeme[] @relation("OdemeOnaylayan")
   
+  // Online Sınav ilişkileri
+  ogretmenOnlineSinavlar OnlineSinav[] @relation("OgretmenOnlineSinavlar")
+  sinavOturumlari       SinavOturumu[] @relation("OgrenciSinavOturumlari")
+  
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -182,6 +186,7 @@ model Course {
   devamsizliklar  Devamsizlik[]
   yoklamalar      Yoklama[]
   odevler         Odev[]
+  onlineSinavlar  OnlineSinav[]
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -616,4 +621,139 @@ model Odeme {
   @@index([ogrenciId])
   @@index([durum])
   @@index([vadeTarihi])
+}
+
+// ================== ONLİNE SINAV SİSTEMİ ==================
+
+enum SoruTipi {
+  COKTAN_SECMELI   // A, B, C, D, E
+  DOGRU_YANLIS     // Doğru / Yanlış
+  ACIK_UCLU        // Yazılı cevap
+  ESLESTIRME       // Eşleştirme
+}
+
+enum OnlineSinavDurum {
+  TASLAK           // Henüz yayınlanmadı
+  AKTIF            // Öğrenciler girebilir
+  SONA_ERDI        // Süre doldu
+  IPTAL            // İptal edildi
+}
+
+// Online Sınav
+model OnlineSinav {
+  id              String           @id @default(uuid())
+  baslik          String
+  aciklama        String?          @db.Text
+  
+  courseId        String
+  course          Course           @relation(fields: [courseId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  ogretmenId      String
+  ogretmen        User             @relation("OgretmenOnlineSinavlar", fields: [ogretmenId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  // Sınav Ayarları
+  sure            Int              // dakika cinsinden
+  baslangicTarihi DateTime
+  bitisTarihi     DateTime
+  
+  // Kurallar
+  karistir        Boolean          @default(true)  // Soruları karıştır
+  geriDonus       Boolean          @default(false) // Önceki soruya dönebilir mi
+  sonucGoster     Boolean          @default(true)  // Bitince sonucu göster
+  
+  durum           OnlineSinavDurum @default(TASLAK)
+  
+  sorular         OnlineSoru[]
+  oturumlar       SinavOturumu[]
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([courseId])
+  @@index([ogretmenId])
+  @@index([durum])
+  @@index([baslangicTarihi])
+}
+
+// Sınav Soruları
+model OnlineSoru {
+  id              String       @id @default(uuid())
+  sinavId         String
+  sinav           OnlineSinav  @relation(fields: [sinavId], references: [id], onDelete: Cascade)
+  
+  soruMetni       String       @db.Text
+  soruTipi        SoruTipi     @default(COKTAN_SECMELI)
+  puan            Int          @default(10)
+  siraNo          Int
+  
+  // Çoktan seçmeli için seçenekler (JSON array)
+  secenekler      String?      @db.Text  // ["A şıkkı", "B şıkkı", "C şıkkı", "D şıkkı"]
+  dogruCevap      String                 // "A" veya "DOGRU" veya açık uçlu için cevap
+  
+  // Görsel (opsiyonel)
+  resimUrl        String?
+  
+  cevaplar        SinavCevap[]
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([sinavId])
+  @@index([siraNo])
+}
+
+// Sınav Oturumu (öğrenci sınava girdiğinde)
+model SinavOturumu {
+  id              String       @id @default(uuid())
+  sinavId         String
+  sinav           OnlineSinav  @relation(fields: [sinavId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  ogrenciId       String
+  ogrenci         User         @relation("OgrenciSinavOturumlari", fields: [ogrenciId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  baslangicZamani DateTime     @default(now())
+  bitisZamani     DateTime?
+  
+  // Sonuç
+  toplamPuan      Int?
+  dogruSayisi     Int?
+  yanlisSayisi    Int?
+  bosSayisi       Int?
+  yuzde           Float?
+  
+  // Soru sırası (karıştırıldıysa)
+  soruSirasi      String?      @db.Text  // JSON array: ["soru-id-1", "soru-id-3", "soru-id-2"]
+  
+  tamamlandi      Boolean      @default(false)
+  
+  cevaplar        SinavCevap[]
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([sinavId, ogrenciId])
+  @@index([sinavId])
+  @@index([ogrenciId])
+  @@index([tamamlandi])
+}
+
+// Öğrenci Cevapları
+model SinavCevap {
+  id              String        @id @default(uuid())
+  oturumId        String
+  oturum          SinavOturumu  @relation(fields: [oturumId], references: [id], onDelete: Cascade)
+  
+  soruId          String
+  soru            OnlineSoru    @relation(fields: [soruId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  cevap           String?       // Öğrencinin verdiği cevap
+  dogruMu         Boolean?      // Otomatik değerlendirme sonucu
+  alinanPuan      Int?
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([oturumId, soruId])
+  @@index([oturumId])
+  @@index([soruId])
 }
