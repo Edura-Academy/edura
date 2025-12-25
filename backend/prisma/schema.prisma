@@ -125,6 +125,12 @@ model User {
   odevTeslimleri        OdevTeslim[]
   duyurular             Duyuru[] @relation("DuyuruOlusturan")
   
+  // Ödeme ilişkileri
+  odemePlanlari         OdemePlani[] @relation("OgrenciOdemePlanlari")
+  olusturduguOdemePlanlari OdemePlani[] @relation("OdemePlaniOlusturan")
+  odemeler              Odeme[] @relation("OgrenciOdemeleri")
+  onayladigiOdemeler    Odeme[] @relation("OdemeOnaylayan")
+  
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -514,4 +520,100 @@ model DuyuruOkuma {
   @@unique([duyuruId, userId])
   @@index([duyuruId])
   @@index([userId])
+}
+
+// ================== ÖDEME SİSTEMİ ==================
+
+enum OdemeDurum {
+  BEKLEMEDE      // Ödeme bekleniyor
+  ODENDI         // Ödeme yapıldı
+  IPTAL          // İptal edildi
+  IADE           // İade edildi
+  GECIKTI        // Gecikmiş ödeme
+}
+
+enum OdemeTip {
+  KAYIT          // Kayıt ücreti
+  TAKSIT         // Aylık taksit
+  EK_DERS        // Ek ders ücreti
+  MATERYAL       // Materyal ücreti
+  DIGER          // Diğer
+}
+
+enum OdemeYontemi {
+  KREDI_KARTI    // Kredi kartı (iyzico)
+  HAVALE         // Havale/EFT
+  NAKIT          // Nakit
+}
+
+// Ödeme planları (öğrenci bazlı)
+model OdemePlani {
+  id              String   @id @default(uuid())
+  ogrenciId       String
+  ogrenci         User     @relation("OgrenciOdemePlanlari", fields: [ogrenciId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  donemAd         String   // "2024-2025 Güz Dönemi"
+  toplamTutar     Float
+  taksitSayisi    Int      @default(1)
+  taksitTutari    Float
+  
+  // İndirim
+  indirimOrani    Float?   @default(0)
+  indirimTutari   Float?   @default(0)
+  
+  // Oluşturan
+  olusturanId     String
+  olusturan       User     @relation("OdemePlaniOlusturan", fields: [olusturanId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  aciklama        String?
+  aktif           Boolean  @default(true)
+  
+  odemeler        Odeme[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([ogrenciId])
+  @@index([olusturanId])
+  @@index([aktif])
+}
+
+// Tek tek ödemeler
+model Odeme {
+  id              String       @id @default(uuid())
+  odemePlaniId    String?
+  odemePlani      OdemePlani?  @relation(fields: [odemePlaniId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  ogrenciId       String
+  ogrenci         User         @relation("OgrenciOdemeleri", fields: [ogrenciId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  tip             OdemeTip
+  tutar           Float
+  durum           OdemeDurum   @default(BEKLEMEDE)
+  
+  // Taksit bilgisi
+  taksitNo        Int?         // 1, 2, 3... (taksitli ödemelerde)
+  vadeTarihi      DateTime
+  
+  // Ödeme bilgisi
+  odemeYontemi    OdemeYontemi?
+  odemeTarihi     DateTime?
+  
+  // iyzico bilgileri
+  iyzicoPaymentId String?      // iyzico ödeme ID
+  iyzicoConversationId String? // iyzico konuşma ID
+  
+  // Onaylayan
+  onaylayanId     String?
+  onaylayan       User?        @relation("OdemeOnaylayan", fields: [onaylayanId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  aciklama        String?
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([odemePlaniId])
+  @@index([ogrenciId])
+  @@index([durum])
+  @@index([vadeTarihi])
 }
