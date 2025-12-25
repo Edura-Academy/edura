@@ -86,14 +86,20 @@ NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789:web:abc123
 
 ## 🔧 Son Yapılan İşlem
 
-Duyuru sistemi tamamlandı. Tüm 3 temel sistem hazır.
+Veli Portalı tamamlandı! 4 temel sistem hazır.
+
+**Tamamlanan Sistemler:**
+1. ✅ Ödev Sistemi
+2. ✅ Yoklama/Devamsızlık
+3. ✅ Duyuru Sistemi
+4. ✅ Veli Portalı
 
 **Sonraki Sistemler (Sırasıyla):**
-1. ⏳ Veli Portalı (3-4 gün)
-2. ⏳ Ödeme Sistemi - iyzico (3-4 gün)
-3. ⏳ Online Sınav (4-5 gün)
-4. ⏳ Ders Programı - FullCalendar (2-3 gün)
-5. ⏳ Dashboard & Raporlar - Recharts (3-4 gün)
+1. ⏳ Ödeme Sistemi - iyzico (3-4 gün)
+2. ⏳ Online Sınav (4-5 gün)
+3. ⏳ Ders Programı - FullCalendar (2-3 gün)
+4. ⏳ Dashboard & Raporlar - Recharts (3-4 gün)
+5. ⏳ PWA Desteği (1-2 gün)
 
 ---
 
