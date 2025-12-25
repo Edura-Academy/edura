@@ -63,6 +63,7 @@ model Kurs {
   
   siniflar    Sinif[]
   users       User[]
+  duyurular   Duyuru[]
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -116,6 +117,7 @@ model User {
   yoklamalari           Yoklama[]
   ogretmenOdevleri      Odev[] @relation("OgretmenOdevler")
   odevTeslimleri        OdevTeslim[]
+  duyurular             Duyuru[] @relation("DuyuruOlusturan")
   
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -435,4 +437,74 @@ model OdevTeslim {
   @@index([odevId])
   @@index([ogrenciId])
   @@index([durum])
+}
+
+// Duyuru hedef kitlesi
+enum DuyuruHedef {
+  HERKESE       // Tüm kullanıcılar
+  SINIF         // Belirli sınıf(lar)
+  OGRETMENLER   // Tüm öğretmenler
+  OGRENCILER    // Tüm öğrenciler
+  VELILER       // Tüm veliler
+  PERSONEL      // Müdür, öğretmen, sekreter
+}
+
+enum DuyuruOncelik {
+  NORMAL
+  ONEMLI
+  ACIL
+}
+
+// Duyurular
+model Duyuru {
+  id          String        @id @default(uuid())
+  baslik      String
+  icerik      String        @db.Text
+  hedef       DuyuruHedef   @default(HERKESE)
+  oncelik     DuyuruOncelik @default(NORMAL)
+  
+  // Hedef sınıflar (hedef SINIF ise)
+  sinifIds    String?       // JSON array: ["sinif1-id", "sinif2-id"]
+  
+  // Dosya eki
+  dosyaUrl    String?
+  dosyaAd     String?
+  
+  // Oluşturan
+  olusturanId String
+  olusturan   User          @relation("DuyuruOlusturan", fields: [olusturanId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  // Kurs (opsiyonel - sadece o kursa özel)
+  kursId      String?
+  kurs        Kurs?         @relation(fields: [kursId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  // Yayın durumu
+  aktif       Boolean       @default(true)
+  yayinTarihi DateTime      @default(now())
+  bitisTarihi DateTime?     // Opsiyonel: Duyurunun sona erme tarihi
+  
+  // Okunma takibi
+  okuyanlar   DuyuruOkuma[]
+  
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([olusturanId])
+  @@index([kursId])
+  @@index([hedef])
+  @@index([aktif])
+  @@index([yayinTarihi])
+}
+
+// Duyuru okunma takibi
+model DuyuruOkuma {
+  id          String   @id @default(uuid())
+  duyuruId    String
+  duyuru      Duyuru   @relation(fields: [duyuruId], references: [id], onDelete: Cascade)
+  userId      String
+  okunmaTarihi DateTime @default(now())
+  
+  @@unique([duyuruId, userId])
+  @@index([duyuruId])
+  @@index([userId])
 }
