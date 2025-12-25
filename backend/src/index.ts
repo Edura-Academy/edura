@@ -10,6 +10,7 @@ import courseRoutes from './routes/course.routes';
 import uploadRoutes from './routes/upload.routes';
 import messageRoutes from './routes/message.routes';
 import odevRoutes from './routes/odev.routes';
+import yoklamaRoutes from './routes/yoklama.routes';
 
 // Load environment variables
 dotenv.config();
@@ -32,6 +33,7 @@ app.use('/api/courses', courseRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/odevler', odevRoutes);
+app.use('/api/yoklama', yoklamaRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
