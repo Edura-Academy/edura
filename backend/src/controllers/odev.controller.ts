@@ -2,6 +2,7 @@ import { Response } from 'express';
 import prisma from '../lib/prisma';
 import { OdevDurum, Role } from '@prisma/client';
 import { AuthRequest } from '../types';
+import { emailService } from '../services/email.service';
 
 // ==================== ÖDEV YÖNETİMİ (Öğretmen) ====================
 
@@ -91,9 +92,10 @@ export const createHomework = async (req: AuthRequest, res: Response) => {
       include: {
         sinif: {
           include: {
-            ogrenciler: { select: { id: true } }
+            ogrenciler: { select: { id: true, ad: true, soyad: true, email: true } }
           }
-        }
+        },
+        ogretmen: { select: { ad: true, soyad: true } }
       }
     });
 
@@ -117,16 +119,41 @@ export const createHomework = async (req: AuthRequest, res: Response) => {
     });
 
     // Sınıftaki tüm öğrencilere bildirim gönder
-    const ogrenciIds = course.sinif.ogrenciler.map(o => o.id);
-    if (ogrenciIds.length > 0) {
+    const ogrenciler = course.sinif.ogrenciler;
+    if (ogrenciler.length > 0) {
+      // Uygulama içi bildirim
       await prisma.notification.createMany({
-        data: ogrenciIds.map(ogrenciId => ({
-          userId: ogrenciId,
+        data: ogrenciler.map(ogrenci => ({
+          userId: ogrenci.id,
           tip: 'BILDIRIM',
           baslik: '📝 Yeni Ödev',
           mesaj: `${course.ad} dersi için yeni ödev: "${baslik}". Son teslim: ${new Date(sonTeslimTarihi).toLocaleDateString('tr-TR')}`
         }))
       });
+
+      // E-posta bildirimi (async - response'u bekletmez)
+      const ogretmenAd = `${course.ogretmen.ad} ${course.ogretmen.soyad}`;
+      const sonTeslimFormatli = new Date(sonTeslimTarihi).toLocaleDateString('tr-TR', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      // Her öğrenciye e-posta gönder (arka planda)
+      Promise.all(
+        ogrenciler.map(ogrenci =>
+          emailService.sendNewHomeworkNotification(ogrenci.email, {
+            ogrenciAd: `${ogrenci.ad} ${ogrenci.soyad}`,
+            dersAd: course.ad,
+            odevBaslik: baslik,
+            sonTeslimTarihi: sonTeslimFormatli,
+            ogretmenAd
+          })
+        )
+      ).catch(err => console.error('E-posta gönderme hatası:', err));
     }
 
     res.status(201).json({ success: true, data: odev });
@@ -279,7 +306,7 @@ export const gradeHomework = async (req: AuthRequest, res: Response) => {
       where: { id: teslimId },
       include: {
         odev: { include: { course: true } },
-        ogrenci: { select: { id: true, ad: true, soyad: true } }
+        ogrenci: { select: { id: true, ad: true, soyad: true, email: true } }
       }
     });
 
@@ -306,11 +333,11 @@ export const gradeHomework = async (req: AuthRequest, res: Response) => {
       },
       include: {
         odev: true,
-        ogrenci: { select: { id: true, ad: true, soyad: true } }
+        ogrenci: { select: { id: true, ad: true, soyad: true, email: true } }
       }
     });
 
-    // Öğrenciye bildirim gönder
+    // Öğrenciye uygulama içi bildirim gönder
     await prisma.notification.create({
       data: {
         userId: teslim.ogrenciId,
@@ -319,6 +346,15 @@ export const gradeHomework = async (req: AuthRequest, res: Response) => {
         mesaj: `"${teslim.odev.baslik}" ödeviniz değerlendirildi. Puanınız: ${puan}/${teslim.odev.maxPuan}`
       }
     });
+
+    // E-posta bildirimi gönder (arka planda)
+    emailService.sendHomeworkGradedNotification(updatedTeslim.ogrenci.email, {
+      ogrenciAd: `${updatedTeslim.ogrenci.ad} ${updatedTeslim.ogrenci.soyad}`,
+      odevBaslik: teslim.odev.baslik,
+      puan,
+      maxPuan: teslim.odev.maxPuan,
+      ogretmenYorumu
+    }).catch(err => console.error('E-posta gönderme hatası:', err));
 
     res.json({ success: true, data: updatedTeslim });
   } catch (error) {
