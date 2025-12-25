@@ -128,6 +128,17 @@ export default function OgrenciDashboard() {
                   </svg>
                 </Link>
 
+                {/* Ders Programı */}
+                <Link
+                  href="/ogrenci/ders-programi"
+                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-600"
+                  title="Ders Programı"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </Link>
+
                 {/* Devamsızlık */}
                 <Link
                   href="/ogrenci/devamsizlik"
@@ -584,6 +595,15 @@ export default function OgrenciDashboard() {
             >
               <span>📋</span>
               <span className="hidden sm:inline">Sınavlar</span>
+            </Link>
+
+            {/* Ders Programı */}
+            <Link
+              href="/ogrenci/ders-programi"
+              className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-full hover:shadow-lg transition-all hover:from-indigo-600 hover:to-indigo-700 active:scale-95 font-semibold text-sm flex items-center gap-2"
+            >
+              <span>📅</span>
+              <span className="hidden sm:inline">Program</span>
             </Link>
 
             {/* Devamsızlık Butonu */}

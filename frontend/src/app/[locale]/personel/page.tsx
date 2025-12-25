@@ -42,6 +42,7 @@ import {
   XCircle,
   CheckCircle2,
   MinusCircle,
+  Calendar,
 } from 'lucide-react';
 
 // Personel tipi
@@ -460,6 +461,14 @@ export default function PersonelDashboard() {
               <span>Online Sınav</span>
             </Link>
           )}
+
+          <Link
+            href="/personel/ders-programi"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 transition-all"
+          >
+            <Calendar size={20} />
+            <span>Ders Programı</span>
+          </Link>
 
           <Link
             href="/personel/duyurular"

@@ -43,6 +43,14 @@
 - Öğretmen sınav oluşturma/yayınlama
 - Öğrenci sınav çözme/sonuç görme
 
+### 7. ✅ Ders Programı (`feat/ders-programi`)
+- FullCalendar entegrasyonu
+- Haftalık takvim görünümü
+- Liste ve takvim görünümü seçeneği
+- Sınıf bazlı program görüntüleme
+- Ders ekleme/düzenleme (müdür/sekreter)
+- Öğretmen ve öğrenci ayrı sayfaları
+
 ---
 
 ## 🚀 KURULUM ADIMLARI (ÜRETİME ALMAK İÇİN)
@@ -106,7 +114,7 @@ NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789:web:abc123
 
 ## 🔧 Son Yapılan İşlem
 
-Online Sınav Sistemi tamamlandı! 6 temel sistem hazır.
+Ders Programı (FullCalendar) tamamlandı! 7 temel sistem hazır.
 
 **Tamamlanan Sistemler:**
 1. ✅ Ödev Sistemi
@@ -115,12 +123,12 @@ Online Sınav Sistemi tamamlandı! 6 temel sistem hazır.
 4. ✅ Veli Portalı
 5. ✅ Ödeme Sistemi (iyzico)
 6. ✅ Online Sınav Modülü
+7. ✅ Ders Programı (FullCalendar)
 
 **Sonraki Sistemler (Sırasıyla):**
-1. ⏳ Ders Programı - FullCalendar (2-3 gün)
-2. ⏳ Dashboard & Raporlar - Recharts (3-4 gün)
-3. ⏳ PWA Desteği (1-2 gün)
-4. ⏳ Canlı Ders - WebRTC/Jitsi (3-4 gün)
+1. ⏳ Dashboard & Raporlar - Recharts (3-4 gün)
+2. ⏳ PWA Desteği (1-2 gün)
+3. ⏳ Canlı Ders - WebRTC/Jitsi (3-4 gün)
 
 ---
 
