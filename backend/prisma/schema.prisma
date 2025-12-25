@@ -16,6 +16,7 @@ enum Role {
   ogretmen
   sekreter
   ogrenci
+  veli
 }
 
 enum SinifTipi {
@@ -93,11 +94,16 @@ model User {
   sinif             Sinif?   @relation(fields: [sinifId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   ogrenciNo         String?  @unique
   
-  // Veli bilgileri (öğrenci için)
+  // Veli bilgileri (öğrenci için - eski sistem, geriye uyumluluk)
   veliAd            String?
   veliSoyad         String?
   veliTelefon       String?
   veliEmail         String?
+  
+  // Veli-Öğrenci ilişkisi (yeni sistem)
+  velisi            User?    @relation("VeliOgrenci", fields: [veliId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  veliId            String?
+  cocuklari         User[]   @relation("VeliOgrenci")
   
   // Öğretmen özellikleri
   brans             String?
@@ -127,6 +133,7 @@ model User {
   @@index([sinifId])
   @@index([kursId])
   @@index([olusturanId])
+  @@index([veliId])
 }
 
 // Sınıflar

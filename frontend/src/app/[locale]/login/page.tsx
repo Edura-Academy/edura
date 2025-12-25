@@ -227,6 +227,17 @@ export default function LoginPage() {
       color: 'cyan',
       description: '5. Sınıf',
     },
+
+    // ========== VELİLER - Maltepe Zambak ==========
+    veli_1: {
+      email: 'veli.test@edura.com',
+      ad: 'Test',
+      soyad: 'Veli',
+      role: 'veli',
+      icon: '👪',
+      color: 'pink',
+      description: 'Örnek Veli Hesabı',
+    },
   };
 
   // Bypass giriş - Backend'e API çağrısı yaparak gerçek kullanıcı ile giriş
@@ -262,6 +273,8 @@ export default function LoginPage() {
         router.push('/admin');
       } else if (userRole === 'ogrenci') {
         router.push('/ogrenci');
+      } else if (userRole === 'veli') {
+        router.push('/veli');
       } else {
         router.push('/personel');
       }
@@ -334,6 +347,8 @@ export default function LoginPage() {
         router.push('/admin');
       } else if (userRole === 'ogrenci') {
         router.push('/ogrenci');
+      } else if (userRole === 'veli') {
+        router.push('/veli');
       } else {
         router.push('/personel');
       }
@@ -350,6 +365,7 @@ export default function LoginPage() {
       green: { border: 'hover:border-green-500', bg: 'hover:bg-green-50', iconBg: 'bg-green-100' },
       orange: { border: 'hover:border-orange-500', bg: 'hover:bg-orange-50', iconBg: 'bg-orange-100' },
       cyan: { border: 'hover:border-cyan-500', bg: 'hover:bg-cyan-50', iconBg: 'bg-cyan-100' },
+      pink: { border: 'hover:border-pink-500', bg: 'hover:bg-pink-50', iconBg: 'bg-pink-100' },
     };
     return colors[color] || colors.blue;
   };
@@ -711,6 +727,14 @@ export default function LoginPage() {
                   <p className="font-semibold text-gray-800 text-[10px]">5-A</p>
                 </button>
               </div>
+            </div>
+
+            {/* ========== VELİLER ========== */}
+            <div className="mb-4">
+              <h4 className="text-xs font-semibold text-pink-600 uppercase tracking-wider mb-2 flex items-center gap-2">
+                <span>👪</span> Veliler
+              </h4>
+              {renderTestUserButton('veli_1', testUsers.veli_1, true)}
             </div>
 
             {/* Bilgi notu */}

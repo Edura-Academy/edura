@@ -12,6 +12,7 @@ import messageRoutes from './routes/message.routes';
 import odevRoutes from './routes/odev.routes';
 import yoklamaRoutes from './routes/yoklama.routes';
 import duyuruRoutes from './routes/duyuru.routes';
+import veliRoutes from './routes/veli.routes';
 
 // Load environment variables
 dotenv.config();
@@ -36,6 +37,7 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/odevler', odevRoutes);
 app.use('/api/yoklama', yoklamaRoutes);
 app.use('/api/duyurular', duyuruRoutes);
+app.use('/api/veli', veliRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
