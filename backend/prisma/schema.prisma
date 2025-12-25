@@ -101,6 +101,9 @@ model User {
   // Öğretmen özellikleri
   brans             String?
   
+  // Push Notification
+  fcmToken          String?   // Firebase Cloud Messaging token
+  
   // İlişkiler
   gonderdigiMesajlar    Message[] @relation("GonderenMesajlar")
   aldigiMesajlar        Message[] @relation("AlanMesajlar")

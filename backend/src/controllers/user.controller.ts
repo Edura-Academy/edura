@@ -258,3 +258,53 @@ export const getStats = async (req: AuthRequest, res: Response): Promise<void> =
     res.status(500).json({ success: false, error: 'İstatistikler getirilemedi' });
   }
 };
+
+// FCM Token kaydet (Push notification için)
+export const saveFcmToken = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const { fcmToken } = req.body;
+
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Yetkisiz erişim' });
+      return;
+    }
+
+    if (!fcmToken) {
+      res.status(400).json({ success: false, error: 'FCM token gerekli' });
+      return;
+    }
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { fcmToken }
+    });
+
+    res.json({ success: true, message: 'FCM token kaydedildi' });
+  } catch (error) {
+    console.error('Save FCM token error:', error);
+    res.status(500).json({ success: false, error: 'Token kaydedilemedi' });
+  }
+};
+
+// FCM Token sil (Çıkış yapıldığında)
+export const removeFcmToken = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Yetkisiz erişim' });
+      return;
+    }
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { fcmToken: null }
+    });
+
+    res.json({ success: true, message: 'FCM token silindi' });
+  } catch (error) {
+    console.error('Remove FCM token error:', error);
+    res.status(500).json({ success: false, error: 'Token silinemedi' });
+  }
+};

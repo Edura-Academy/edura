@@ -9,6 +9,8 @@ import {
   createKurs,
   getSiniflar,
   getStats,
+  saveFcmToken,
+  removeFcmToken,
 } from '../controllers/user.controller';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.middleware';
 
@@ -31,5 +33,9 @@ router.post('/kurslar', authorizeRoles('admin'), createKurs);
 
 // Sınıflar
 router.get('/siniflar', getSiniflar);
+
+// Push Notification Token
+router.post('/fcm-token', saveFcmToken);
+router.delete('/fcm-token', removeFcmToken);
 
 export default router;
