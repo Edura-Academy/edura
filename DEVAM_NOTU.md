@@ -58,6 +58,13 @@
 - Öğrenci ilerleme (sınav trendi, ders başarısı)
 - Pie chart, area chart, bar chart, radar chart
 
+### 9. ✅ PWA Desteği (`feat/pwa-destegi`)
+- next-pwa entegrasyonu
+- manifest.json ve ikonlar
+- Service Worker (offline cache)
+- Ana ekrana ekleme desteği
+- Offline sayfası
+
 ---
 
 ## 🚀 KURULUM ADIMLARI (ÜRETİME ALMAK İÇİN)
@@ -121,7 +128,7 @@ NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789:web:abc123
 
 ## 🔧 Son Yapılan İşlem
 
-Dashboard & Raporlar (Recharts) tamamlandı! 8 temel sistem hazır.
+PWA Desteği tamamlandı! 9 temel sistem hazır.
 
 **Tamamlanan Sistemler:**
 1. ✅ Ödev Sistemi
@@ -132,10 +139,10 @@ Dashboard & Raporlar (Recharts) tamamlandı! 8 temel sistem hazır.
 6. ✅ Online Sınav Modülü
 7. ✅ Ders Programı (FullCalendar)
 8. ✅ Dashboard & Raporlar (Recharts)
+9. ✅ PWA Desteği (next-pwa)
 
 **Sonraki Sistemler (Sırasıyla):**
-1. ⏳ PWA Desteği (1-2 saat)
-2. ⏳ Canlı Ders - WebRTC/Jitsi (3-4 gün)
+1. ⏳ Canlı Ders - WebRTC/Jitsi (3-4 gün)
 
 ---
 
