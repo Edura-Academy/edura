@@ -139,6 +139,22 @@ model User {
   ogretmenCanliDersler  CanliDers[] @relation("OgretmenCanliDersler")
   canliDersKatilimlari  CanliDersKatilim[] @relation("OgrenciCanliDersKatilimlari")
   
+  // Materyal ilişkileri
+  yuklenanMateryaller   Materyal[] @relation("MateryalYukleyen")
+  
+  // Birebir Ders ilişkileri
+  ogretmenBirebirDersler BirebirDers[] @relation("OgretmenBirebirDersler")
+  ogrenciBirebirDersler  BirebirDers[] @relation("OgrenciBirebirDersler")
+  birebirDersPaketleri   BirebirDersPaketi[] @relation("OgrenciBirebirPaketleri")
+  
+  // Gamification ilişkileri
+  xpPuani               Int       @default(0)
+  streak                Int       @default(0)
+  sonAktiviteTarihi     DateTime?
+  rozetler              Rozet[]
+  gunlukGorevler        GunlukGorev[]
+  gunSorusuCevaplari    GununSorusuCevap[]
+  
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -192,6 +208,7 @@ model Course {
   odevler         Odev[]
   onlineSinavlar  OnlineSinav[]
   canliDersler    CanliDers[]
+  materyaller     Materyal[]
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -832,4 +849,210 @@ model SinavCevap {
   @@unique([oturumId, soruId])
   @@index([oturumId])
   @@index([soruId])
+}
+
+// ================== MATERYAL PAYLAŞIMI ==================
+
+enum MateryalTipi {
+  PDF
+  VIDEO
+  RESIM
+  BELGE
+  SUNUM
+  DIGER
+}
+
+model Materyal {
+  id              String        @id @default(uuid())
+  baslik          String
+  aciklama        String?       @db.Text
+  
+  courseId        String
+  course          Course        @relation(fields: [courseId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  yukleyenId      String
+  yukleyen        User          @relation("MateryalYukleyen", fields: [yukleyenId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  tip             MateryalTipi
+  dosyaUrl        String
+  dosyaAdi        String
+  dosyaBoyutu     Int?          // byte cinsinden
+  
+  indirmeSayisi   Int           @default(0)
+  aktif           Boolean       @default(true)
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([courseId])
+  @@index([yukleyenId])
+  @@index([tip])
+}
+
+// ================== BİREBİR DERS SİSTEMİ ==================
+
+enum BirebirDersDurum {
+  PLANLANMIS
+  TAMAMLANDI
+  IPTAL
+  GELMEDI
+}
+
+// Öğrenci saat paketi
+model BirebirDersPaketi {
+  id              String    @id @default(uuid())
+  ogrenciId       String
+  ogrenci         User      @relation("OgrenciBirebirPaketleri", fields: [ogrenciId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  toplamSaat      Int       // Satın alınan toplam saat
+  kullanilanSaat  Int       @default(0)
+  kalanSaat       Int       // Computed: toplamSaat - kullanilanSaat
+  
+  fiyat           Float?    // Paket fiyatı
+  baslangicTarihi DateTime  @default(now())
+  bitisTarihi     DateTime? // Paketin geçerlilik süresi
+  
+  aktif           Boolean   @default(true)
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([ogrenciId])
+  @@index([aktif])
+}
+
+// Birebir ders randevuları
+model BirebirDers {
+  id              String           @id @default(uuid())
+  
+  ogretmenId      String
+  ogretmen        User             @relation("OgretmenBirebirDersler", fields: [ogretmenId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  ogrenciId       String
+  ogrenci         User             @relation("OgrenciBirebirDersler", fields: [ogrenciId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  konu            String?          // Ders konusu
+  aciklama        String?          @db.Text
+  
+  tarih           DateTime
+  baslangicSaati  String           // "14:00"
+  bitisSaati      String           // "15:00"
+  sure            Int              @default(60) // dakika
+  
+  durum           BirebirDersDurum @default(PLANLANMIS)
+  
+  // Jitsi odası
+  odaAdi          String?          @unique
+  
+  // Notlar
+  ogretmenNotu    String?          @db.Text
+  ogrenciNotu     String?          @db.Text
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([ogretmenId])
+  @@index([ogrenciId])
+  @@index([tarih])
+  @@index([durum])
+}
+
+// ================== GAMİFİCATİON SİSTEMİ ==================
+
+enum RozetTipi {
+  STREAK_7       // 7 gün streak
+  STREAK_30      // 30 gün streak
+  STREAK_100     // 100 gün streak
+  ILK_ODEV       // İlk ödev teslimi
+  ODEV_USTASI    // 50 ödev teslimi
+  SINAV_SAMPIYONU // 10 sınavda %90+ 
+  ERKEN_KUS      // Sabah 8'den önce görev
+  GECE_KUSU      // Gece 22'den sonra görev
+  SOSYAL_KELEBEK // 10 mesaj gönder
+  CANLI_DERS_KATILIMCISI // 20 canlı derse katıl
+  XP_1000        // 1000 XP topla
+  XP_5000        // 5000 XP topla
+  XP_10000       // 10000 XP topla
+}
+
+model Rozet {
+  id              String    @id @default(uuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  tip             RozetTipi
+  kazanilanTarih  DateTime  @default(now())
+  
+  createdAt       DateTime  @default(now())
+
+  @@unique([userId, tip])
+  @@index([userId])
+}
+
+enum GorevTipi {
+  SORU_COZ       // X soru çöz
+  KONU_BITIR     // X konu bitir
+  ODEV_TESLIM    // Ödev teslim et
+  CANLI_DERS     // Canlı derse katıl
+  GUN_SORUSU     // Günün sorusunu çöz
+  MATERYAL_INCELE // Materyal incele
+}
+
+model GunlukGorev {
+  id              String    @id @default(uuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  tarih           DateTime  @db.Date
+  tip             GorevTipi
+  hedef           Int       // Hedef miktar (10 soru, 1 ödev vs)
+  ilerleme        Int       @default(0) // Mevcut ilerleme
+  tamamlandi      Boolean   @default(false)
+  xpOdulu         Int       @default(10)
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([userId, tarih, tip])
+  @@index([userId])
+  @@index([tarih])
+}
+
+// Günün sorusu (Lichess puzzle tarzı)
+model GununSorusu {
+  id              String    @id @default(uuid())
+  tarih           DateTime  @unique @db.Date
+  
+  soruMetni       String    @db.Text
+  secenekler      String    @db.Text  // JSON array
+  dogruCevap      String
+  aciklama        String?   @db.Text  // Çözüm açıklaması
+  
+  zorluk          Int       @default(1) // 1: Kolay, 2: Orta, 3: Zor
+  xpOdulu         Int       @default(15)
+  konu            String?   // Matematik, Fizik, vs.
+  
+  cevaplar        GununSorusuCevap[]
+  
+  createdAt       DateTime  @default(now())
+}
+
+model GununSorusuCevap {
+  id              String       @id @default(uuid())
+  gununSorusuId   String
+  gununSorusu     GununSorusu  @relation(fields: [gununSorusuId], references: [id], onDelete: Cascade)
+  
+  userId          String
+  user            User         @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  cevap           String
+  dogruMu         Boolean
+  ipucuKullanildi Boolean      @default(false)
+  kazanilanXp     Int
+  
+  createdAt       DateTime     @default(now())
+
+  @@unique([gununSorusuId, userId])
+  @@index([gununSorusuId])
+  @@index([userId])
 }

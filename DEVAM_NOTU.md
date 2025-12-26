@@ -75,6 +75,28 @@
 - Öğrenci izinleri (mikrofon, kamera, sohbet)
 - Otomatik bildirimler
 
+### 11. ✅ Materyal Paylaşımı (`feat/ek-ozellikler`)
+- Öğretmen dosya yükleme (PDF, Video, Resim, Sunum, Belge)
+- Öğrenci materyal indirme ve görüntüleme
+- İndirme istatistikleri
+- Ders bazlı filtreleme
+
+### 12. ✅ Birebir Ders Sistemi (`feat/ek-ozellikler`)
+- Saat paketi yönetimi (öğrenci bazlı)
+- Öğretmen müsaitlik takvimi
+- Randevu oluşturma/iptal
+- Jitsi ile video konferans
+- Otomatik saat düşümü
+
+### 13. ✅ Gamification Sistemi (`feat/ek-ozellikler`)
+- Streak takibi (ardışık gün)
+- XP puanlama sistemi
+- Seviye sistemi (Başlangıç → Efsane)
+- Günlük görevler
+- Günün sorusu (Lichess puzzle tarzı)
+- Rozetler (13 farklı rozet)
+- Liderlik tablosu
+
 ---
 
 ## 🚀 KURULUM ADIMLARI (ÜRETİME ALMAK İÇİN)
@@ -138,7 +160,7 @@ NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789:web:abc123
 
 ## 🔧 Son Yapılan İşlem
 
-Canlı Ders Sistemi tamamlandı! 10 temel sistem hazır.
+Ek özellikler tamamlandı! 13 temel sistem hazır.
 
 **Tamamlanan Sistemler:**
 1. ✅ Ödev Sistemi
@@ -151,8 +173,11 @@ Canlı Ders Sistemi tamamlandı! 10 temel sistem hazır.
 8. ✅ Dashboard & Raporlar (Recharts)
 9. ✅ PWA Desteği (next-pwa)
 10. ✅ Canlı Ders (Jitsi Meet)
+11. ✅ Materyal Paylaşımı
+12. ✅ Birebir Ders Sistemi
+13. ✅ Gamification (Streak, XP, Rozetler, Günün Sorusu, Leaderboard)
 
-**TÜM PLANLANAN SİSTEMLER TAMAMLANDI! 🎉**
+**TÜM SİSTEMLER TAMAMLANDI! 🎉**
 
 ---
 

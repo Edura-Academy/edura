@@ -18,6 +18,9 @@ import onlineSinavRoutes from './routes/onlineSinav.routes';
 import dersProgramiRoutes from './routes/dersProgrami.routes';
 import dashboardRoutes from './routes/dashboard.routes';
 import canliDersRoutes from './routes/canliDers.routes';
+import materyalRoutes from './routes/materyal.routes';
+import birebirDersRoutes from './routes/birebirDers.routes';
+import gamificationRoutes from './routes/gamification.routes';
 
 // Load environment variables
 dotenv.config();
@@ -48,6 +51,9 @@ app.use('/api/online-sinav', onlineSinavRoutes);
 app.use('/api/ders-programi', dersProgramiRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/canli-ders', canliDersRoutes);
+app.use('/api/materyaller', materyalRoutes);
+app.use('/api/birebir-ders', birebirDersRoutes);
+app.use('/api/gamification', gamificationRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
