@@ -17,6 +17,7 @@ import odemeRoutes from './routes/odeme.routes';
 import onlineSinavRoutes from './routes/onlineSinav.routes';
 import dersProgramiRoutes from './routes/dersProgrami.routes';
 import dashboardRoutes from './routes/dashboard.routes';
+import canliDersRoutes from './routes/canliDers.routes';
 
 // Load environment variables
 dotenv.config();
@@ -46,6 +47,7 @@ app.use('/api/odeme', odemeRoutes);
 app.use('/api/online-sinav', onlineSinavRoutes);
 app.use('/api/ders-programi', dersProgramiRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/canli-ders', canliDersRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

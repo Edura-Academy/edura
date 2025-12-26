@@ -65,6 +65,16 @@
 - Ana ekrana ekleme desteği
 - Offline sayfası
 
+### 10. ✅ Canlı Ders Sistemi (`feat/canli-ders`)
+- Jitsi Meet entegrasyonu (ücretsiz, sınırsız)
+- Backend route ve controller (oluştur, başlat, bitir, iptal)
+- Prisma modelleri (CanliDers, CanliDersKatilim)
+- Öğretmen canlı ders yönetim sayfası
+- Öğrenci canlı derse katılma sayfası
+- Katılım takibi ve istatistikler
+- Öğrenci izinleri (mikrofon, kamera, sohbet)
+- Otomatik bildirimler
+
 ---
 
 ## 🚀 KURULUM ADIMLARI (ÜRETİME ALMAK İÇİN)
@@ -128,7 +138,7 @@ NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789:web:abc123
 
 ## 🔧 Son Yapılan İşlem
 
-PWA Desteği tamamlandı! 9 temel sistem hazır.
+Canlı Ders Sistemi tamamlandı! 10 temel sistem hazır.
 
 **Tamamlanan Sistemler:**
 1. ✅ Ödev Sistemi
@@ -140,9 +150,9 @@ PWA Desteği tamamlandı! 9 temel sistem hazır.
 7. ✅ Ders Programı (FullCalendar)
 8. ✅ Dashboard & Raporlar (Recharts)
 9. ✅ PWA Desteği (next-pwa)
+10. ✅ Canlı Ders (Jitsi Meet)
 
-**Sonraki Sistemler (Sırasıyla):**
-1. ⏳ Canlı Ders - WebRTC/Jitsi (3-4 gün)
+**TÜM PLANLANAN SİSTEMLER TAMAMLANDI! 🎉**
 
 ---
 
@@ -230,6 +240,7 @@ Bildirimler
 | **FullCalendar** | Takvim | Sınırsız |
 | **Recharts** | Grafikler | Sınırsız |
 | **Jitsi Meet** | Video konferans | Sınırsız |
+| **next-pwa** | PWA Desteği | Sınırsız |
 
 ---
 

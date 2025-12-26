@@ -135,6 +135,10 @@ model User {
   ogretmenOnlineSinavlar OnlineSinav[] @relation("OgretmenOnlineSinavlar")
   sinavOturumlari       SinavOturumu[] @relation("OgrenciSinavOturumlari")
   
+  // Canlı Ders ilişkileri
+  ogretmenCanliDersler  CanliDers[] @relation("OgretmenCanliDersler")
+  canliDersKatilimlari  CanliDersKatilim[] @relation("OgrenciCanliDersKatilimlari")
+  
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -187,6 +191,7 @@ model Course {
   yoklamalar      Yoklama[]
   odevler         Odev[]
   onlineSinavlar  OnlineSinav[]
+  canliDersler    CanliDers[]
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -621,6 +626,77 @@ model Odeme {
   @@index([ogrenciId])
   @@index([durum])
   @@index([vadeTarihi])
+}
+
+// ================== CANLI DERS SİSTEMİ ==================
+
+enum CanliDersDurum {
+  PLANLANMIS     // Henüz başlamadı
+  AKTIF          // Şu an devam ediyor
+  SONA_ERDI      // Bitti
+  IPTAL          // İptal edildi
+}
+
+// Canlı Dersler (Jitsi Meet entegrasyonu)
+model CanliDers {
+  id              String           @id @default(uuid())
+  baslik          String
+  aciklama        String?          @db.Text
+  
+  courseId        String
+  course          Course           @relation(fields: [courseId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  ogretmenId      String
+  ogretmen        User             @relation("OgretmenCanliDersler", fields: [ogretmenId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  // Zamanlama
+  baslangicTarihi DateTime
+  bitisTarihi     DateTime
+  
+  // Jitsi bilgileri
+  odaAdi          String           @unique  // Jitsi room name
+  odaSifresi      String?                   // Opsiyonel şifre
+  
+  // Ayarlar
+  kayitYapilsin   Boolean          @default(false)  // Dersi kaydet
+  mikrofonAcik    Boolean          @default(false)  // Öğrenciler mikrofon açabilir
+  kameraAcik      Boolean          @default(false)  // Öğrenciler kamera açabilir
+  sohbetAcik      Boolean          @default(true)   // Sohbet aktif
+  
+  durum           CanliDersDurum   @default(PLANLANMIS)
+  
+  katilimlar      CanliDersKatilim[]
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([courseId])
+  @@index([ogretmenId])
+  @@index([durum])
+  @@index([baslangicTarihi])
+}
+
+// Canlı Ders Katılım Takibi
+model CanliDersKatilim {
+  id              String      @id @default(uuid())
+  canliDersId     String
+  canliDers       CanliDers   @relation(fields: [canliDersId], references: [id], onDelete: Cascade)
+  
+  ogrenciId       String
+  ogrenci         User        @relation("OgrenciCanliDersKatilimlari", fields: [ogrenciId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  girisZamani     DateTime    @default(now())
+  cikisZamani     DateTime?
+  
+  // İstatistik
+  toplamSure      Int?        // dakika cinsinden
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([canliDersId])
+  @@index([ogrenciId])
+  @@index([girisZamani])
 }
 
 // ================== ONLİNE SINAV SİSTEMİ ==================

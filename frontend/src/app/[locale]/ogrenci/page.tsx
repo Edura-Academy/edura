@@ -128,6 +128,17 @@ export default function OgrenciDashboard() {
                   </svg>
                 </Link>
 
+                {/* Canlı Ders */}
+                <Link
+                  href="/ogrenci/canli-ders"
+                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-600"
+                  title="Canlı Dersler"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </Link>
+
                 {/* Ders Programı */}
                 <Link
                   href="/ogrenci/ders-programi"
@@ -606,6 +617,15 @@ export default function OgrenciDashboard() {
             >
               <span>📋</span>
               <span className="hidden sm:inline">Sınavlar</span>
+            </Link>
+
+            {/* Canlı Ders */}
+            <Link
+              href="/ogrenci/canli-ders"
+              className="px-4 py-2 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-full hover:shadow-lg transition-all hover:from-red-600 hover:to-pink-700 active:scale-95 font-semibold text-sm flex items-center gap-2"
+            >
+              <span>🎥</span>
+              <span className="hidden sm:inline">Canlı Ders</span>
             </Link>
 
             {/* Ders Programı */}
