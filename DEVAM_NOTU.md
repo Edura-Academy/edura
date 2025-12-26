@@ -51,6 +51,13 @@
 - Ders ekleme/düzenleme (müdür/sekreter)
 - Öğretmen ve öğrenci ayrı sayfaları
 
+### 8. ✅ Dashboard & Raporlar (`feat/dashboard-raporlar`)
+- Recharts entegrasyonu
+- Müdür dashboard (genel istatistikler)
+- Öğretmen raporları (ders, yoklama, ödev, sınav)
+- Öğrenci ilerleme (sınav trendi, ders başarısı)
+- Pie chart, area chart, bar chart, radar chart
+
 ---
 
 ## 🚀 KURULUM ADIMLARI (ÜRETİME ALMAK İÇİN)
@@ -114,7 +121,7 @@ NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789:web:abc123
 
 ## 🔧 Son Yapılan İşlem
 
-Ders Programı (FullCalendar) tamamlandı! 7 temel sistem hazır.
+Dashboard & Raporlar (Recharts) tamamlandı! 8 temel sistem hazır.
 
 **Tamamlanan Sistemler:**
 1. ✅ Ödev Sistemi
@@ -124,11 +131,11 @@ Ders Programı (FullCalendar) tamamlandı! 7 temel sistem hazır.
 5. ✅ Ödeme Sistemi (iyzico)
 6. ✅ Online Sınav Modülü
 7. ✅ Ders Programı (FullCalendar)
+8. ✅ Dashboard & Raporlar (Recharts)
 
 **Sonraki Sistemler (Sırasıyla):**
-1. ⏳ Dashboard & Raporlar - Recharts (3-4 gün)
-2. ⏳ PWA Desteği (1-2 gün)
-3. ⏳ Canlı Ders - WebRTC/Jitsi (3-4 gün)
+1. ⏳ PWA Desteği (1-2 saat)
+2. ⏳ Canlı Ders - WebRTC/Jitsi (3-4 gün)
 
 ---
 

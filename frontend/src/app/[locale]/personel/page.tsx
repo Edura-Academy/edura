@@ -43,6 +43,7 @@ import {
   CheckCircle2,
   MinusCircle,
   Calendar,
+  BarChart2,
 } from 'lucide-react';
 
 // Personel tipi
@@ -468,6 +469,14 @@ export default function PersonelDashboard() {
           >
             <Calendar size={20} />
             <span>Ders Programı</span>
+          </Link>
+
+          <Link
+            href="/personel/raporlar"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 transition-all"
+          >
+            <BarChart2 size={20} />
+            <span>Raporlar</span>
           </Link>
 
           <Link

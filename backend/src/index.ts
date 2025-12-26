@@ -16,6 +16,7 @@ import veliRoutes from './routes/veli.routes';
 import odemeRoutes from './routes/odeme.routes';
 import onlineSinavRoutes from './routes/onlineSinav.routes';
 import dersProgramiRoutes from './routes/dersProgrami.routes';
+import dashboardRoutes from './routes/dashboard.routes';
 
 // Load environment variables
 dotenv.config();
@@ -44,6 +45,7 @@ app.use('/api/veli', veliRoutes);
 app.use('/api/odeme', odemeRoutes);
 app.use('/api/online-sinav', onlineSinavRoutes);
 app.use('/api/ders-programi', dersProgramiRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
