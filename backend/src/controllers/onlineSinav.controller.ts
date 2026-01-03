@@ -8,31 +8,44 @@ import { pushService } from '../services/push.service';
 // Sınav oluştur
 export const createSinav = async (req: AuthRequest, res: Response) => {
   try {
-    const ogretmenId = req.user?.userId;
+    const ogretmenId = req.user?.id;
+    
+    if (!ogretmenId) {
+      return res.status(401).json({ success: false, message: 'Yetkilendirme hatası' });
+    }
+    
     const { 
-      baslik, aciklama, courseId, sure, 
-      baslangicTarihi, bitisTarihi, 
+      baslik, aciklama, courseId, dersAdi, bransKodu, sure, 
+      baslangicTarihi, bitisTarihi, maksimumPuan,
       karistir, geriDonus, sonucGoster,
       sorular 
     } = req.body;
 
-    // Dersin öğretmenine ait olduğunu kontrol et
-    const course = await prisma.course.findFirst({
-      where: { id: courseId, ogretmenId }
-    });
+    let finalCourseId = courseId;
 
-    if (!course) {
-      return res.status(403).json({ success: false, message: 'Bu derse erişim yetkiniz yok' });
+    // Eğer courseId verilmişse (gerçek bir ders seçilmişse) kontrol et
+    if (courseId) {
+      const course = await prisma.course.findFirst({
+        where: { id: courseId, ogretmenId }
+      });
+
+      if (!course) {
+        return res.status(403).json({ success: false, message: 'Bu derse erişim yetkiniz yok' });
+      }
     }
+    // courseId yoksa ama bransKodu varsa, bu bir deneme sınavıdır - genel kullanım için
 
     // Sınavı oluştur
     const sinav = await prisma.onlineSinav.create({
       data: {
         baslik,
         aciklama,
-        courseId,
+        courseId: finalCourseId || null,
+        dersAdi: dersAdi || null,
+        bransKodu: bransKodu || null,
         ogretmenId: ogretmenId!,
         sure,
+        maksimumPuan: maksimumPuan || 100,
         baslangicTarihi: new Date(baslangicTarihi),
         bitisTarihi: new Date(bitisTarihi),
         karistir: karistir ?? true,
@@ -72,7 +85,7 @@ export const createSinav = async (req: AuthRequest, res: Response) => {
 // Sınavları listele (öğretmen)
 export const getOgretmenSinavlari = async (req: AuthRequest, res: Response) => {
   try {
-    const ogretmenId = req.user?.userId;
+    const ogretmenId = req.user?.id;
     const { courseId, durum } = req.query;
 
     const where: any = { ogretmenId };
@@ -91,6 +104,8 @@ export const getOgretmenSinavlari = async (req: AuthRequest, res: Response) => {
 
     const sinavlarWithStats = sinavlar.map(sinav => ({
       ...sinav,
+      // Course yoksa dersAdi kullan
+      course: sinav.course || { id: sinav.bransKodu || 'deneme', ad: sinav.dersAdi || 'Deneme Sınavı' },
       soruSayisi: sinav.sorular.length,
       katilimciSayisi: sinav.oturumlar.length,
       tamamlayanSayisi: sinav.oturumlar.filter(o => o.tamamlandi).length
@@ -106,7 +121,7 @@ export const getOgretmenSinavlari = async (req: AuthRequest, res: Response) => {
 // Sınav detayı (öğretmen)
 export const getSinavDetay = async (req: AuthRequest, res: Response) => {
   try {
-    const ogretmenId = req.user?.userId;
+    const ogretmenId = req.user?.id;
     const { sinavId } = req.params;
 
     const sinav = await prisma.onlineSinav.findFirst({
@@ -149,7 +164,7 @@ export const getSinavDetay = async (req: AuthRequest, res: Response) => {
 // Soru ekle
 export const addSoru = async (req: AuthRequest, res: Response) => {
   try {
-    const ogretmenId = req.user?.userId;
+    const ogretmenId = req.user?.id;
     const { sinavId } = req.params;
     const { soruMetni, soruTipi, puan, secenekler, dogruCevap, resimUrl } = req.body;
 
@@ -191,7 +206,7 @@ export const addSoru = async (req: AuthRequest, res: Response) => {
 // Soruyu güncelle
 export const updateSoru = async (req: AuthRequest, res: Response) => {
   try {
-    const ogretmenId = req.user?.userId;
+    const ogretmenId = req.user?.id;
     const { soruId } = req.params;
     const { soruMetni, soruTipi, puan, secenekler, dogruCevap, resimUrl } = req.body;
 
@@ -227,7 +242,7 @@ export const updateSoru = async (req: AuthRequest, res: Response) => {
 // Soruyu sil
 export const deleteSoru = async (req: AuthRequest, res: Response) => {
   try {
-    const ogretmenId = req.user?.userId;
+    const ogretmenId = req.user?.id;
     const { soruId } = req.params;
 
     const soru = await prisma.onlineSoru.findFirst({
@@ -251,7 +266,7 @@ export const deleteSoru = async (req: AuthRequest, res: Response) => {
 // Sınavı yayınla
 export const publishSinav = async (req: AuthRequest, res: Response) => {
   try {
-    const ogretmenId = req.user?.userId;
+    const ogretmenId = req.user?.id;
     const { sinavId } = req.params;
 
     const sinav = await prisma.onlineSinav.findFirst({
@@ -282,13 +297,15 @@ export const publishSinav = async (req: AuthRequest, res: Response) => {
       data: { durum: 'AKTIF' }
     });
 
-    // Öğrencilere bildirim gönder
-    const ogrenciIds = sinav.course.kayitlar.map(k => k.ogrenci.id);
-    if (ogrenciIds.length > 0) {
-      await pushService.sendToUsers(ogrenciIds, {
-        title: 'Yeni Online Sınav',
-        body: `${sinav.baslik} sınavı yayınlandı. Başlangıç: ${new Date(sinav.baslangicTarihi).toLocaleString('tr-TR')}`
-      });
+    // Öğrencilere bildirim gönder (sadece course bağlı sınavlar için)
+    if (sinav.course) {
+      const ogrenciIds = sinav.course.kayitlar.map(k => k.ogrenci.id);
+      if (ogrenciIds.length > 0) {
+        await pushService.sendToUsers(ogrenciIds, {
+          title: 'Yeni Online Sınav',
+          body: `${sinav.baslik} sınavı yayınlandı. Başlangıç: ${new Date(sinav.baslangicTarihi).toLocaleString('tr-TR')}`
+        });
+      }
     }
 
     res.json({ success: true, message: 'Sınav yayınlandı' });
@@ -301,7 +318,7 @@ export const publishSinav = async (req: AuthRequest, res: Response) => {
 // Sınav sonuçları (öğretmen)
 export const getSinavSonuclari = async (req: AuthRequest, res: Response) => {
   try {
-    const ogretmenId = req.user?.userId;
+    const ogretmenId = req.user?.id;
     const { sinavId } = req.params;
 
     const sinav = await prisma.onlineSinav.findFirst({
@@ -368,7 +385,7 @@ export const getSinavSonuclari = async (req: AuthRequest, res: Response) => {
 // Aktif sınavları listele (öğrenci)
 export const getAktifSinavlar = async (req: AuthRequest, res: Response) => {
   try {
-    const ogrenciId = req.user?.userId;
+    const ogrenciId = req.user?.id;
     const now = new Date();
 
     // Öğrencinin kayıtlı olduğu derslerin sınavları
@@ -422,7 +439,7 @@ export const getAktifSinavlar = async (req: AuthRequest, res: Response) => {
 // Sınava başla
 export const startSinav = async (req: AuthRequest, res: Response) => {
   try {
-    const ogrenciId = req.user?.userId;
+    const ogrenciId = req.user?.id;
     const { sinavId } = req.params;
     const now = new Date();
 
@@ -448,7 +465,9 @@ export const startSinav = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ success: false, message: 'Sınav bulunamadı veya aktif değil' });
     }
 
-    if (sinav.course.kayitlar.length === 0) {
+    // Course'a bağlı sınavlar için kayıt kontrolü yap
+    // Branş bazlı denemeler (courseId null) için bu kontrol atlanır
+    if (sinav.course && sinav.course.kayitlar.length === 0) {
       return res.status(403).json({ success: false, message: 'Bu derse kayıtlı değilsiniz' });
     }
 
@@ -522,7 +541,7 @@ export const startSinav = async (req: AuthRequest, res: Response) => {
 // Cevap kaydet
 export const saveCevap = async (req: AuthRequest, res: Response) => {
   try {
-    const ogrenciId = req.user?.userId;
+    const ogrenciId = req.user?.id;
     const { oturumId, soruId, cevap } = req.body;
 
     // Oturumu kontrol et
@@ -551,7 +570,7 @@ export const saveCevap = async (req: AuthRequest, res: Response) => {
 // Sınavı bitir
 export const finishSinav = async (req: AuthRequest, res: Response) => {
   try {
-    const ogrenciId = req.user?.userId;
+    const ogrenciId = req.user?.id;
     const { oturumId } = req.params;
 
     // Oturumu kontrol et
@@ -639,7 +658,7 @@ export const finishSinav = async (req: AuthRequest, res: Response) => {
 // Sınav sonucunu görüntüle (öğrenci)
 export const getOgrenciSonuc = async (req: AuthRequest, res: Response) => {
   try {
-    const ogrenciId = req.user?.userId;
+    const ogrenciId = req.user?.id;
     const { sinavId } = req.params;
 
     const oturum = await prisma.sinavOturumu.findFirst({
@@ -709,7 +728,7 @@ export const getOgrenciSonuc = async (req: AuthRequest, res: Response) => {
 // Öğrencinin tüm sınav geçmişi
 export const getOgrenciSinavGecmisi = async (req: AuthRequest, res: Response) => {
   try {
-    const ogrenciId = req.user?.userId;
+    const ogrenciId = req.user?.id;
 
     const oturumlar = await prisma.sinavOturumu.findMany({
       where: { ogrenciId, tamamlandi: true },

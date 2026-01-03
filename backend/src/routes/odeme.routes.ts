@@ -11,7 +11,7 @@ import {
   getInstallmentOptions,
   getTestCards
 } from '../controllers/odeme.controller';
-import { authenticateToken, authorizeRoles } from '../middleware/auth';
+import { authenticateToken, authorizeRoles } from '../middleware/auth.middleware';
 
 const router = Router();
 

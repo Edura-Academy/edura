@@ -8,6 +8,10 @@ import {
   GraduationCap, MessageSquare, Settings, LogOut,
   CheckCircle, XCircle, AlertTriangle, User
 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { RoleGuard } from '@/components/RoleGuard';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 interface Cocuk {
   id: string;
@@ -53,36 +57,23 @@ interface DashboardData {
   duyurular: Duyuru[];
 }
 
-export default function VeliDashboard() {
+function VeliDashboardContent() {
   const router = useRouter();
+  const { user, token, logout } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    // Kullanıcı bilgilerini al
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      const parsed = JSON.parse(userData);
-      if (parsed.role !== 'veli') {
-        router.push('/login');
-        return;
-      }
-      setUser(parsed);
-    } else {
-      router.push('/login');
-      return;
+    if (token) {
+      fetchDashboard(token);
     }
+  }, [token]);
 
-    fetchDashboard();
-  }, []);
-
-  const fetchDashboard = async () => {
+  const fetchDashboard = async (authToken: string) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/veli/dashboard`, {
+      const response = await fetch(`${API_URL}/veli/dashboard`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${authToken}`
         }
       });
       
@@ -98,9 +89,7 @@ export default function VeliDashboard() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    router.push('/login');
+    logout();
   };
 
   const formatDate = (dateStr: string) => {
@@ -426,6 +415,15 @@ export default function VeliDashboard() {
         </div>
       </main>
     </div>
+  );
+}
+
+// Ana export - RoleGuard ile sarmalanmış
+export default function VeliDashboard() {
+  return (
+    <RoleGuard allowedRoles={['veli']}>
+      <VeliDashboardContent />
+    </RoleGuard>
   );
 }
 

@@ -1,13 +1,391 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import prisma from '../config/database';
-import { AuthRequest } from '../middleware/auth';
+import { AuthRequest } from '../types';
+
+// Yardımcı fonksiyon: Bugünün gününü Türkçe olarak al
+function getBugunGun(): string {
+  const gunler = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
+  return gunler[new Date().getDay()];
+}
+
+// ==================== ÖĞRETMEN DASHBOARD ====================
+
+export const getOgretmenDashboardStats = async (req: AuthRequest, res: Response) => {
+  try {
+    const ogretmenId = req.user?.id;
+    const bugun = getBugunGun();
+
+    // Öğretmenin dersleri
+    const dersler = await prisma.course.findMany({
+      where: { ogretmenId, aktif: true },
+      include: {
+        kayitlar: { where: { aktif: true } }
+      }
+    });
+
+    // Toplam benzersiz öğrenci sayısı
+    const ogrenciIdleri = new Set<string>();
+    dersler.forEach(ders => {
+      ders.kayitlar.forEach(kayit => {
+        ogrenciIdleri.add(kayit.ogrenciId);
+      });
+    });
+
+    // Bekleyen ödevler (teslim edilmemiş - BEKLEMEDE durumunda)
+    const odevler = await prisma.odev.findMany({
+      where: { 
+        ogretmenId, 
+        aktif: true,
+        sonTeslimTarihi: { gte: new Date() }
+      },
+      include: {
+        teslimler: {
+          where: { durum: 'BEKLEMEDE' }
+        }
+      }
+    });
+
+    const bekleyenOdevSayisi = odevler.reduce((acc: number, odev: any) => acc + odev.teslimler.length, 0);
+
+    // Bugünkü ders sayısı
+    const bugunDersler = dersler.filter(ders => ders.gun === bugun);
+
+    res.json({
+      success: true,
+      data: {
+        toplamOgrenci: ogrenciIdleri.size,
+        toplamDers: dersler.length,
+        bekleyenOdevler: bekleyenOdevSayisi,
+        bugunDersSayisi: bugunDersler.length
+      }
+    });
+  } catch (error) {
+    console.error('Öğretmen dashboard stats hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+export const getOgretmenBugunDersler = async (req: AuthRequest, res: Response) => {
+  try {
+    const ogretmenId = req.user?.id;
+    const bugun = getBugunGun();
+    const simdikiSaat = new Date().toTimeString().slice(0, 5); // "HH:MM" formatı
+
+    // Bugünkü dersler
+    const dersler = await prisma.course.findMany({
+      where: { 
+        ogretmenId, 
+        aktif: true,
+        gun: bugun
+      },
+      include: {
+        sinif: { select: { id: true, ad: true } }
+      },
+      orderBy: { baslangicSaati: 'asc' }
+    });
+
+    // Ders durumlarını hesapla
+    const derslerWithDurum = dersler.map(ders => {
+      let durum: 'bekliyor' | 'devam_ediyor' | 'tamamlandi' = 'bekliyor';
+      
+      if (simdikiSaat >= ders.bitisSaati) {
+        durum = 'tamamlandi';
+      } else if (simdikiSaat >= ders.baslangicSaati && simdikiSaat < ders.bitisSaati) {
+        durum = 'devam_ediyor';
+      }
+
+      return {
+        id: ders.id,
+        ad: ders.ad,
+        sinif: ders.sinif.ad,
+        saat: `${ders.baslangicSaati} - ${ders.bitisSaati}`,
+        durum
+      };
+    });
+
+    res.json({
+      success: true,
+      data: derslerWithDurum
+    });
+  } catch (error) {
+    console.error('Öğretmen bugün dersler hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+// ==================== ÖĞRENCİ DASHBOARD ====================
+
+export const getOgrenciDashboardStats = async (req: AuthRequest, res: Response) => {
+  try {
+    const ogrenciId = req.user?.id;
+    const bugun = getBugunGun();
+
+    // Öğrencinin kayıtlı dersleri
+    const dersKayitlari = await prisma.courseEnrollment.findMany({
+      where: { ogrenciId, aktif: true },
+      include: {
+        course: {
+          include: {
+            sinif: { select: { ad: true } },
+            ogretmen: { select: { ad: true, soyad: true } }
+          }
+        }
+      }
+    });
+
+    // Bugünkü dersler
+    const bugunDersler = dersKayitlari.filter(k => k.course.gun === bugun);
+
+    // Bekleyen ödevler (BEKLEMEDE durumunda)
+    const bekleyenOdevler = await prisma.odevTeslim.count({
+      where: {
+        ogrenciId,
+        durum: 'BEKLEMEDE',
+        odev: { sonTeslimTarihi: { gte: new Date() } }
+      }
+    });
+
+    // Aktif online sınavlar
+    const aktifSinavlar = await prisma.onlineSinav.count({
+      where: {
+        durum: 'AKTIF',
+        baslangicTarihi: { lte: new Date() },
+        bitisTarihi: { gte: new Date() },
+        oturumlar: {
+          none: { ogrenciId, tamamlandi: true }
+        }
+      }
+    });
+
+    // Devamsızlık sayısı
+    const devamsizliklar = await prisma.yoklama.count({
+      where: {
+        ogrenciId,
+        durum: 'KATILMADI'
+      }
+    });
+
+    // Genel ortalama (tamamlanan sınavlardan)
+    const sinavOturumlari = await prisma.sinavOturumu.findMany({
+      where: { ogrenciId, tamamlandi: true },
+      select: { yuzde: true }
+    });
+
+    const genelOrtalama = sinavOturumlari.length > 0
+      ? Math.round(sinavOturumlari.reduce((sum, o) => sum + (o.yuzde || 0), 0) / sinavOturumlari.length)
+      : 0;
+
+    res.json({
+      success: true,
+      data: {
+        toplamDers: dersKayitlari.length,
+        bugunDersSayisi: bugunDersler.length,
+        bekleyenOdevler,
+        aktifSinavlar,
+        devamsizliklar,
+        genelOrtalama
+      }
+    });
+  } catch (error) {
+    console.error('Öğrenci dashboard stats hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+export const getOgrenciBugunDersler = async (req: AuthRequest, res: Response) => {
+  try {
+    const ogrenciId = req.user?.id;
+    const bugun = getBugunGun();
+    const simdikiSaat = new Date().toTimeString().slice(0, 5);
+
+    const dersKayitlari = await prisma.courseEnrollment.findMany({
+      where: { ogrenciId, aktif: true },
+      include: {
+        course: {
+          include: {
+            sinif: { select: { ad: true } },
+            ogretmen: { select: { ad: true, soyad: true } }
+          }
+        }
+      }
+    });
+
+    const dersler = (dersKayitlari as any[])
+      .filter(k => k.course.gun === bugun && k.course.aktif)
+      .map(k => {
+        let durum: 'bekliyor' | 'devam_ediyor' | 'tamamlandi' = 'bekliyor';
+        
+        if (simdikiSaat >= k.course.bitisSaati) {
+          durum = 'tamamlandi';
+        } else if (simdikiSaat >= k.course.baslangicSaati && simdikiSaat < k.course.bitisSaati) {
+          durum = 'devam_ediyor';
+        }
+
+        return {
+          id: k.course.id,
+          ad: k.course.ad,
+          sinif: k.course.sinif?.ad || '-',
+          ogretmen: k.course.ogretmen ? `${k.course.ogretmen.ad} ${k.course.ogretmen.soyad}` : '-',
+          saat: `${k.course.baslangicSaati} - ${k.course.bitisSaati}`,
+          durum
+        };
+      })
+      .sort((a, b) => a.saat.localeCompare(b.saat));
+
+    res.json({
+      success: true,
+      data: dersler
+    });
+  } catch (error) {
+    console.error('Öğrenci bugün dersler hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+export const getOgrenciBekleyenOdevler = async (req: AuthRequest, res: Response) => {
+  try {
+    const ogrenciId = req.user?.id;
+
+    const teslimler = await prisma.odevTeslim.findMany({
+      where: {
+        ogrenciId,
+        durum: 'BEKLEMEDE',
+        odev: { sonTeslimTarihi: { gte: new Date() } }
+      },
+      include: {
+        odev: {
+          include: {
+            course: { select: { ad: true } }
+          }
+        }
+      },
+      orderBy: { odev: { sonTeslimTarihi: 'asc' } },
+      take: 5
+    });
+
+    const odevler = teslimler.map((t: any) => ({
+      id: t.odevId,
+      baslik: t.odev.baslik,
+      ders: t.odev.course.ad,
+      sonTeslimTarihi: t.odev.sonTeslimTarihi
+    }));
+
+    res.json({
+      success: true,
+      data: odevler
+    });
+  } catch (error) {
+    console.error('Öğrenci bekleyen ödevler hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+// ==================== SEKRETER DASHBOARD ====================
+
+export const getSekreterDashboardStats = async (req: AuthRequest, res: Response) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user?.id },
+      select: { kursId: true }
+    });
+
+    const kursId = user?.kursId;
+    const whereKurs = kursId ? { kursId } : {};
+    const bugun = new Date();
+    bugun.setHours(0, 0, 0, 0);
+
+    // Toplam öğrenci
+    const toplamOgrenci = await prisma.user.count({
+      where: { role: 'ogrenci', aktif: true, ...whereKurs }
+    });
+
+    // Bekleyen ödemeler
+    const bekleyenOdemeler = await prisma.odeme.count({
+      where: {
+        durum: 'BEKLEMEDE',
+        ogrenci: whereKurs
+      }
+    });
+
+    // Bugün devamsız
+    const bugunDevamsiz = await prisma.yoklama.count({
+      where: {
+        tarih: { gte: bugun },
+        durum: 'KATILMADI'
+      }
+    });
+
+    // Son 7 günde yeni kayıtlar
+    const yediGunOnce = new Date();
+    yediGunOnce.setDate(yediGunOnce.getDate() - 7);
+
+    const yeniKayitlar = await prisma.user.count({
+      where: {
+        role: 'ogrenci',
+        ...whereKurs,
+        createdAt: { gte: yediGunOnce }
+      }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        toplamOgrenci,
+        bekleyenOdemeler,
+        bugunDevamsiz,
+        yeniKayitlar
+      }
+    });
+  } catch (error) {
+    console.error('Sekreter dashboard stats hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+export const getSekreterBekleyenOdemeler = async (req: AuthRequest, res: Response) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user?.id },
+      select: { kursId: true }
+    });
+
+    const kursId = user?.kursId;
+
+    const odemeler = await prisma.odeme.findMany({
+      where: {
+        durum: 'BEKLEMEDE',
+        ogrenci: kursId ? { kursId } : {}
+      },
+      include: {
+        ogrenci: { select: { id: true, ad: true, soyad: true } }
+      },
+      orderBy: { vadeTarihi: 'asc' },
+      take: 5
+    });
+
+    const formattedOdemeler = odemeler.map((odeme: any) => ({
+      id: odeme.id,
+      ogrenciAd: `${odeme.ogrenci.ad} ${odeme.ogrenci.soyad}`,
+      tutar: odeme.tutar,
+      vadeTarihi: odeme.vadeTarihi
+    }));
+
+    res.json({
+      success: true,
+      data: formattedOdemeler
+    });
+  } catch (error) {
+    console.error('Sekreter bekleyen ödemeler hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
 
 // ==================== MÜDÜR/ADMİN DASHBOARD ====================
 
 export const getMudurDashboard = async (req: AuthRequest, res: Response) => {
   try {
     const user = await prisma.user.findUnique({
-      where: { id: req.user?.userId },
+      where: { id: req.user?.id },
       select: { kursId: true }
     });
 
@@ -44,7 +422,7 @@ export const getMudurDashboard = async (req: AuthRequest, res: Response) => {
     };
 
     // Günlük yoklama trendi (son 7 gün)
-    const gunlukYoklama = [];
+    const gunlukYoklama: any[] = [];
     for (let i = 6; i >= 0; i--) {
       const gun = new Date();
       gun.setDate(gun.getDate() - i);
@@ -72,9 +450,11 @@ export const getMudurDashboard = async (req: AuthRequest, res: Response) => {
       where: { aktif: true }
     });
 
-    const teslimEdilen = await prisma.odevTeslim.count({
-      where: { teslimTarihi: { not: null } }
+    // Teslim edilenleri say (teslimTarihi dolu olanlar)
+    const allTeslimler = await prisma.odevTeslim.findMany({
+      select: { teslimTarihi: true }
     });
+    const teslimEdilen = allTeslimler.filter(t => t.teslimTarihi !== null).length;
 
     // Online sınav istatistikleri
     const sinavStats = await prisma.onlineSinav.groupBy({
@@ -144,7 +524,7 @@ export const getMudurDashboard = async (req: AuthRequest, res: Response) => {
 
 export const getOgretmenRaporlari = async (req: AuthRequest, res: Response) => {
   try {
-    const ogretmenId = req.user?.userId;
+    const ogretmenId = req.user?.id;
 
     // Öğretmenin dersleri
     const dersler = await prisma.course.findMany({
@@ -178,7 +558,7 @@ export const getOgretmenRaporlari = async (req: AuthRequest, res: Response) => {
     });
 
     // Haftalık yoklama trendi
-    const haftalikYoklama = [];
+    const haftalikYoklama: any[] = [];
     for (let i = 3; i >= 0; i--) {
       const haftaBaslangic = new Date();
       haftaBaslangic.setDate(haftaBaslangic.getDate() - (i * 7 + 7));
@@ -233,7 +613,7 @@ export const getOgretmenRaporlari = async (req: AuthRequest, res: Response) => {
 
     const sinavSonuclari = sinavlar.map(sinav => ({
       baslik: sinav.baslik,
-      ders: sinav.course.ad,
+      ders: sinav.course?.ad || sinav.dersAdi || 'Genel Deneme',
       katilimci: sinav.oturumlar.length,
       ortalama: sinav.oturumlar.length > 0 
         ? Math.round(sinav.oturumlar.reduce((sum, o) => sum + (o.yuzde || 0), 0) / sinav.oturumlar.length)
@@ -268,14 +648,14 @@ export const getOgretmenRaporlari = async (req: AuthRequest, res: Response) => {
 
 export const getOgrenciIlerleme = async (req: AuthRequest, res: Response) => {
   try {
-    const ogrenciId = req.user?.userId;
+    const ogrenciId = req.user?.id;
 
     // Sınav sonuçları (trend)
     const sinavOturumlari = await prisma.sinavOturumu.findMany({
       where: { ogrenciId, tamamlandi: true },
       include: {
         sinav: {
-          select: { baslik: true, course: { select: { ad: true } } }
+          select: { baslik: true, dersAdi: true, course: { select: { ad: true } } }
         }
       },
       orderBy: { bitisZamani: 'asc' },
@@ -285,14 +665,14 @@ export const getOgrenciIlerleme = async (req: AuthRequest, res: Response) => {
     const sinavTrend = sinavOturumlari.map((oturum, i) => ({
       sinav: `Sınav ${i + 1}`,
       baslik: oturum.sinav.baslik,
-      ders: oturum.sinav.course.ad,
+      ders: oturum.sinav.course?.ad || oturum.sinav.dersAdi || 'Genel Deneme',
       puan: oturum.yuzde || 0
     }));
 
     // Ders bazlı başarı
     const dersBasari: Record<string, { toplam: number; puan: number }> = {};
     sinavOturumlari.forEach(oturum => {
-      const ders = oturum.sinav.course.ad;
+      const ders = oturum.sinav.course?.ad || oturum.sinav.dersAdi || 'Genel Deneme';
       if (!dersBasari[ders]) {
         dersBasari[ders] = { toplam: 0, puan: 0 };
       }
@@ -322,7 +702,7 @@ export const getOgrenciIlerleme = async (req: AuthRequest, res: Response) => {
     const odevTeslimler = await prisma.odevTeslim.findMany({
       where: { ogrenciId },
       include: {
-        odev: { select: { baslik: true, puan: true } }
+        odev: { select: { baslik: true, maxPuan: true } }
       }
     });
 
@@ -335,7 +715,7 @@ export const getOgrenciIlerleme = async (req: AuthRequest, res: Response) => {
     };
 
     // Haftalık çalışma (son 4 hafta aktivite)
-    const haftalikAktivite = [];
+    const haftalikAktivite: any[] = [];
     for (let i = 3; i >= 0; i--) {
       const haftaBaslangic = new Date();
       haftaBaslangic.setDate(haftaBaslangic.getDate() - (i * 7 + 7));

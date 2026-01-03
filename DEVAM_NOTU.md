@@ -97,6 +97,73 @@
 - Rozetler (13 farklı rozet)
 - Liderlik tablosu
 
+### 14. ✅ UI/UX İyileştirmeleri (`feat/ui-improvements`) - YENİ!
+- **Toast Notification Sistemi** (sonner)
+  - Başarı, hata, uyarı, bilgi toast'ları
+  - Promise tabanlı toast desteği
+  - Auto-dismiss ve close button
+- **Loading States & Skeleton UI**
+  - Skeleton bileşenleri (Card, Table, Stats, List, Form)
+  - Loading Spinner bileşenleri
+  - Page/Inline/Overlay loading
+- **Global Error Handling**
+  - Error Boundary bileşeni
+  - API Error sınıfı (Türkçe hata mesajları)
+  - withErrorBoundary HOC
+- **Confirm Dialog Sistemi**
+  - useConfirm hook
+  - Confirm/Danger/Info/Success dialog türleri
+  - Promise tabanlı confirmation
+- **Empty State Bileşenleri**
+  - NoDataFound, NoSearchResults, ErrorState
+  - NoMessages, NoNotifications, NoCourses
+
+### 15. ✅ Excel/PDF Export (`feat/export`) - YENİ!
+- **Excel Export** (xlsx)
+  - Kolon genişliği ayarlama
+  - Başlık ve alt başlık
+  - Otomatik tarih formatlama
+- **PDF Export** (jspdf + autotable)
+  - Profesyonel tablo formatı
+  - Header bilgileri
+  - Sayfa numaralandırma
+  - Footer desteği
+- **CSV Export**
+  - UTF-8 BOM desteği (Türkçe karakterler)
+- **Print Helper**
+  - Seçili element yazdırma
+- **ExportButtons Bileşeni**
+  - Dropdown menu ile tüm export seçenekleri
+
+### 16. ✅ Dark Mode (`feat/dark-mode`) - YENİ!
+- **ThemeProvider Context**
+  - Light/Dark/System tema seçimi
+  - LocalStorage ile kalıcılık
+  - Sistem teması takibi
+- **ThemeToggle Bileşeni**
+  - Dropdown tema seçici
+  - Simple toggle butonu
+- **CSS Variables**
+  - Tüm renk değişkenleri
+  - Smooth geçiş animasyonları
+
+### 17. ✅ WebSocket Gerçek Zamanlı Bildirimler (`feat/websocket`) - YENİ!
+- **Backend Socket.io Entegrasyonu**
+  - JWT authentication
+  - Room bazlı mesajlaşma
+  - Online kullanıcı takibi
+- **Frontend Socket Hooks**
+  - useSocket - bağlantı yönetimi
+  - useNotifications - bildirim sistemi
+  - useOnlineUsers - online kullanıcı listesi
+  - useConversation - mesajlaşma
+  - useAnnouncements - duyuru bildirimleri
+  - useLiveClass - canlı ders bildirimleri
+- **Event Türleri**
+  - Bildirimler (new, read, count)
+  - Mesajlar (new, read, typing)
+  - Duyurular, Canlı Ders, Ödev, Yoklama
+
 ---
 
 ## 🚀 KURULUM ADIMLARI (ÜRETİME ALMAK İÇİN)
@@ -323,6 +390,65 @@ NEXT_PUBLIC_FIREBASE_APP_ID=...
 
 ---
 
-**Son Güncelleme:** 25 Aralık 2024
-**Sohbet:** Ödev sistemi tamamlandı - frontend sayfaları hazır
+## 🌐 CANLIYA ALIRKEN DEĞİŞTİRİLECEKLER
+
+### 1. Backend .env Dosyası
+```env
+# LOCALHOST → PRODUCTION
+FRONTEND_URL=http://localhost:3000  →  https://myedura.com (veya seçilen domain)
+DATABASE_URL=...                     →  Supabase/PlanetScale production DB
+```
+
+### 2. Frontend .env.local Dosyası
+```env
+# LOCALHOST → PRODUCTION
+NEXT_PUBLIC_API_URL=http://localhost:5000/api  →  https://api.myedura.com/api
+```
+
+### 3. Resend E-posta Ayarları
+- **Domain Doğrulama:** Resend dashboard'dan kendi domaininizi doğrulayın
+- **EMAIL_FROM:** `noreply@myedura.com` olarak güncelleyin
+- DNS kayıtları eklenmeli (DKIM, SPF)
+
+### 4. Firebase Ayarları
+- Production için ayrı Firebase projesi önerilir
+- Authorized domains'e production URL eklenin
+- Storage rules production'a göre düzenleyin
+
+### 5. iyzico Ayarları
+```env
+# SANDBOX → PRODUCTION
+IYZICO_API_KEY=sandbox_xxx  →  production_xxx
+IYZICO_SECRET_KEY=sandbox_xxx  →  production_xxx
+IYZICO_BASE_URL=https://sandbox-api.iyzipay.com  →  https://api.iyzipay.com
+```
+
+### 6. Vercel Deployment
+```bash
+# Environment Variables ekle (Vercel Dashboard > Settings > Environment Variables)
+RESEND_API_KEY=re_xxx
+FIREBASE_xxx=xxx
+IYZICO_xxx=xxx
+FRONTEND_URL=https://myedura.com
+```
+
+### 7. PWA Manifest Güncelleme
+- `frontend/public/manifest.json` içinde start_url ve scope güncelle
+- Icon'ları finalize et
+
+### 8. CORS Ayarları
+- Backend'de production domain'e CORS izni ver
+
+### 9. SSL/HTTPS
+- Vercel otomatik SSL sağlar
+- API için Cloudflare veya Railway kullanılacaksa SSL zorunlu
+
+### 10. DNS Ayarları
+- Domain'i Vercel'e bağla (A record veya CNAME)
+- API subdomain için ayrı DNS kaydı (api.myedura.com)
+
+---
+
+**Son Güncelleme:** 1 Ocak 2026
+**Durum:** 17 sistem tamamlandı! ✅ Firebase ve Resend entegre edildi. iyzico bekleniyor.
 

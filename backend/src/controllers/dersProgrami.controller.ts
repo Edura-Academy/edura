@@ -5,7 +5,7 @@ import { AuthRequest } from '../middleware/auth';
 // Haftalık ders programını getir (öğretmen için)
 export const getOgretmenDersProgrami = async (req: AuthRequest, res: Response) => {
   try {
-    const ogretmenId = req.user?.userId;
+    const ogretmenId = req.user?.id;
 
     const dersler = await prisma.course.findMany({
       where: { ogretmenId, aktif: true },
@@ -45,7 +45,7 @@ export const getOgretmenDersProgrami = async (req: AuthRequest, res: Response) =
 // Öğrenci ders programı
 export const getOgrenciDersProgrami = async (req: AuthRequest, res: Response) => {
   try {
-    const ogrenciId = req.user?.userId;
+    const ogrenciId = req.user?.id;
 
     // Öğrencinin kayıtlı olduğu dersler
     const kayitlar = await prisma.courseEnrollment.findMany({
@@ -126,7 +126,7 @@ export const getSinifDersProgrami = async (req: AuthRequest, res: Response) => {
 export const getSiniflar = async (req: AuthRequest, res: Response) => {
   try {
     const user = await prisma.user.findUnique({
-      where: { id: req.user?.userId },
+      where: { id: req.user?.id },
       select: { kursId: true }
     });
 
@@ -251,7 +251,7 @@ export const deleteDers = async (req: AuthRequest, res: Response) => {
 export const getOgretmenler = async (req: AuthRequest, res: Response) => {
   try {
     const user = await prisma.user.findUnique({
-      where: { id: req.user?.userId },
+      where: { id: req.user?.id },
       select: { kursId: true }
     });
 

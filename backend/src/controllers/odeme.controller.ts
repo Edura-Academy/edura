@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import prisma from '../config/database';
-import { AuthRequest } from '../middleware/auth';
+import { AuthRequest } from '../types';
 import { iyzicoService } from '../services/iyzico.service';
 import { pushService } from '../services/push.service';
 import { v4 as uuidv4 } from 'uuid';
@@ -10,7 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 // Ödeme planı oluştur (Personel)
 export const createOdemePlani = async (req: AuthRequest, res: Response) => {
   try {
-    const olusturanId = req.user?.userId;
+    const olusturanId = req.user?.id;
     const { ogrenciId, donemAd, toplamTutar, taksitSayisi, indirimOrani, aciklama, vadeTarihleri } = req.body;
 
     // Öğrenciyi kontrol et
@@ -43,7 +43,7 @@ export const createOdemePlani = async (req: AuthRequest, res: Response) => {
     });
 
     // Taksitleri oluştur
-    const odemeler = [];
+    const odemeler: any[] = [];
     for (let i = 0; i < taksitSayisi; i++) {
       const vadeTarihi = vadeTarihleri?.[i] 
         ? new Date(vadeTarihleri[i])
@@ -152,7 +152,7 @@ export const getOdemePlanlari = async (req: AuthRequest, res: Response) => {
 // Öğrencinin ödeme durumu (Öğrenci/Veli)
 export const getOgrenciOdemeDurumu = async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.user?.userId;
+    const userId = req.user?.id;
     const role = req.user?.role;
     let ogrenciId = req.params.ogrenciId || userId;
 
@@ -200,7 +200,7 @@ export const getOgrenciOdemeDurumu = async (req: AuthRequest, res: Response) => 
 // Kredi kartı ile ödeme (iyzico)
 export const processCardPayment = async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.user?.userId;
+    const userId = req.user?.id;
     const { odemeId, cardInfo, use3ds } = req.body;
 
     // Ödemeyi kontrol et
@@ -390,7 +390,7 @@ export const threeDSCallback = async (req: Request, res: Response) => {
 // Manuel ödeme kaydet (Personel - Nakit/Havale)
 export const recordManualPayment = async (req: AuthRequest, res: Response) => {
   try {
-    const onaylayanId = req.user?.userId;
+    const onaylayanId = req.user?.id;
     const { odemeId, odemeYontemi, aciklama } = req.body;
 
     const odeme = await prisma.odeme.findUnique({

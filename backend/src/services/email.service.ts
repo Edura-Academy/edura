@@ -1,7 +1,11 @@
 import { Resend } from 'resend';
+import dotenv from 'dotenv';
+
+// Ensure env variables are loaded
+dotenv.config();
 
 // Resend API Key - .env dosyasından alınır
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 // Varsayılan gönderen e-posta (Resend'de doğrulanmış domain gerekir)
 // Test için onboarding@resend.dev kullanılabilir
@@ -186,7 +190,7 @@ class EmailService {
 
   // Genel e-posta gönderme
   async send(to: string, template: EmailTemplate): Promise<boolean> {
-    if (!this.enabled) {
+    if (!this.enabled || !resend) {
       console.log(`📧 [MOCK] E-posta gönderildi: ${to} - ${template.subject}`);
       return true;
     }

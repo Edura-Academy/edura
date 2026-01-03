@@ -9,11 +9,21 @@ const JWT_SECRET = process.env.JWT_SECRET || 'edura-secret-key';
 // Login
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, password } = req.body;
+    // Frontend hem kullaniciAdi hem sifre gönderiyor
+    const { kullaniciAdi, sifre, email, password } = req.body;
+    
+    // Hem eski (email/password) hem yeni (kullaniciAdi/sifre) format desteği
+    const loginEmail = kullaniciAdi || email;
+    const loginPassword = sifre || password;
+
+    if (!loginEmail || !loginPassword) {
+      res.status(400).json({ success: false, error: 'Email ve şifre gerekli' });
+      return;
+    }
 
     // Kullanıcıyı email ile bul
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { email: loginEmail },
       include: {
         kurs: true,
         sinif: true,
@@ -31,7 +41,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     }
 
     // Şifre kontrolü
-    const isValidPassword = await bcrypt.compare(password, user.password);
+    const isValidPassword = await bcrypt.compare(loginPassword, user.password);
     if (!isValidPassword) {
       res.status(401).json({ success: false, error: 'Geçersiz şifre' });
       return;
@@ -40,6 +50,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     // Token oluştur
     const token = jwt.sign(
       {
+        id: user.id,
         userId: user.id,
         email: user.email,
         role: user.role,
@@ -62,6 +73,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
           role: user.role,
           kurs: user.kurs,
           sinif: user.sinif,
+          sifreDegistirildiMi: true, // Şimdilik her zaman true - şifre değiştirme zorunluluğunu kaldır
         },
       },
     });
@@ -74,7 +86,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 // Şifre değiştir
 export const changePassword = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { currentPassword, newPassword } = req.body;
+    // Frontend: yeniSifre, Backend eski format: currentPassword, newPassword
+    const { currentPassword, newPassword, yeniSifre, mevcutSifre } = req.body;
     const userId = req.user?.userId;
 
     if (!userId) {
@@ -91,14 +104,24 @@ export const changePassword = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    // Mevcut şifre kontrolü
-    const isValidPassword = await bcrypt.compare(currentPassword, user.password);
-    if (!isValidPassword) {
-      res.status(401).json({ success: false, error: 'Mevcut şifre yanlış' });
+    const finalNewPassword = yeniSifre || newPassword;
+    const finalCurrentPassword = mevcutSifre || currentPassword;
+
+    if (!finalNewPassword) {
+      res.status(400).json({ success: false, error: 'Yeni şifre gerekli' });
       return;
     }
 
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    // Mevcut şifre verilmişse kontrol et (ilk giriş için verilmeyebilir)
+    if (finalCurrentPassword) {
+      const isValidPassword = await bcrypt.compare(finalCurrentPassword, user.password);
+      if (!isValidPassword) {
+        res.status(401).json({ success: false, error: 'Mevcut şifre yanlış' });
+        return;
+      }
+    }
+
+    const hashedPassword = await bcrypt.hash(finalNewPassword, 10);
 
     await prisma.user.update({
       where: { id: userId },
@@ -192,6 +215,7 @@ export const bypassLogin = async (req: Request, res: Response): Promise<void> =>
     // Token oluştur (şifre kontrolü yapmadan)
     const token = jwt.sign(
       {
+        id: user.id,
         userId: user.id,
         email: user.email,
         role: user.role,
@@ -214,6 +238,7 @@ export const bypassLogin = async (req: Request, res: Response): Promise<void> =>
           role: user.role,
           brans: user.brans,
           ogrenciNo: user.ogrenciNo,
+          sifreDegistirildiMi: true, // Bypass login - şifre değiştirme zorunluluğunu kaldır
           kurs: user.kurs,
           sinif: user.sinif,
         },

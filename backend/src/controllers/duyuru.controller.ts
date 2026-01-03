@@ -69,7 +69,7 @@ export const createDuyuru = async (req: AuthRequest, res: Response) => {
     });
 
     // Hedef kitleye bildirim gönder
-    await sendDuyuruNotifications(duyuru, kursId);
+    await sendDuyuruNotifications(duyuru, kursId || undefined);
 
     res.status(201).json({ success: true, data: duyuru });
   } catch (error) {

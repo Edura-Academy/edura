@@ -4,32 +4,54 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import ClientOnlyDate from '../../../components/ClientOnlyDate';
 import {
-  mockOgrenci,
   mockDersler,
   mockDevamsizliklar,
   mockBildirimler,
   mockMesajlar,
-  mockOgretmenler,
   mockSinavSonuclari,
   mockKurslar,
+  mockOgretmenler,
   type Ders,
   type Devamsizlik,
   type Bildirim,
   type Mesaj,
 } from '../../../lib/mockData';
+import { useAuth } from '@/contexts/AuthContext';
+import { RoleGuard } from '@/components/RoleGuard';
 
-// Lise mi ortaokul mu kontrolü (9 ve üzeri lise)
-const isLise = mockOgrenci.seviye >= 9;
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
-export default function OgrenciDashboard() {
-  const [ogrenci] = useState(mockOgrenci);
+interface DashboardStats {
+  toplamDers: number;
+  bugunDersSayisi: number;
+  bekleyenOdevler: number;
+  aktifSinavlar: number;
+  devamsizliklar: number;
+  genelOrtalama: number;
+}
+
+interface BugunDers {
+  id: string;
+  ad: string;
+  sinif: string;
+  ogretmen: string;
+  saat: string;
+  durum: 'bekliyor' | 'devam_ediyor' | 'tamamlandi';
+}
+
+function OgrenciDashboardContent() {
+  const { user, token, logout } = useAuth();
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [bugunDersler, setBugunDersler] = useState<BugunDers[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  // Mock data ile çalışan state'ler (API tamamlanana kadar)
   const [dersler] = useState<Ders[]>(mockDersler);
   const [devamsizliklar] = useState<Devamsizlik[]>(mockDevamsizliklar);
   const [bildirimler] = useState<Bildirim[]>(mockBildirimler);
   const [mesajlar] = useState<Mesaj[]>(mockMesajlar);
-  const [ogretmenler] = useState(mockOgretmenler.filter(o => o.kursId === mockOgrenci.kursId));
   const [sinavSonuclari] = useState(mockSinavSonuclari);
-  const [kurs] = useState(mockKurslar.find(k => k.id === mockOgrenci.kursId));
+  const [kurs] = useState(mockKurslar[0]);
 
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [showProfilModal, setShowProfilModal] = useState(false);
@@ -59,6 +81,44 @@ export default function OgrenciDashboard() {
     }));
   }, [sinavSonuclari]);
 
+  // Veri çekme
+  useEffect(() => {
+    if (token) {
+      fetchDashboardData(token);
+    }
+  }, [token]);
+
+  const fetchDashboardData = async (token: string) => {
+    try {
+      const [statsRes, derslerRes] = await Promise.all([
+        fetch(`${API_URL}/dashboard/ogrenci/stats`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        fetch(`${API_URL}/dashboard/ogrenci/bugun-dersler`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      ]);
+
+      if (statsRes.ok) {
+        const statsData = await statsRes.json();
+        if (statsData.success) {
+          setStats(statsData.data);
+        }
+      }
+
+      if (derslerRes.ok) {
+        const derslerData = await derslerRes.json();
+        if (derslerData.success) {
+          setBugunDersler(derslerData.data);
+        }
+      }
+    } catch (error) {
+      console.error('Dashboard verisi alınamadı:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -74,10 +134,39 @@ export default function OgrenciDashboard() {
     setOpenDropdown(prev => (prev === dropdownName ? null : dropdownName));
   };
 
+  const handleLogout = () => {
+    logout();
+  };
+
+  // Lise mi ortaokul mu kontrolü (9 ve üzeri lise)
+  const isLise = user ? (user as any).seviye >= 9 : true;
+
   const gunler = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
-  const dersSayisi = dersler.length;
-  const devamsizlikSayisi = devamsizliklar.length;
-  const ortalamaPuan = sinavSonuclari.reduce((acc, sonuc) => acc + sonuc.yuzde, 0) / sinavSonuclari.length;
+  const dersSayisi = stats?.toplamDers || dersler.length;
+  const devamsizlikSayisi = stats?.devamsizliklar || devamsizliklar.length;
+  const ortalamaPuan = stats?.genelOrtalama || (sinavSonuclari.reduce((acc, sonuc) => acc + sonuc.yuzde, 0) / sinavSonuclari.length);
+  
+  // ogrenci değişkenini user'dan oluştur (geriye uyumluluk için)
+  const ogrenci = user ? {
+    id: user.id,
+    ad: user.ad,
+    soyad: user.soyad,
+    email: user.email,
+    sinif: '10-A', // TODO: Kullanıcı bilgilerinden çekilecek
+    seviye: 10,
+    ogrenciNo: user.ogrenciNo || '',
+    kursId: user.kursId || ''
+  } : { id: '', ad: '', soyad: '', email: '', sinif: '', seviye: 10, ogrenciNo: '', kursId: '' };
+
+  const ogretmenler = mockOgretmenler.filter(o => o.kursId === ogrenci.kursId);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   // Deneme numarasını çıkar (örn: "1. Deneme Sınavı" -> 1)
   const getDenemeNo = (sinavAd: string) => {
@@ -1328,5 +1417,14 @@ export default function OgrenciDashboard() {
         </div>
       )}
     </div>
+  );
+}
+
+// Ana export - RoleGuard ile sarmalanmış
+export default function OgrenciDashboard() {
+  return (
+    <RoleGuard allowedRoles={['ogrenci']}>
+      <OgrenciDashboardContent />
+    </RoleGuard>
   );
 }

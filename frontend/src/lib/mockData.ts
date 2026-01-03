@@ -47,7 +47,6 @@ export interface Ogretmen {
   telefon: string;
   email: string;
   kursId: string;
-  ayniZamandaMudur?: boolean; // Hem öğretmen hem müdür
   fotograf?: string;
 }
 
@@ -220,11 +219,11 @@ mockKurslar.forEach((kurs) => {
 
 // ==================== MÜDÜRLER ====================
 // Her kurs için 1 müdür (toplam 5 müdür)
-// 2 müdür aynı zamanda branş öğretmeni
+// NOT: Müdürler ayrı kişiler, öğretmenlerle karışmıyor
 const mudurAdlari = [
-  { ad: 'Hasan', soyad: 'Yıldırım', brans: 'Matematik' }, // Hem müdür hem öğretmen
+  { ad: 'Hasan', soyad: 'Yıldırım', brans: 'Matematik' }, // Branş bilgisi sadece ek bilgi, ayrı öğretmen var
   { ad: 'Mehmet', soyad: 'Aydın', brans: null },
-  { ad: 'Kemal', soyad: 'Özdemir', brans: 'Fizik' }, // Hem müdür hem öğretmen
+  { ad: 'Kemal', soyad: 'Özdemir', brans: 'Fizik' }, // Branş bilgisi sadece ek bilgi, ayrı öğretmen var
   { ad: 'Serkan', soyad: 'Çelik', brans: null },
   { ad: 'Burak', soyad: 'Koçak', brans: null },
 ];
@@ -309,24 +308,22 @@ const ogretmenHavuzu = [
 export const mockOgretmenler: Ogretmen[] = [];
 let ogretmenIdCounter = 1;
 
+// NOT: Her branş için bağımsız öğretmen oluşturulur
+// Müdürün branşı olsa bile öğretmen ayrı kişidir (rol karışıklığını önlemek için)
 mockKurslar.forEach((kurs, kursIndex) => {
   branslar.forEach((brans, bransIndex) => {
     const havuzIndex = bransIndex * 5 + kursIndex; // Her branş için 5 farklı isim
     const ogretmen = ogretmenHavuzu[havuzIndex];
     
-    // Müdür aynı zamanda öğretmen mi kontrol et
-    const mudur = mockMudurler.find(m => m.kursId === kurs.id);
-    const mudurAyniZamandaOgretmen = mudur?.brans === brans;
-    
+    // Her zaman öğretmen havuzundan al - müdürle karıştırma!
     mockOgretmenler.push({
       id: `og${ogretmenIdCounter}`,
-      ad: mudurAyniZamandaOgretmen ? mudur.ad : ogretmen.ad,
-      soyad: mudurAyniZamandaOgretmen ? mudur.soyad : ogretmen.soyad,
+      ad: ogretmen.ad,
+      soyad: ogretmen.soyad,
       brans,
       telefon: `0555 ${300 + kursIndex}${(bransIndex + 10).toString().padStart(2, '0')} ${ogretmenIdCounter.toString().padStart(4, '0')}`,
       email: `${brans.toLowerCase().replace(/\s+/g, '').replace('ı', 'i').replace('ş', 's').replace('ü', 'u').replace('ö', 'o').replace('ğ', 'g').replace('ç', 'c')}.${kurs.kod}@edura.com`,
       kursId: kurs.id,
-      ayniZamandaMudur: mudurAyniZamandaOgretmen,
     });
     ogretmenIdCounter++;
   });

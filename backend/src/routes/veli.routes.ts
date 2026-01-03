@@ -10,7 +10,7 @@ import {
   startConversationWithTeacher,
   addCocukToVeli
 } from '../controllers/veli.controller';
-import { authenticateToken, authorizeRoles } from '../middleware/auth';
+import { authenticateToken, authorizeRoles } from '../middleware/auth.middleware';
 
 const router = Router();
 

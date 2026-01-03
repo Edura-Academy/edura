@@ -9,7 +9,7 @@ import {
   updateDers,
   deleteDers
 } from '../controllers/dersProgrami.controller';
-import { authenticateToken, authorizeRoles } from '../middleware/auth';
+import { authenticateToken, authorizeRoles } from '../middleware/auth.middleware';
 
 const router = Router();
 

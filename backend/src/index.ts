@@ -2,6 +2,11 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
+import { createServer } from 'http';
+
+// Services
+import { emailService } from './services/email.service';
+import { socketService } from './services/socket.service';
 
 // Routes
 import authRoutes from './routes/auth.routes';
@@ -21,12 +26,19 @@ import canliDersRoutes from './routes/canliDers.routes';
 import materyalRoutes from './routes/materyal.routes';
 import birebirDersRoutes from './routes/birebirDers.routes';
 import gamificationRoutes from './routes/gamification.routes';
+import denemeRoutes from './routes/deneme.routes';
+import testRoutes from './routes/test.routes';
+import adminSystemRoutes from './routes/admin-system.routes';
 
 // Load environment variables
 dotenv.config();
 
 const app = express();
+const httpServer = createServer(app);
 const PORT = process.env.PORT || 5000;
+
+// Initialize Socket.IO
+socketService.initialize(httpServer);
 
 // Middleware
 app.use(cors());
@@ -54,10 +66,40 @@ app.use('/api/canli-ders', canliDersRoutes);
 app.use('/api/materyaller', materyalRoutes);
 app.use('/api/birebir-ders', birebirDersRoutes);
 app.use('/api/gamification', gamificationRoutes);
+app.use('/api/deneme', denemeRoutes);
+app.use('/api/test', testRoutes);
+app.use('/api/admin-system', adminSystemRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Edura API is running' });
+});
+
+// Email test endpoint (sadece development için)
+app.post('/api/test-email', async (req, res) => {
+  const { email } = req.body;
+  
+  if (!email) {
+    return res.status(400).json({ success: false, error: 'Email adresi gerekli' });
+  }
+  
+  try {
+    const result = await emailService.sendNewHomeworkNotification(email, {
+      ogrenciAd: 'Test Kullanıcı',
+      dersAd: 'Matematik',
+      odevBaslik: 'Deneme Ödevi - Email Test',
+      sonTeslimTarihi: new Date().toLocaleDateString('tr-TR'),
+      ogretmenAd: 'Edura Sistem'
+    });
+    
+    if (result) {
+      res.json({ success: true, message: 'Test e-postası gönderildi!' });
+    } else {
+      res.status(500).json({ success: false, error: 'E-posta gönderilemedi' });
+    }
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 // Error handling middleware
@@ -68,9 +110,11 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 
 // Start server - Cloud Run requires 0.0.0.0 binding
 const HOST = '0.0.0.0';
-app.listen(Number(PORT), HOST, () => {
+httpServer.listen(Number(PORT), HOST, () => {
   console.log(`🚀 Server is running on http://${HOST}:${PORT}`);
+  console.log(`🔌 WebSocket ready for connections`);
 });
 
 export default app;
+export { socketService };
 

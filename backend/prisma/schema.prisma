@@ -155,6 +155,11 @@ model User {
   gunlukGorevler        GunlukGorev[]
   gunSorusuCevaplari    GununSorusuCevap[]
   
+  // Harici Deneme Sınavı ilişkileri
+  olusturduguDenemeSinavlari DenemeSinavi[] @relation("DenemeSinavOlusturan")
+  denemeSonuclari            DenemeSonucu[] @relation("OgrenciDenemeSonuclari")
+  girdigiDenemeSonuclari     DenemeSonucu[] @relation("DenemeSonucuGiren")
+  
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -178,6 +183,7 @@ model Sinif {
   
   ogrenciler  User[]
   dersler     Course[]
+  denemeSinavlari DenemeSinavi[] @relation("DenemeSinavSinif")
   
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
@@ -738,14 +744,20 @@ model OnlineSinav {
   baslik          String
   aciklama        String?          @db.Text
   
-  courseId        String
-  course          Course           @relation(fields: [courseId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  // Ders bağlantısı - opsiyonel (branş bazlı denemeler için courseId olmayabilir)
+  courseId        String?
+  course          Course?          @relation(fields: [courseId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  // Branş/Ders adı (deneme sınavları için)
+  dersAdi         String?
+  bransKodu       String?
   
   ogretmenId      String
   ogretmen        User             @relation("OgretmenOnlineSinavlar", fields: [ogretmenId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   
   // Sınav Ayarları
   sure            Int              // dakika cinsinden
+  maksimumPuan    Float            @default(100)
   baslangicTarihi DateTime
   bitisTarihi     DateTime
   
@@ -764,6 +776,7 @@ model OnlineSinav {
 
   @@index([courseId])
   @@index([ogretmenId])
+  @@index([bransKodu])
   @@index([durum])
   @@index([baslangicTarihi])
 }
@@ -957,6 +970,131 @@ model BirebirDers {
   @@index([durum])
 }
 
+// ================== HARİCİ DENEME SINAVI SİSTEMİ ==================
+
+enum DenemeTuru {
+  TYT          // Temel Yeterlilik Testi (Lise)
+  AYT          // Alan Yeterlilik Testi (Lise)
+  LGS          // Liselere Geçiş Sınavı (Ortaokul)
+  YDT          // Yabancı Dil Testi
+  KURUM_ICI    // Kurum içi deneme
+}
+
+enum DenemeBrans {
+  // TYT Branşları
+  TYT_TURKCE
+  TYT_MATEMATIK
+  TYT_SOSYAL
+  TYT_FEN
+  
+  // AYT Branşları
+  AYT_MATEMATIK
+  AYT_FIZIK
+  AYT_KIMYA
+  AYT_BIYOLOJI
+  AYT_EDEBIYAT
+  AYT_TARIH1
+  AYT_COGRAFYA1
+  AYT_TARIH2
+  AYT_COGRAFYA2
+  AYT_FELSEFE
+  AYT_DIN
+  
+  // LGS Branşları
+  LGS_TURKCE
+  LGS_MATEMATIK
+  LGS_FEN
+  LGS_SOSYAL
+  LGS_DIN
+  LGS_INGILIZCE
+  
+  // Yabancı Dil
+  YDT_INGILIZCE
+  YDT_ALMANCA
+  YDT_FRANSIZCA
+}
+
+// Deneme Sınavı (Ana kayıt - harici kurumlardan gelen)
+model DenemeSinavi {
+  id              String       @id @default(uuid())
+  ad              String       // "Kasım TYT Denemesi 1", "LGS Genel Deneme 3"
+  tur             DenemeTuru   // TYT, AYT, LGS
+  kurum           String?      // "Bilgi Sarmal", "Limit", "Kanguru", kurum içi için null
+  
+  tarih           DateTime
+  
+  // Hedef kitle
+  sinifId         String?      // Belirli sınıf için (null = tüm sınıflar)
+  sinif           Sinif?       @relation("DenemeSinavSinif", fields: [sinifId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  kursId          String?      // Belirli kurs için (null = tüm kurslar)
+  
+  // Branş bazlı soru sayıları (JSON)
+  // Örnek TYT: {"TYT_TURKCE": 40, "TYT_MATEMATIK": 40, "TYT_SOSYAL": 20, "TYT_FEN": 20}
+  // Örnek LGS: {"LGS_TURKCE": 20, "LGS_MATEMATIK": 20, "LGS_FEN": 20, "LGS_SOSYAL": 10, "LGS_DIN": 10, "LGS_INGILIZCE": 10}
+  branslarVeSoruSayilari String @db.Text
+  
+  aciklama        String?      @db.Text
+  
+  // Oluşturan
+  olusturanId     String
+  olusturan       User         @relation("DenemeSinavOlusturan", fields: [olusturanId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  aktif           Boolean      @default(true)
+  
+  sonuclar        DenemeSonucu[]
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([tur])
+  @@index([tarih])
+  @@index([sinifId])
+  @@index([kursId])
+  @@index([olusturanId])
+}
+
+// Deneme Sonucu (Öğrenci bazlı, branş bazlı detaylar)
+model DenemeSonucu {
+  id              String        @id @default(uuid())
+  sinavId         String
+  sinav           DenemeSinavi  @relation(fields: [sinavId], references: [id], onDelete: Cascade)
+  
+  ogrenciId       String
+  ogrenci         User          @relation("OgrenciDenemeSonuclari", fields: [ogrenciId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  // Branş bazlı sonuçlar (JSON)
+  // Her branş için: dogru, yanlis, bos, net, soruSayisi
+  // Örnek: {"TYT_TURKCE": {"dogru": 30, "yanlis": 8, "bos": 2, "net": 28, "soruSayisi": 40}}
+  branslarVeSonuclar String     @db.Text
+  
+  // Genel sonuçlar (hesaplanan)
+  toplamDogru     Int
+  toplamYanlis    Int
+  toplamBos       Int
+  toplamNet       Float        // Toplam net (tüm branşlar)
+  genelPuan       Float?       // 500 puan hesaplaması (opsiyonel)
+  
+  // Sıralamalar (opsiyonel)
+  sinifSirasi     Int?
+  kursSirasi      Int?
+  genelSiralama   Int?         // Tüm katılımcılar arasında
+  
+  // Sonuç giren
+  girenId         String?
+  giren           User?        @relation("DenemeSonucuGiren", fields: [girenId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  aciklama        String?
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([sinavId, ogrenciId])
+  @@index([sinavId])
+  @@index([ogrenciId])
+  @@index([toplamNet])
+  @@index([girenId])
+}
+
 // ================== GAMİFİCATİON SİSTEMİ ==================
 
 enum RozetTipi {
@@ -1055,4 +1193,201 @@ model GununSorusuCevap {
   @@unique([gununSorusuId, userId])
   @@index([gununSorusuId])
   @@index([userId])
+}
+
+// ================== ADMİN SİSTEM YÖNETİMİ ==================
+
+enum AdminDuyuruOncelik {
+  NORMAL
+  ONEMLI
+  ACIL
+}
+
+// Admin Sistem Duyuruları (Admin -> Müdürler)
+model AdminDuyuru {
+  id              String              @id @default(uuid())
+  baslik          String
+  icerik          String              @db.Text
+  oncelik         AdminDuyuruOncelik  @default(NORMAL)
+  
+  // Dosya eki
+  dosyaUrl        String?
+  dosyaAd         String?
+  
+  aktif           Boolean             @default(true)
+  yayinTarihi     DateTime            @default(now())
+  bitisTarihi     DateTime?           // Duyurunun sona erme tarihi
+  
+  // Okunma takibi
+  okuyanlar       AdminDuyuruOkuma[]
+  
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([aktif])
+  @@index([yayinTarihi])
+  @@index([oncelik])
+}
+
+// Admin Duyuru Okunma Takibi
+model AdminDuyuruOkuma {
+  id              String       @id @default(uuid())
+  adminDuyuruId   String
+  adminDuyuru     AdminDuyuru  @relation(fields: [adminDuyuruId], references: [id], onDelete: Cascade)
+  userId          String
+  okunmaTarihi    DateTime     @default(now())
+  
+  @@unique([adminDuyuruId, userId])
+  @@index([adminDuyuruId])
+  @@index([userId])
+}
+
+// Sistem Güncellemeleri / Changelog
+enum ChangelogTip {
+  YENI_OZELLIK    // Yeni özellik eklendi
+  IYILESTIRME     // Mevcut özellik iyileştirildi
+  HATA_DUZELTME   // Bug fix
+  GUVENLIK        // Güvenlik güncellemesi
+  PERFORMANS      // Performans iyileştirmesi
+}
+
+model Changelog {
+  id              String        @id @default(uuid())
+  versiyon        String        // "1.2.0", "2.0.0"
+  baslik          String
+  aciklama        String        @db.Text
+  tip             ChangelogTip  @default(YENI_OZELLIK)
+  
+  // Detaylı değişiklikler (JSON array)
+  degisiklikler   String?       @db.Text  // ["Özellik 1 eklendi", "Bug düzeltildi"]
+  
+  yayinTarihi     DateTime      @default(now())
+  aktif           Boolean       @default(true)
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([yayinTarihi])
+  @@index([aktif])
+  @@index([tip])
+}
+
+// Destek Talebi / Ticket Sistemi
+enum DestekTalebiDurum {
+  ACIK            // Yeni açılan talep
+  INCELENIYOR     // Admin inceleniyor
+  CEVAPLANDI      // Admin cevapladı
+  BEKLEMEDE       // Müdürden cevap bekleniyor
+  COZULDU         // Çözüldü
+  KAPATILDI       // Kapatıldı
+}
+
+enum DestekTalebiKategori {
+  TEKNIK          // Teknik sorun
+  OZELLIK_TALEBI  // Yeni özellik talebi
+  FATURA          // Fatura/ödeme
+  HESAP           // Hesap sorunları
+  DIGER           // Diğer
+}
+
+enum DestekTalebiOncelik {
+  DUSUK
+  NORMAL
+  YUKSEK
+  ACIL
+}
+
+model DestekTalebi {
+  id              String                  @id @default(uuid())
+  baslik          String
+  aciklama        String                  @db.Text
+  
+  kategori        DestekTalebiKategori    @default(TEKNIK)
+  oncelik         DestekTalebiOncelik     @default(NORMAL)
+  durum           DestekTalebiDurum       @default(ACIK)
+  
+  // Talep açan
+  acanId          String
+  kursId          String?                 // Hangi kurs adına (opsiyonel)
+  
+  // Dosya eki
+  dosyaUrl        String?
+  dosyaAd         String?
+  
+  // Çözüm notları
+  cozumNotu       String?                 @db.Text
+  kapatmaTarihi   DateTime?
+  
+  cevaplar        DestekTalebiCevap[]
+  
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  @@index([acanId])
+  @@index([kursId])
+  @@index([durum])
+  @@index([kategori])
+  @@index([oncelik])
+  @@index([createdAt])
+}
+
+// Destek Talebi Cevapları
+model DestekTalebiCevap {
+  id              String        @id @default(uuid())
+  talepId         String
+  talep           DestekTalebi  @relation(fields: [talepId], references: [id], onDelete: Cascade)
+  
+  cevaplayanId    String
+  icerik          String        @db.Text
+  
+  // Dosya eki
+  dosyaUrl        String?
+  dosyaAd         String?
+  
+  // Admin mi, müdür mü yazdı
+  adminYazdiMi    Boolean       @default(false)
+  
+  createdAt       DateTime      @default(now())
+
+  @@index([talepId])
+  @@index([cevaplayanId])
+  @@index([createdAt])
+}
+
+// Yardım Merkezi / FAQ
+enum FAQKategori {
+  GENEL           // Genel sorular
+  HESAP           // Hesap işlemleri
+  OGRENCI         // Öğrenci yönetimi
+  OGRETMEN        // Öğretmen yönetimi
+  DERS            // Ders/sınıf yönetimi
+  ODEME           // Ödeme işlemleri
+  SINAV           // Sınav sistemi
+  CANLI_DERS      // Canlı ders
+  MESAJLASMA      // Mesajlaşma
+  TEKNIK          // Teknik sorular
+}
+
+model FAQ {
+  id              String       @id @default(uuid())
+  soru            String
+  cevap           String       @db.Text
+  kategori        FAQKategori  @default(GENEL)
+  siraNo          Int          @default(0)  // Görüntüleme sırası
+  
+  // SEO ve arama için
+  anahtarKelimeler String?     // "öğrenci, ekleme, kayıt"
+  
+  // İstatistik
+  goruntulemeSayisi Int        @default(0)
+  faydaliSayisi     Int        @default(0)  // Faydalı buldum
+  
+  aktif           Boolean      @default(true)
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([kategori])
+  @@index([aktif])
+  @@index([siraNo])
 }

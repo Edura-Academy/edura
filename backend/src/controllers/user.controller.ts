@@ -126,17 +126,61 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
   }
 };
 
-// Kullanıcı sil (soft delete)
-export const deleteUser = async (req: Request, res: Response): Promise<void> => {
+// Kullanıcı sil (soft delete) - Hiyerarşik yetki kontrolü ile
+export const deleteUser = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
+    const currentUser = req.user;
 
+    if (!currentUser) {
+      res.status(401).json({ success: false, error: 'Yetkilendirme gerekli' });
+      return;
+    }
+
+    // Silinecek kullanıcıyı bul
+    const targetUser = await prisma.user.findUnique({
+      where: { id },
+      select: { id: true, role: true, ad: true, soyad: true }
+    });
+
+    if (!targetUser) {
+      res.status(404).json({ success: false, error: 'Kullanıcı bulunamadı' });
+      return;
+    }
+
+    // Kendi kendini silme engeli
+    if (currentUser.id === id) {
+      res.status(403).json({ success: false, error: 'Kendi hesabınızı silemezsiniz' });
+      return;
+    }
+
+    // Hiyerarşik yetki kontrolü
+    const roleHierarchy: Record<string, string[]> = {
+      admin: ['mudur', 'ogretmen', 'sekreter', 'ogrenci', 'veli'],  // Admin herkesi silebilir (admin hariç)
+      mudur: ['ogretmen', 'sekreter', 'ogrenci', 'veli'],           // Müdür: öğretmen, sekreter, öğrenci, veli
+      sekreter: ['ogrenci', 'veli'],                                // Sekreter: sadece öğrenci ve veli
+    };
+
+    const allowedRoles = roleHierarchy[currentUser.role] || [];
+
+    if (!allowedRoles.includes(targetUser.role)) {
+      res.status(403).json({ 
+        success: false, 
+        error: `${targetUser.role} rolündeki kullanıcıyı silme yetkiniz yok` 
+      });
+      return;
+    }
+
+    // Soft delete uygula
     await prisma.user.update({
       where: { id },
       data: { aktif: false },
     });
 
-    res.json({ success: true, message: 'Kullanıcı silindi' });
+    res.json({ 
+      success: true, 
+      message: `${targetUser.ad} ${targetUser.soyad} kullanıcısı silindi` 
+    });
   } catch (error) {
     console.error('Delete user error:', error);
     res.status(500).json({ success: false, error: 'Kullanıcı silinemedi' });
@@ -199,12 +243,148 @@ export const getSiniflar = async (req: Request, res: Response): Promise<void> =>
           select: { ogrenciler: true },
         },
       },
+      orderBy: [{ seviye: 'asc' }, { ad: 'asc' }],
     });
 
     res.json({ success: true, data: siniflar });
   } catch (error) {
     console.error('Get siniflar error:', error);
     res.status(500).json({ success: false, error: 'Sınıflar getirilemedi' });
+  }
+};
+
+// Tek sınıf getir
+export const getSinif = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const sinif = await prisma.sinif.findUnique({
+      where: { id },
+      include: {
+        kurs: true,
+        ogrenciler: {
+          where: { aktif: true },
+          select: { id: true, ad: true, soyad: true, email: true },
+        },
+        _count: {
+          select: { ogrenciler: true },
+        },
+      },
+    });
+
+    if (!sinif) {
+      res.status(404).json({ success: false, error: 'Sınıf bulunamadı' });
+      return;
+    }
+
+    res.json({ success: true, data: sinif });
+  } catch (error) {
+    console.error('Get sinif error:', error);
+    res.status(500).json({ success: false, error: 'Sınıf getirilemedi' });
+  }
+};
+
+// Sınıf oluştur
+export const createSinif = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { ad, seviye, tip } = req.body;
+    const kursId = req.user?.kursId;
+
+    if (!ad || !kursId) {
+      res.status(400).json({ success: false, error: 'Sınıf adı ve kurs bilgisi gerekli' });
+      return;
+    }
+
+    // Seviye belirlenmemişse tip'e göre varsayılan ata
+    const defaultSeviye = seviye || (tip === 'LISE' ? 9 : 5);
+    const defaultTip = tip || (seviye >= 9 ? 'LISE' : 'ORTAOKUL');
+
+    const sinif = await prisma.sinif.create({
+      data: {
+        ad,
+        seviye: parseInt(defaultSeviye),
+        tip: defaultTip,
+        kursId,
+      },
+      include: {
+        _count: {
+          select: { ogrenciler: true },
+        },
+      },
+    });
+
+    res.status(201).json({ success: true, data: sinif });
+  } catch (error) {
+    console.error('Create sinif error:', error);
+    res.status(500).json({ success: false, error: 'Sınıf oluşturulamadı' });
+  }
+};
+
+// Sınıf güncelle
+export const updateSinif = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { ad, seviye, tip, aktif } = req.body;
+
+    const sinif = await prisma.sinif.update({
+      where: { id },
+      data: {
+        ...(ad && { ad }),
+        ...(seviye !== undefined && { seviye: parseInt(seviye) }),
+        ...(tip && { tip }),
+        ...(aktif !== undefined && { aktif }),
+      },
+      include: {
+        _count: {
+          select: { ogrenciler: true },
+        },
+      },
+    });
+
+    res.json({ success: true, data: sinif });
+  } catch (error) {
+    console.error('Update sinif error:', error);
+    res.status(500).json({ success: false, error: 'Sınıf güncellenemedi' });
+  }
+};
+
+// Sınıf sil (soft delete)
+export const deleteSinif = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    // Sınıftaki öğrenci sayısını kontrol et
+    const sinif = await prisma.sinif.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: { ogrenciler: { where: { aktif: true } } },
+        },
+      },
+    });
+
+    if (!sinif) {
+      res.status(404).json({ success: false, error: 'Sınıf bulunamadı' });
+      return;
+    }
+
+    if (sinif._count.ogrenciler > 0) {
+      res.status(400).json({ 
+        success: false, 
+        error: `Bu sınıfta ${sinif._count.ogrenciler} aktif öğrenci var. Önce öğrencileri başka sınıfa taşıyın.` 
+      });
+      return;
+    }
+
+    await prisma.sinif.update({
+      where: { id },
+      data: { aktif: false },
+    });
+
+    res.json({ success: true, message: 'Sınıf silindi' });
+  } catch (error) {
+    console.error('Delete sinif error:', error);
+    res.status(500).json({ success: false, error: 'Sınıf silinemedi' });
   }
 };
 
@@ -216,6 +396,7 @@ export const getStats = async (req: AuthRequest, res: Response): Promise<void> =
     const [
       toplamOgrenci,
       toplamOgretmen,
+      toplamSekreter,
       toplamSinif,
       toplamKurs,
     ] = await Promise.all([
@@ -229,6 +410,13 @@ export const getStats = async (req: AuthRequest, res: Response): Promise<void> =
       prisma.user.count({
         where: {
           role: 'ogretmen',
+          aktif: true,
+          ...(kursId && { kursId }),
+        },
+      }),
+      prisma.user.count({
+        where: {
+          role: 'sekreter',
           aktif: true,
           ...(kursId && { kursId }),
         },
@@ -249,6 +437,7 @@ export const getStats = async (req: AuthRequest, res: Response): Promise<void> =
       data: {
         toplamOgrenci,
         toplamOgretmen,
+        toplamSekreter,
         toplamSinif,
         toplamKurs,
       },

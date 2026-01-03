@@ -1,19 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter, usePathname } from '@/i18n/routing';
+import { usePathname } from '@/i18n/routing';
 import { useLocale, useTranslations } from 'next-intl';
 import Modal from '@/components/Modal';
+import { useAuth } from '@/contexts/AuthContext';
+import { RoleGuard } from '@/components/RoleGuard';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
-
-interface User {
-  id: number;
-  kullaniciAdi: string;
-  ad: string;
-  soyad?: string;
-  role: string;
-}
 
 interface Kurs {
   KursID: number;
@@ -81,14 +75,12 @@ interface Sekreter {
   AktifMi: boolean;
 }
 
-export default function AdminPage() {
-  const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
+function AdminPageContent() {
+  const { user, token, logout } = useAuth();
   const [kurslar, setKurslar] = useState<Kurs[]>([]);
   const [branslar, setBranslar] = useState<Brans[]>([]);
   const [systemStats, setSystemStats] = useState<SystemStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [mounted, setMounted] = useState(false);
 
   // Modal states
   const [showKursModal, setShowKursModal] = useState(false);
@@ -151,30 +143,10 @@ export default function AdminPage() {
   const [raporTab, setRaporTab] = useState<'kurslar' | 'mudurler' | 'ogretmenler' | 'sekreterler'>('kurslar');
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!mounted) return;
-    
-    const storedUser = localStorage.getItem('user');
-    const token = localStorage.getItem('token');
-
-    if (!storedUser || !token) {
-      router.push('/login/admin');
-      return;
+    if (token) {
+      fetchInitialData(token);
     }
-
-    const parsedUser = JSON.parse(storedUser);
-    
-    if (parsedUser.role !== 'admin') {
-      router.push('/login/admin');
-      return;
-    }
-
-    setUser(parsedUser);
-    fetchInitialData(token);
-  }, [mounted, router]);
+  }, [token]);
 
   const fetchInitialData = async (token: string) => {
     try {
@@ -205,9 +177,7 @@ export default function AdminPage() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    router.push('/login/admin');
+    logout();
   };
 
   const handleCreateKurs = async (e: React.FormEvent) => {
@@ -216,7 +186,6 @@ export default function AdminPage() {
     setMessage(null);
 
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(`${API_URL}/users/kurslar`, {
         method: 'POST',
         headers: {
@@ -255,7 +224,6 @@ export default function AdminPage() {
     setMessage(null);
 
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(`${API_URL}/users/kurslar/${selectedKurs.KursID}`, {
         method: 'PUT',
         headers: {
@@ -289,7 +257,6 @@ export default function AdminPage() {
     setShowKursDetayModal(true);
     
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(`${API_URL}/users/kurslar/${kurs.KursID}/stats`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -357,7 +324,6 @@ export default function AdminPage() {
     setMessage(null);
 
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(`${API_URL}/users/profil`, {
         method: 'PUT',
         headers: {
@@ -409,7 +375,6 @@ export default function AdminPage() {
     setMessage(null);
 
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(`${API_URL}/auth/change-password`, {
         method: 'POST',
         headers: {
@@ -442,7 +407,6 @@ export default function AdminPage() {
     setShowRaporModal(true);
     
     try {
-      const token = localStorage.getItem('token');
       const [mudurlerRes, ogretmenlerRes, sekreterlerRes] = await Promise.all([
         fetch(`${API_URL}/users/mudurler`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -751,7 +715,7 @@ export default function AdminPage() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <button 
             onClick={() => setShowKursModal(true)}
             className="bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl p-6 text-left transition-colors group"
@@ -776,6 +740,58 @@ export default function AdminPage() {
             </div>
             <h3 className="font-semibold text-white mb-1">Raporlar</h3>
             <p className="text-sm text-slate-400">Sistem raporlarını görüntüle</p>
+          </button>
+
+          <button 
+            onClick={() => router.push('/admin/duyurular')}
+            className="bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl p-6 text-left transition-colors group"
+          >
+            <div className="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+              </svg>
+            </div>
+            <h3 className="font-semibold text-white mb-1">Duyuru Sistemi</h3>
+            <p className="text-sm text-slate-400">Müdürlere duyuru gönder</p>
+          </button>
+
+          <button 
+            onClick={() => router.push('/admin/destek-talepleri')}
+            className="bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl p-6 text-left transition-colors group"
+          >
+            <div className="w-12 h-12 bg-teal-600 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+              </svg>
+            </div>
+            <h3 className="font-semibold text-white mb-1">Destek Talepleri</h3>
+            <p className="text-sm text-slate-400">Teknik destek taleplerini yönet</p>
+          </button>
+
+          <button 
+            onClick={() => router.push('/admin/changelog')}
+            className="bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl p-6 text-left transition-colors group"
+          >
+            <div className="w-12 h-12 bg-indigo-600 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+              </svg>
+            </div>
+            <h3 className="font-semibold text-white mb-1">Changelog</h3>
+            <p className="text-sm text-slate-400">Sistem güncellemelerini yönet</p>
+          </button>
+
+          <button 
+            onClick={() => router.push('/admin/faq')}
+            className="bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl p-6 text-left transition-colors group"
+          >
+            <div className="w-12 h-12 bg-rose-600 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h3 className="font-semibold text-white mb-1">Yardım Merkezi (FAQ)</h3>
+            <p className="text-sm text-slate-400">Sık sorulan soruları yönet</p>
           </button>
         </div>
 
@@ -1442,5 +1458,14 @@ export default function AdminPage() {
         </form>
       </Modal>
     </div>
+  );
+}
+
+// Ana export - RoleGuard ile sarmalanmış
+export default function AdminPage() {
+  return (
+    <RoleGuard allowedRoles={['admin']}>
+      <AdminPageContent />
+    </RoleGuard>
   );
 }

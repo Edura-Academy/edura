@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authenticateToken, authorizeRoles } from '../middleware/auth';
+import { authenticateToken, authorizeRoles } from '../middleware/auth.middleware';
 import {
   createMateryal,
   getOgretmenMateryalleri,

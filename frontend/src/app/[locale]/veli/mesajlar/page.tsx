@@ -98,7 +98,7 @@ export default function VeliMesajlar() {
   const fetchMessages = async (conversationId: string) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/messages/conversation/${conversationId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/messages/conversations/${conversationId}/messages`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -120,14 +120,13 @@ export default function VeliMesajlar() {
     setSendingMessage(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/messages/send`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/messages/conversations/${selectedConversation}/messages`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          conversationId: selectedConversation,
           icerik: newMessage.trim()
         })
       });
@@ -135,6 +134,7 @@ export default function VeliMesajlar() {
       if (response.ok) {
         setNewMessage('');
         fetchMessages(selectedConversation);
+        fetchConversations(); // Konuşma listesini güncelle
       }
     } catch (error) {
       console.error('Mesaj gönderilemedi:', error);

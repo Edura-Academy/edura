@@ -7,7 +7,7 @@ import { pushService } from '../services/push.service';
 // Kullanıcının tüm konuşmalarını getir
 export const getConversations = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.userId;
+    const userId = req.user?.id;
     if (!userId) {
       res.status(401).json({ success: false, error: 'Yetkilendirme gerekli' });
       return;
@@ -108,7 +108,7 @@ export const getConversations = async (req: AuthRequest, res: Response): Promise
 // Konuşmanın mesajlarını getir
 export const getMessages = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.userId;
+    const userId = req.user?.id;
     const { conversationId } = req.params;
     const { limit = 50, before } = req.query;
 
@@ -210,7 +210,7 @@ export const getMessages = async (req: AuthRequest, res: Response): Promise<void
 // Mesaj gönder
 export const sendMessage = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.userId;
+    const userId = req.user?.id;
     const { conversationId } = req.params;
     const { icerik, dosyaUrl, dosyaTip, yanitladigiMesajId } = req.body;
 
@@ -321,7 +321,7 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
 // Yeni konuşma oluştur (1-1)
 export const createConversation = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.userId;
+    const userId = req.user?.id;
     const { targetUserId, tip, ad, uyeIds } = req.body;
 
     if (!userId) {
@@ -488,7 +488,7 @@ export const createConversation = async (req: AuthRequest, res: Response): Promi
 // Konuşmadaki kullanıcıları getir (yeni mesaj için arama)
 export const getAvailableUsers = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.userId;
+    const userId = req.user?.id;
     const kursId = req.user?.kursId;
     const { search, type } = req.query;
 
@@ -564,7 +564,7 @@ export const getAvailableUsers = async (req: AuthRequest, res: Response): Promis
 // Son mesajları getir (polling için)
 export const getNewMessages = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.userId;
+    const userId = req.user?.id;
     const { conversationId } = req.params;
     const { after } = req.query;
 
@@ -661,7 +661,7 @@ export const getNewMessages = async (req: AuthRequest, res: Response): Promise<v
 // Grup adını güncelle
 export const updateConversationName = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.userId;
+    const userId = req.user?.id;
     const { conversationId } = req.params;
     const { ad } = req.body;
 
@@ -709,7 +709,7 @@ export const updateConversationName = async (req: AuthRequest, res: Response): P
 // Üyeyi yönetici yap veya yöneticilikten düşür
 export const updateMemberRole = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.userId;
+    const userId = req.user?.id;
     const { conversationId, memberId } = req.params;
     const { role } = req.body; // 'admin' veya 'uye'
 
@@ -764,7 +764,7 @@ export const updateMemberRole = async (req: AuthRequest, res: Response): Promise
 // Üyeyi gruptan çıkar
 export const removeMember = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.userId;
+    const userId = req.user?.id;
     const { conversationId, memberId } = req.params;
 
     if (!userId) {
@@ -821,7 +821,7 @@ export const removeMember = async (req: AuthRequest, res: Response): Promise<voi
 // Gruba üye ekle
 export const addMember = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const currentUserId = req.user?.userId;
+    const currentUserId = req.user?.id;
     const { conversationId } = req.params;
     const { userId, userIds } = req.body; // Tek userId veya array userIds
 

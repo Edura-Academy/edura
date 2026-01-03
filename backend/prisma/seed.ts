@@ -38,7 +38,7 @@ const branslar = ['Matematik', 'Türkçe', 'İngilizce', 'Fen Bilimleri', 'Sosya
 // Öğretmen isimleri (branş başına 5 isim)
 const ogretmenHavuzu = [
   // Matematik
-  { ad: 'Ahmet', soyad: 'Kaya' },
+  { ad: 'Ali', soyad: 'Kaya' },
   { ad: 'Mustafa', soyad: 'Yılmaz' },
   { ad: 'Emre', soyad: 'Demir' },
   { ad: 'Oğuz', soyad: 'Şahin' },
@@ -56,8 +56,8 @@ const ogretmenHavuzu = [
   { ad: 'Cem', soyad: 'Özkan' },
   { ad: 'Selin', soyad: 'Yıldız' },
   // Fen Bilimleri
-  { ad: 'Ali', soyad: 'Kılıç' },
-  { ad: 'Veli', soyad: 'Çetin' },
+  { ad: 'Veli', soyad: 'Kılıç' },
+  { ad: 'Hakan', soyad: 'Çetin' },
   { ad: 'Hüseyin', soyad: 'Aksoy' },
   { ad: 'İbrahim', soyad: 'Ünal' },
   { ad: 'Murat', soyad: 'Doğan' },
@@ -75,12 +75,18 @@ const ogretmenHavuzu = [
   { ad: 'Doruk', soyad: 'Aslan' },
 ];
 
-// Öğrenci isimleri
+// Öğrenci isimleri - Geniş havuz (tekrar olmaması için)
 const erkekAdlari = [
   'Ahmet', 'Mehmet', 'Ali', 'Mustafa', 'Hasan', 'Hüseyin', 'İbrahim', 'Yusuf',
   'Ömer', 'Murat', 'Burak', 'Emre', 'Cem', 'Can', 'Ege', 'Arda', 'Kaan', 'Berk',
   'Eren', 'Furkan', 'Gökhan', 'Onur', 'Tuna', 'Umut', 'Doruk', 'Emir', 'Kerem', 'Mert',
   'Oğuz', 'Serkan', 'Tolga', 'Yiğit', 'Barış', 'Deniz', 'Efe', 'Koray', 'Melih', 'Selim',
+  'Alp', 'Batuhan', 'Berke', 'Bilal', 'Caner', 'Cemal', 'Cengiz', 'Çağatay', 'Çağrı', 'Dağhan',
+  'Ediz', 'Ekrem', 'Eray', 'Erdem', 'Erhan', 'Erkan', 'Eyüp', 'Fatih', 'Ferhat', 'Fırat',
+  'Görkem', 'Güney', 'Halit', 'Haluk', 'Hamza', 'İlker', 'İsmail', 'Kağan', 'Kayra', 'Kutay',
+  'Levent', 'Mahmut', 'Metehan', 'Miraç', 'Necati', 'Nuri', 'Okan', 'Orkun', 'Özgür', 'Polat',
+  'Rüzgar', 'Sami', 'Semih', 'Sinan', 'Şafak', 'Tarık', 'Taylan', 'Teoman', 'Turgut', 'Uğur',
+  'Uras', 'Utku', 'Vedat', 'Volkan', 'Yakup', 'Yaman', 'Yasin', 'Yavuz', 'Yunus', 'Zafer',
 ];
 
 const kizAdlari = [
@@ -88,12 +94,46 @@ const kizAdlari = [
   'Duru', 'Lara', 'Yağmur', 'Ceren', 'Hande', 'İpek', 'Pelin', 'Derya', 'Eylül', 'Ada',
   'Azra', 'Beren', 'Cansu', 'Dilara', 'Esra', 'Gamze', 'Hilal', 'Ilgın', 'Jale', 'Kardelen',
   'Melis', 'Nehir', 'Özge', 'Rana', 'Simge', 'Tuğçe', 'Yaprak', 'Zehra', 'Aslı', 'Başak',
+  'Aleyna', 'Ayla', 'Bahar', 'Bengisu', 'Burcu', 'Büşra', 'Cemre', 'Damla', 'Dilan', 'Dilek',
+  'Ebru', 'Eda', 'Ela', 'Elvan', 'Esin', 'Ezgi', 'Fulya', 'Gaye', 'Gülşen', 'Gülten',
+  'Hacer', 'Hayriye', 'Hazal', 'Hülya', 'İrem', 'Kübra', 'Leyla', 'Meltem', 'Mine', 'Miray',
+  'Nazlı', 'Neslihan', 'Nida', 'Nilgün', 'Nur', 'Nursena', 'Rabia', 'Reyhan', 'Rümeysa', 'Saadet',
+  'Safiye', 'Seda', 'Seher', 'Sena', 'Seray', 'Sevgi', 'Şeyma', 'Tuba', 'Tuğba', 'Ümran',
+  'Yasemin', 'Yıldız', 'Zeliha', 'Zübeyde', 'Zühal', 'Almina', 'Asya', 'Bade', 'Betül', 'Ceyda',
 ];
 
 const ogrenciSoyadlari = [
   'Yılmaz', 'Kaya', 'Demir', 'Çelik', 'Şahin', 'Aydın', 'Öztürk', 'Arslan', 'Doğan', 'Yıldız',
   'Koç', 'Kurt', 'Polat', 'Erdoğan', 'Özkan', 'Kılıç', 'Çetin', 'Aksoy', 'Ünal', 'Korkmaz',
+  'Tekin', 'Şen', 'Özdemir', 'Güneş', 'Bayrak', 'Kaplan', 'Bozkurt', 'Turan', 'Yavuz', 'Sarı',
+  'Aslan', 'Karaca', 'Akın', 'Tan', 'Koçak', 'Taş', 'Bulut', 'Güler', 'Acar', 'Özer',
+  'Eren', 'Kıran', 'Yücel', 'Erdem', 'Başar', 'Coşkun', 'Özcan', 'Güven', 'Sezer', 'Toprak',
+  'Duman', 'Sönmez', 'Peker', 'Çakır', 'Kara', 'Aktaş', 'Gündüz', 'Keskin', 'Bakır', 'Mutlu',
 ];
+
+// Kullanılan isimleri takip etmek için Set
+const kullanilanIsimler = new Set<string>();
+
+// Benzersiz isim oluşturucu
+function benzersizIsimAl(adHavuzu: string[], soyadHavuzu: string[], index: number): { ad: string; soyad: string } {
+  const maxDeneme = 100;
+  for (let deneme = 0; deneme < maxDeneme; deneme++) {
+    const adIndex = (index + deneme * 7) % adHavuzu.length;
+    const soyadIndex = (index + deneme * 13) % soyadHavuzu.length;
+    const ad = adHavuzu[adIndex];
+    const soyad = soyadHavuzu[soyadIndex];
+    const tamIsim = `${ad} ${soyad}`;
+    
+    if (!kullanilanIsimler.has(tamIsim)) {
+      kullanilanIsimler.add(tamIsim);
+      return { ad, soyad };
+    }
+  }
+  // Eşsiz bulunamadıysa index ekle
+  const ad = adHavuzu[index % adHavuzu.length];
+  const soyad = soyadHavuzu[index % soyadHavuzu.length];
+  return { ad, soyad };
+}
 
 // Sınıf seviyeleri
 const sinifSeviyeleri = [
@@ -113,21 +153,31 @@ async function main() {
   const hashedPassword = await bcrypt.hash('edura123', 10);
   
   // ==================== 1. ADMIN ====================
-  console.log('👤 Admin oluşturuluyor...');
-  await prisma.user.upsert({
-    where: { email: 'admin@edura.com' },
-    update: { password: hashedPassword },
-    create: {
-      email: 'admin@edura.com',
-      password: hashedPassword,
-      ad: 'Admin',
-      soyad: 'Edura',
-      telefon: '0555 000 0000',
-      role: Role.admin,
-      aktif: true,
-    },
-  });
-  console.log('   ✅ admin@edura.com\n');
+  console.log('👤 Adminler oluşturuluyor...');
+  
+  const adminler = [
+    { email: 'hasan.vural@edura.com', ad: 'Hasan', soyad: 'Vural', telefon: '0555 000 0001' },
+    { email: 'abdurrahman.onavic@edura.com', ad: 'Abdurrahman', soyad: 'Onavic', telefon: '0555 000 0002' },
+    { email: 'ferhat.kara@edura.com', ad: 'Ferhat', soyad: 'Kara', telefon: '0555 000 0003' },
+  ];
+
+  for (const adminData of adminler) {
+    await prisma.user.upsert({
+      where: { email: adminData.email },
+      update: { password: hashedPassword },
+      create: {
+        email: adminData.email,
+        password: hashedPassword,
+        ad: adminData.ad,
+        soyad: adminData.soyad,
+        telefon: adminData.telefon,
+        role: Role.admin,
+        aktif: true,
+      },
+    });
+    console.log(`   ✅ ${adminData.email} (${adminData.ad} ${adminData.soyad})`);
+  }
+  console.log(`   📊 Toplam: ${adminler.length} admin\n`);
 
   // ==================== 2. KURSLAR ====================
   console.log('🏫 Kurslar oluşturuluyor...');
@@ -201,21 +251,21 @@ async function main() {
   console.log(`   📊 Toplam: 5 sekreter\n`);
 
   // ==================== 5. ÖĞRETMENLER ====================
+  // NOT: Her branş için bağımsız öğretmen oluşturulur
+  // Müdürün branşı olsa bile öğretmen ayrı kişidir (rol karışıklığını önlemek için)
   console.log('👨‍🏫 Öğretmenler oluşturuluyor...');
   let ogretmenSayisi = 0;
   
   for (let kursIndex = 0; kursIndex < kurslarData.length; kursIndex++) {
     const kursData = kurslarData[kursIndex];
-    const mudurData = mudurlerData[kursIndex];
     
     for (let bransIndex = 0; bransIndex < branslar.length; bransIndex++) {
       const brans = branslar[bransIndex];
       const havuzIndex = bransIndex * 5 + kursIndex;
       const ogretmen = ogretmenHavuzu[havuzIndex];
       
-      // Müdür aynı zamanda bu branşın öğretmeni mi?
-      const mudurBuBransta = mudurData.brans === brans;
-      const isim = mudurBuBransta ? { ad: mudurData.ad, soyad: mudurData.soyad } : ogretmen;
+      // Her zaman öğretmen havuzundan al - müdürle karıştırma!
+      const isim = ogretmen;
       
       const emailPrefix = brans.toLowerCase()
         .replace(/\s+/g, '')
@@ -284,6 +334,9 @@ async function main() {
   // Kurs kodlarını index'e çevir
   const kursKodIndex: Record<string, number> = { zambak: 1, lale: 2, papatya: 3, menekse: 4, gul: 5 };
   
+  // Kullanılan isimleri sıfırla (her seed için temiz başla)
+  kullanilanIsimler.clear();
+  
   for (const kursData of kurslarData) {
     const kursId = kurslar[kursData.kod];
     const kursIdx = kursKodIndex[kursData.kod];
@@ -301,13 +354,13 @@ async function main() {
       for (let i = 0; i < 18; i++) {
         const cinsiyet = i % 2 === 0 ? 'erkek' : 'kiz';
         const adHavuzu = cinsiyet === 'erkek' ? erkekAdlari : kizAdlari;
-        const adIndex = (ogrenciSayisi + i) % adHavuzu.length;
-        const soyadIndex = (ogrenciSayisi + i) % ogrenciSoyadlari.length;
+        const uniqueIndex = ogrenciSayisi * 18 + i; // Benzersiz index
+        const isim = benzersizIsimAl(adHavuzu, ogrenciSoyadlari, uniqueIndex);
         const ortalama = Math.floor(Math.random() * 51) + 50; // 50-100 arası
         
         ogrenciler.push({
-          ad: adHavuzu[adIndex],
-          soyad: ogrenciSoyadlari[soyadIndex],
+          ad: isim.ad,
+          soyad: isim.soyad,
           ortalama,
         });
       }
@@ -358,42 +411,85 @@ async function main() {
   // ==================== 8. BYPASS KULLANICILARI ====================
   console.log('🔐 Bypass kullanıcıları oluşturuluyor...');
   
-  // Her sınıf seviyesi için örnek öğrenci (zambak kursu)
-  // Numara formatı: BYPASS + kurs + seviye + sıra
-  const bypassOgrenciler = [
-    { sinif: '5-A', no: 'BYPASS10599' },
-    { sinif: '6-A', no: 'BYPASS10699' },
-    { sinif: '7-A', no: 'BYPASS10799' },
-    { sinif: '8-A', no: 'BYPASS10899' },
-    { sinif: '9-A', no: 'BYPASS10999' },
-    { sinif: '10-A', no: 'BYPASS11099' },
-    { sinif: '11-A', no: 'BYPASS11199' },
-    { sinif: '12-A', no: 'BYPASS11299' },
+  // Her sınıf seviyesi ve şubeden 2'şer öğrenci (zambak kursu)
+  // Toplam: 8 seviye × 2 şube × 2 öğrenci = 32 öğrenci
+  const bypassOgrenciAdlari = [
+    // 5-A
+    { sinif: '5-A', sira: 1, ad: 'Ege', soyad: 'Yılmaz' },
+    { sinif: '5-A', sira: 2, ad: 'Defne', soyad: 'Kaya' },
+    // 5-B
+    { sinif: '5-B', sira: 1, ad: 'Mert', soyad: 'Demir' },
+    { sinif: '5-B', sira: 2, ad: 'Azra', soyad: 'Çelik' },
+    // 6-A
+    { sinif: '6-A', sira: 1, ad: 'Berk', soyad: 'Şahin' },
+    { sinif: '6-A', sira: 2, ad: 'Lara', soyad: 'Aydın' },
+    // 6-B
+    { sinif: '6-B', sira: 1, ad: 'Doruk', soyad: 'Öztürk' },
+    { sinif: '6-B', sira: 2, ad: 'Nehir', soyad: 'Arslan' },
+    // 7-A
+    { sinif: '7-A', sira: 1, ad: 'Arda', soyad: 'Koç' },
+    { sinif: '7-A', sira: 2, ad: 'Duru', soyad: 'Kurt' },
+    // 7-B
+    { sinif: '7-B', sira: 1, ad: 'Kerem', soyad: 'Polat' },
+    { sinif: '7-B', sira: 2, ad: 'Ada', soyad: 'Erdoğan' },
+    // 8-A (LGS)
+    { sinif: '8-A', sira: 1, ad: 'Kaan', soyad: 'Özkan' },
+    { sinif: '8-A', sira: 2, ad: 'Elif', soyad: 'Kılıç' },
+    // 8-B (LGS)
+    { sinif: '8-B', sira: 1, ad: 'Yiğit', soyad: 'Çetin' },
+    { sinif: '8-B', sira: 2, ad: 'Zeynep', soyad: 'Aksoy' },
+    // 9-A
+    { sinif: '9-A', sira: 1, ad: 'Onur', soyad: 'Ünal' },
+    { sinif: '9-A', sira: 2, ad: 'Simge', soyad: 'Doğan' },
+    // 9-B
+    { sinif: '9-B', sira: 1, ad: 'Koray', soyad: 'Güneş' },
+    { sinif: '9-B', sira: 2, ad: 'Melis', soyad: 'Bayrak' },
+    // 10-A
+    { sinif: '10-A', sira: 1, ad: 'Tuna', soyad: 'Kaplan' },
+    { sinif: '10-A', sira: 2, ad: 'Ceren', soyad: 'Bozkurt' },
+    // 10-B
+    { sinif: '10-B', sira: 1, ad: 'Barış', soyad: 'Turan' },
+    { sinif: '10-B', sira: 2, ad: 'Hande', soyad: 'Korkmaz' },
+    // 11-A
+    { sinif: '11-A', sira: 1, ad: 'Selim', soyad: 'Yavuz' },
+    { sinif: '11-A', sira: 2, ad: 'Pelin', soyad: 'Sarı' },
+    // 11-B
+    { sinif: '11-B', sira: 1, ad: 'Melih', soyad: 'Kara' },
+    { sinif: '11-B', sira: 2, ad: 'Derya', soyad: 'Aslan' },
+    // 12-A (TYT/AYT)
+    { sinif: '12-A', sira: 1, ad: 'Umut', soyad: 'Tekin' },
+    { sinif: '12-A', sira: 2, ad: 'İpek', soyad: 'Yıldırım' },
+    // 12-B (TYT/AYT)
+    { sinif: '12-B', sira: 1, ad: 'Serkan', soyad: 'Şen' },
+    { sinif: '12-B', sira: 2, ad: 'Gamze', soyad: 'Özdemir' },
   ];
 
-  for (const bypass of bypassOgrenciler) {
-    const sinifKey = `zambak-${bypass.sinif}`;
+  for (const ogr of bypassOgrenciAdlari) {
+    const sinifKey = `zambak-${ogr.sinif}`;
     const sinifId = siniflar[sinifKey];
+    const emailSinif = ogr.sinif.toLowerCase().replace('-', '');
+    const email = `test.${emailSinif}.${ogr.sira}@edura.com`;
+    const ogrenciNo = `TEST${ogr.sinif.replace('-', '')}${ogr.sira}`;
     
     await prisma.user.upsert({
-      where: { email: `ogrenci.${bypass.sinif.toLowerCase().replace('-', '')}@edura.com` },
-      update: { password: hashedPassword, sinifId },
+      where: { email },
+      update: { password: hashedPassword, sinifId, ad: ogr.ad, soyad: ogr.soyad },
       create: {
-        email: `ogrenci.${bypass.sinif.toLowerCase().replace('-', '')}@edura.com`,
+        email,
         password: hashedPassword,
-        ad: 'Test',
-        soyad: `Öğrenci ${bypass.sinif}`,
-        telefon: `0555 999 ${bypass.sinif.replace('-', '')}`,
+        ad: ogr.ad,
+        soyad: ogr.soyad,
+        telefon: `0555 800 ${emailSinif}${ogr.sira}`,
         role: Role.ogrenci,
         kursId: kurslar['zambak'],
         sinifId,
-        ogrenciNo: bypass.no,
+        ogrenciNo,
         aktif: true,
       },
     });
-    console.log(`   ✅ ogrenci.${bypass.sinif.toLowerCase().replace('-', '')}@edura.com`);
+    console.log(`   ✅ ${email} (${ogr.ad} ${ogr.soyad} - ${ogr.sinif})`);
   }
-  console.log('');
+  console.log(`   📊 Toplam: ${bypassOgrenciAdlari.length} bypass öğrenci\n`);
 
   // ==================== 9. GRUP KONUŞMALARI ====================
   console.log('💬 Grup konuşmaları oluşturuluyor...');
@@ -412,14 +508,11 @@ async function main() {
       select: { id: true, role: true }
     });
     
-    // Bu kurstaki tüm öğretmenleri bul (müdür dahil)
+    // Bu kurstaki tüm öğretmenleri bul (sadece öğretmen rolündekiler)
     const kursOgretmenler = await prisma.user.findMany({
       where: {
         kursId,
-        OR: [
-          { role: 'ogretmen' },
-          { role: 'mudur', brans: { not: null } }
-        ],
+        role: 'ogretmen',
         aktif: true
       },
       select: { id: true, role: true }
@@ -478,8 +571,9 @@ async function main() {
   console.log('═══════════════════════════════════════════════════════════\n');
   
   console.log('📊 İSTATİSTİKLER:');
+  console.log('   👤 Admin:     3');
   console.log('   🏫 Kurs:      5');
-  console.log('   👔 Müdür:     5 (2\'si aynı zamanda öğretmen)');
+  console.log('   👔 Müdür:     5');
   console.log('   💼 Sekreter:  5');
   console.log('   👨‍🏫 Öğretmen: 30');
   console.log('   🏛️ Sınıf:    80 (5 kurs × 8 seviye × 2 şube)');
@@ -487,7 +581,10 @@ async function main() {
   
   console.log('🔐 GİRİŞ BİLGİLERİ (Şifre: edura123):');
   console.log('   ───────────────────────────────────────');
-  console.log('   Admin:     admin@edura.com');
+  console.log('   Adminler:');
+  console.log('     • hasan.vural@edura.com       (Hasan Vural)');
+  console.log('     • abdurrahman.onavic@edura.com (Abdurrahman Onavic)');
+  console.log('     • ferhat.kara@edura.com       (Ferhat Kara)');
   console.log('   ');
   console.log('   Müdürler:');
   console.log('     • mudur.zambak@edura.com   (Maltepe Zambak)');
@@ -507,15 +604,12 @@ async function main() {
   console.log('     • ingilizce.lale@edura.com');
   console.log('     • ... (her kurs için 6 branş)');
   console.log('   ');
-  console.log('   Öğrenciler (bypass):');
-  console.log('     • ogrenci.5a@edura.com   (5. sınıf)');
-  console.log('     • ogrenci.6a@edura.com   (6. sınıf)');
-  console.log('     • ogrenci.7a@edura.com   (7. sınıf)');
-  console.log('     • ogrenci.8a@edura.com   (8. sınıf)');
-  console.log('     • ogrenci.9a@edura.com   (9. sınıf)');
-  console.log('     • ogrenci.10a@edura.com  (10. sınıf)');
-  console.log('     • ogrenci.11a@edura.com  (11. sınıf)');
-  console.log('     • ogrenci.12a@edura.com  (12. sınıf)');
+  console.log('   Öğrenciler (bypass - 32 öğrenci):');
+  console.log('     Her sınıf/şubeden 2\'şer öğrenci:');
+  console.log('     • test.5a.1@edura.com, test.5a.2@edura.com   (5-A)');
+  console.log('     • test.5b.1@edura.com, test.5b.2@edura.com   (5-B)');
+  console.log('     • test.6a.1@edura.com ... test.12b.2@edura.com');
+  console.log('     Format: test.<sinif><sube>.<sira>@edura.com');
   console.log('═══════════════════════════════════════════════════════════\n');
 }
 

@@ -7,12 +7,11 @@ import {
   ArrowLeft,
   Mail,
   Lock,
-  Trash2,
   Eye,
   EyeOff,
   AlertTriangle,
   CheckCircle,
-  User,
+  Info,
 } from 'lucide-react';
 
 interface UserData {
@@ -28,7 +27,7 @@ interface UserData {
 export default function HesapAyarlariPage() {
   const router = useRouter();
   const [user, setUser] = useState<UserData | null>(null);
-  const [activeTab, setActiveTab] = useState<'email' | 'sifre' | 'hesap'>('email');
+  const [activeTab, setActiveTab] = useState<'email' | 'sifre'>('email');
   
   // E-posta değiştirme
   const [yeniEmail, setYeniEmail] = useState('');
@@ -42,10 +41,6 @@ export default function HesapAyarlariPage() {
   const [showMevcutSifre, setShowMevcutSifre] = useState(false);
   const [showYeniSifre, setShowYeniSifre] = useState(false);
   const [showYeniSifreTekrar, setShowYeniSifreTekrar] = useState(false);
-  
-  // Hesap silme
-  const [silmeOnay, setSilmeOnay] = useState('');
-  const [showSilmeModal, setShowSilmeModal] = useState(false);
   
   // Mesajlar
   const [successMessage, setSuccessMessage] = useState('');
@@ -103,18 +98,6 @@ export default function HesapAyarlariPage() {
     setYeniSifreTekrar('');
   };
 
-  const handleDeleteAccount = async () => {
-    if (silmeOnay !== 'HESABIMI SIL') {
-      setErrorMessage('Onay metnini doğru yazın.');
-      return;
-    }
-    
-    // TODO: API call
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    router.push('/login');
-  };
-
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -165,17 +148,6 @@ export default function HesapAyarlariPage() {
             >
               <Lock size={18} className="inline mr-2" />
               Şifre Değiştir
-            </button>
-            <button
-              onClick={() => setActiveTab('hesap')}
-              className={`flex-1 py-4 px-6 text-center font-medium transition-colors ${
-                activeTab === 'hesap'
-                  ? 'text-red-600 border-b-2 border-red-600 bg-red-50/50'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <Trash2 size={18} className="inline mr-2" />
-              Hesabı Sil
             </button>
           </div>
         </div>
@@ -359,90 +331,20 @@ export default function HesapAyarlariPage() {
           </div>
         )}
 
-        {/* Hesabı Sil */}
-        {activeTab === 'hesap' && (
-          <div className="bg-white rounded-xl shadow-sm border border-red-200 p-6">
-            <div className="flex items-start gap-4 mb-6">
-              <div className="p-3 bg-red-100 rounded-xl">
-                <AlertTriangle size={24} className="text-red-600" />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold text-red-800">Hesabı Kalıcı Olarak Sil</h2>
-                <p className="text-red-600 text-sm mt-1">
-                  Bu işlem geri alınamaz! Tüm verileriniz silinecektir.
-                </p>
-              </div>
-            </div>
-            
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
-              <p className="text-sm text-red-700">
-                Hesabınızı sildiğinizde:
+        {/* Hesap Silme Bilgilendirmesi */}
+        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <Info size={20} className="text-blue-600 mt-0.5 flex-shrink-0" />
+            <div>
+              <h3 className="font-semibold text-blue-800">Hesap Silme Hakkında</h3>
+              <p className="text-sm text-blue-700 mt-1">
+                Hesabınızı silmek için lütfen kurum yöneticiniz ile iletişime geçin. 
+                Personel hesapları yalnızca yetkili müdür tarafından silinebilir.
               </p>
-              <ul className="text-sm text-red-600 mt-2 space-y-1">
-                <li>• Tüm profil bilgileriniz silinir</li>
-                <li>• Mesajlarınız ve bildirimleriniz silinir</li>
-                <li>• Bu işlem geri alınamaz</li>
-              </ul>
-            </div>
-            
-            <button
-              onClick={() => setShowSilmeModal(true)}
-              className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl transition-colors"
-            >
-              Hesabımı Sil
-            </button>
-          </div>
-        )}
-      </main>
-
-      {/* Silme Onay Modal */}
-      {showSilmeModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <div className="text-center mb-6">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
-                <AlertTriangle size={32} className="text-red-600" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-800">Emin misiniz?</h3>
-              <p className="text-gray-500 mt-2">
-                Bu işlem geri alınamaz. Hesabınız kalıcı olarak silinecektir.
-              </p>
-            </div>
-            
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Onaylamak için <strong className="text-red-600">HESABIMI SIL</strong> yazın
-              </label>
-              <input
-                type="text"
-                value={silmeOnay}
-                onChange={(e) => setSilmeOnay(e.target.value)}
-                placeholder="HESABIMI SIL"
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent text-gray-800"
-              />
-            </div>
-            
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowSilmeModal(false);
-                  setSilmeOnay('');
-                }}
-                className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-colors"
-              >
-                İptal
-              </button>
-              <button
-                onClick={handleDeleteAccount}
-                disabled={silmeOnay !== 'HESABIMI SIL'}
-                className="flex-1 py-3 bg-red-600 hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors"
-              >
-                Hesabı Sil
-              </button>
             </div>
           </div>
         </div>
-      )}
+      </main>
     </div>
   );
 }

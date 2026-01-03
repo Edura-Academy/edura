@@ -8,6 +8,10 @@ import {
   getKurslar,
   createKurs,
   getSiniflar,
+  getSinif,
+  createSinif,
+  updateSinif,
+  deleteSinif,
   getStats,
   saveFcmToken,
   removeFcmToken,
@@ -25,7 +29,7 @@ router.get('/stats', getStats);
 router.get('/:id', getUser);
 router.post('/', authorizeRoles('admin', 'mudur'), createUser);
 router.put('/:id', updateUser);
-router.delete('/:id', authorizeRoles('admin'), deleteUser);
+router.delete('/:id', authorizeRoles('admin', 'mudur', 'sekreter'), deleteUser);
 
 // Kurslar
 router.get('/kurslar', getKurslar);
@@ -33,6 +37,10 @@ router.post('/kurslar', authorizeRoles('admin'), createKurs);
 
 // Sınıflar
 router.get('/siniflar', getSiniflar);
+router.get('/siniflar/:id', getSinif);
+router.post('/siniflar', authorizeRoles('admin', 'mudur'), createSinif);
+router.put('/siniflar/:id', authorizeRoles('admin', 'mudur'), updateSinif);
+router.delete('/siniflar/:id', authorizeRoles('admin', 'mudur'), deleteSinif);
 
 // Push Notification Token
 router.post('/fcm-token', saveFcmToken);

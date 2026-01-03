@@ -2,7 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import ClientOnlyDate from '../../../components/ClientOnlyDate';
+import { dersProgramiApi, DersProgramiEvent } from '../../../lib/api';
+import { toast } from 'react-hot-toast';
 import {
   Bell,
   Mail,
@@ -44,6 +47,7 @@ import {
   MinusCircle,
   BarChart2,
   Video,
+  Loader2,
 } from 'lucide-react';
 
 // Personel tipi
@@ -265,7 +269,28 @@ export default function PersonelDashboard() {
   // Dersler için tarih seçici
   const [selectedDersTarihi, setSelectedDersTarihi] = useState<string>(new Date().toISOString().split('T')[0]);
   
+  // Ders Programı state'leri
+  const [siniflar, setSiniflar] = useState<{ id: string; ad: string; seviye: number }[]>([]);
+  const [ogretmenlerList, setOgretmenlerList] = useState<{ id: string; ad: string; soyad: string; brans?: string }[]>([]);
+  const [dersProgramiData, setDersProgramiData] = useState<Record<string, DersProgramiEvent[]>>({});
+  const [showProgramEkleModal, setShowProgramEkleModal] = useState(false);
+  const [showDersEkleModal, setShowDersEkleModal] = useState(false);
+  const [showDersDuzenleModal, setShowDersDuzenleModal] = useState(false);
+  const [programLoading, setProgramLoading] = useState(false);
+  const [selectedSinifForEdit, setSelectedSinifForEdit] = useState<string>('');
+  const [selectedDersForEdit, setSelectedDersForEdit] = useState<DersProgramiEvent | null>(null);
+  const [yeniDers, setYeniDers] = useState({
+    ad: '',
+    aciklama: '',
+    sinifId: '',
+    ogretmenId: '',
+    gun: 'Pazartesi',
+    baslangicSaati: '09:00',
+    bitisSaati: '10:00'
+  });
+  
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   // localStorage'dan kullanıcı verisini al
   useEffect(() => {
@@ -300,6 +325,154 @@ export default function PersonelDashboard() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Ders Programı verilerini yükle (müdür için)
+  useEffect(() => {
+    if (personel.role === 'mudur') {
+      fetchSiniflarVeOgretmenler();
+    }
+  }, [personel.role]);
+
+  const fetchSiniflarVeOgretmenler = async () => {
+    try {
+      const [siniflarRes, ogretmenlerRes] = await Promise.all([
+        dersProgramiApi.getSiniflar(),
+        dersProgramiApi.getOgretmenler()
+      ]);
+      
+      if (siniflarRes.success) {
+        setSiniflar(siniflarRes.data);
+        // Her sınıf için ders programını yükle
+        siniflarRes.data.forEach(sinif => {
+          fetchSinifProgrami(sinif.id);
+        });
+      }
+      if (ogretmenlerRes.success) {
+        setOgretmenlerList(ogretmenlerRes.data);
+      }
+    } catch (error) {
+      console.error('Sınıflar veya öğretmenler yüklenirken hata:', error);
+    }
+  };
+
+  const fetchSinifProgrami = async (sinifId: string) => {
+    try {
+      const response = await dersProgramiApi.getSinifProgrami(sinifId);
+      if (response.success) {
+        setDersProgramiData(prev => ({
+          ...prev,
+          [sinifId]: response.data
+        }));
+      }
+    } catch (error) {
+      console.error('Sınıf programı yüklenirken hata:', error);
+    }
+  };
+
+  const handleDersEkle = async () => {
+    if (!yeniDers.ad || !yeniDers.sinifId || !yeniDers.ogretmenId) {
+      toast.error('Lütfen tüm zorunlu alanları doldurun');
+      return;
+    }
+
+    setProgramLoading(true);
+    try {
+      const response = await dersProgramiApi.createDers(yeniDers);
+      if (response.success) {
+        toast.success('Ders başarıyla eklendi');
+        setShowDersEkleModal(false);
+        setYeniDers({
+          ad: '',
+          aciklama: '',
+          sinifId: '',
+          ogretmenId: '',
+          gun: 'Pazartesi',
+          baslangicSaati: '09:00',
+          bitisSaati: '10:00'
+        });
+        // Ders programını yenile
+        fetchSinifProgrami(yeniDers.sinifId);
+      }
+    } catch (error: unknown) {
+      const errorMsg = error instanceof Error ? error.message : 'Ders eklenirken hata oluştu';
+      toast.error(errorMsg);
+    } finally {
+      setProgramLoading(false);
+    }
+  };
+
+  const handleDersGuncelle = async () => {
+    if (!selectedDersForEdit) return;
+
+    setProgramLoading(true);
+    try {
+      const response = await dersProgramiApi.updateDers(selectedDersForEdit.id, {
+        ad: yeniDers.ad,
+        aciklama: yeniDers.aciklama,
+        gun: yeniDers.gun,
+        baslangicSaati: yeniDers.baslangicSaati,
+        bitisSaati: yeniDers.bitisSaati,
+        ogretmenId: yeniDers.ogretmenId
+      });
+      if (response.success) {
+        toast.success('Ders başarıyla güncellendi');
+        setShowDersDuzenleModal(false);
+        setSelectedDersForEdit(null);
+        // Ders programını yenile
+        if (selectedSinifForEdit) {
+          fetchSinifProgrami(selectedSinifForEdit);
+        }
+      }
+    } catch (error: unknown) {
+      const errorMsg = error instanceof Error ? error.message : 'Ders güncellenirken hata oluştu';
+      toast.error(errorMsg);
+    } finally {
+      setProgramLoading(false);
+    }
+  };
+
+  const handleDersSil = async (dersId: string, sinifId: string) => {
+    if (!confirm('Bu dersi silmek istediğinize emin misiniz?')) return;
+
+    try {
+      const response = await dersProgramiApi.deleteDers(dersId);
+      if (response.success) {
+        toast.success('Ders başarıyla silindi');
+        fetchSinifProgrami(sinifId);
+      }
+    } catch (error: unknown) {
+      const errorMsg = error instanceof Error ? error.message : 'Ders silinirken hata oluştu';
+      toast.error(errorMsg);
+    }
+  };
+
+  const openDuzenleModal = (ders: DersProgramiEvent, sinifId: string) => {
+    setSelectedDersForEdit(ders);
+    setSelectedSinifForEdit(sinifId);
+    setYeniDers({
+      ad: ders.extendedProps.dersAd,
+      aciklama: ders.extendedProps.aciklama || '',
+      sinifId: sinifId,
+      ogretmenId: '',
+      gun: gunFromNumber(ders.daysOfWeek[0]),
+      baslangicSaati: ders.startTime,
+      bitisSaati: ders.endTime
+    });
+    setShowDersDuzenleModal(true);
+  };
+
+  const gunFromNumber = (num: number): string => {
+    const gunler: Record<number, string> = {
+      1: 'Pazartesi',
+      2: 'Salı',
+      3: 'Çarşamba',
+      4: 'Perşembe',
+      5: 'Cuma',
+      6: 'Cumartesi',
+      0: 'Pazar'
+    };
+    return gunler[num] || 'Pazartesi';
+  };
 
   const handleDropdownToggle = (dropdownName: string) => {
     setOpenDropdown(prev => (prev === dropdownName ? null : dropdownName));
@@ -1538,56 +1711,121 @@ export default function PersonelDashboard() {
                   <h3 className="font-semibold text-slate-800 text-lg">Ders Programı</h3>
                   <p className="text-slate-500 text-sm mt-1">Sınıf bazlı ders programlarını düzenleyin</p>
                 </div>
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center gap-2">
+                <button 
+                  onClick={() => setShowDersEkleModal(true)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center gap-2"
+                >
                   <Plus size={16} />
                   Program Ekle
                 </button>
               </div>
               <div className="p-6">
-                <div className="space-y-6">
-                  {dersProgrami.map((program, idx) => (
-                    <div key={idx} className="p-4 border border-slate-200 rounded-xl">
-                      <div className="flex items-center justify-between mb-4">
-                        <h4 className="font-semibold text-slate-800 text-lg">{program.sinif}</h4>
-                        <button className="px-3 py-1.5 text-blue-600 text-sm font-medium hover:bg-blue-50 rounded-lg transition-colors">
-                          Düzenle
-                        </button>
-                      </div>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="bg-slate-50">
-                              <th className="px-3 py-2 text-left text-slate-500">Saat</th>
-                              <th className="px-3 py-2 text-left text-slate-500">Pazartesi</th>
-                              <th className="px-3 py-2 text-left text-slate-500">Salı</th>
-                              <th className="px-3 py-2 text-left text-slate-500">Çarşamba</th>
-                              <th className="px-3 py-2 text-left text-slate-500">Perşembe</th>
-                              <th className="px-3 py-2 text-left text-slate-500">Cuma</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100">
-                            <tr>
-                              <td className="px-3 py-2 text-slate-600">09:00</td>
-                              <td className="px-3 py-2"><span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">Matematik</span></td>
-                              <td className="px-3 py-2"><span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">Fizik</span></td>
-                              <td className="px-3 py-2"><span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs">Türkçe</span></td>
-                              <td className="px-3 py-2"><span className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs">Kimya</span></td>
-                              <td className="px-3 py-2"><span className="px-2 py-1 bg-pink-100 text-pink-700 rounded text-xs">İngilizce</span></td>
-                            </tr>
-                            <tr>
-                              <td className="px-3 py-2 text-slate-600">10:00</td>
-                              <td className="px-3 py-2"><span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">Fizik</span></td>
-                              <td className="px-3 py-2"><span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">Matematik</span></td>
-                              <td className="px-3 py-2"><span className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs">Kimya</span></td>
-                              <td className="px-3 py-2"><span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs">Türkçe</span></td>
-                              <td className="px-3 py-2"><span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">Matematik</span></td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                {siniflar.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Calendar className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                    <h4 className="text-lg font-medium text-slate-600">Henüz sınıf bulunmuyor</h4>
+                    <p className="text-slate-500 mt-1">Ders programı oluşturmak için önce sınıf tanımlamanız gerekiyor.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {siniflar.map((sinif) => {
+                      const sinifDersleri = dersProgramiData[sinif.id] || [];
+                      const gunler = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma'];
+                      const saatler = ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00'];
+                      
+                      // Dersleri gün ve saate göre organize et
+                      const dersMatrisi: Record<string, Record<string, DersProgramiEvent | null>> = {};
+                      saatler.forEach(saat => {
+                        dersMatrisi[saat] = {};
+                        gunler.forEach((_, gunIndex) => {
+                          const ders = sinifDersleri.find(d => 
+                            d.daysOfWeek.includes(gunIndex + 1) && d.startTime === saat
+                          );
+                          dersMatrisi[saat][gunIndex + 1] = ders || null;
+                        });
+                      });
+
+                      return (
+                        <div key={sinif.id} className="p-4 border border-slate-200 rounded-xl">
+                          <div className="flex items-center justify-between mb-4">
+                            <h4 className="font-semibold text-slate-800 text-lg">{sinif.ad}</h4>
+                            <button 
+                              onClick={() => {
+                                setSelectedSinifForEdit(sinif.id);
+                                setYeniDers(prev => ({ ...prev, sinifId: sinif.id }));
+                                setShowDersEkleModal(true);
+                              }}
+                              className="px-3 py-1.5 text-blue-600 text-sm font-medium hover:bg-blue-50 rounded-lg transition-colors flex items-center gap-1"
+                            >
+                              <Plus size={14} />
+                              Ders Ekle
+                            </button>
+                          </div>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="bg-slate-50">
+                                  <th className="px-3 py-2 text-left text-slate-500 w-20">Saat</th>
+                                  {gunler.map(gun => (
+                                    <th key={gun} className="px-3 py-2 text-left text-slate-500">{gun}</th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100">
+                                {saatler.map(saat => (
+                                  <tr key={saat}>
+                                    <td className="px-3 py-2 text-slate-600 font-medium">{saat}</td>
+                                    {gunler.map((_, gunIndex) => {
+                                      const ders = dersMatrisi[saat]?.[gunIndex + 1];
+                                      return (
+                                        <td key={gunIndex} className="px-3 py-2">
+                                          {ders ? (
+                                            <div className="group relative">
+                                              <span 
+                                                className="px-2 py-1 rounded text-xs cursor-pointer inline-block"
+                                                style={{ 
+                                                  backgroundColor: ders.backgroundColor + '20', 
+                                                  color: ders.backgroundColor 
+                                                }}
+                                              >
+                                                {ders.extendedProps.dersAd}
+                                              </span>
+                                              <div className="absolute left-0 top-full mt-1 hidden group-hover:flex gap-1 z-10 bg-white shadow-lg rounded-lg p-1 border border-slate-200">
+                                                <button
+                                                  onClick={() => openDuzenleModal(ders, sinif.id)}
+                                                  className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
+                                                  title="Düzenle"
+                                                >
+                                                  <Edit size={14} />
+                                                </button>
+                                                <button
+                                                  onClick={() => handleDersSil(ders.id, sinif.id)}
+                                                  className="p-1.5 text-red-600 hover:bg-red-50 rounded"
+                                                  title="Sil"
+                                                >
+                                                  <Trash2 size={14} />
+                                                </button>
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <span className="text-slate-300">-</span>
+                                          )}
+                                        </td>
+                                      );
+                                    })}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                          {sinifDersleri.length === 0 && (
+                            <p className="text-center text-slate-400 text-sm mt-4">Bu sınıf için henüz ders tanımlanmamış</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -2807,6 +3045,285 @@ export default function PersonelDashboard() {
                 className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
               >
                 Kaydet
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Ders Ekle Modal */}
+      {showDersEkleModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden">
+            <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+              <div>
+                <h3 className="text-xl font-bold">Yeni Ders Ekle</h3>
+                <p className="text-blue-100 text-sm mt-1">Ders programına yeni ders ekleyin</p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowDersEkleModal(false);
+                  setYeniDers({
+                    ad: '',
+                    aciklama: '',
+                    sinifId: '',
+                    ogretmenId: '',
+                    gun: 'Pazartesi',
+                    baslangicSaati: '09:00',
+                    bitisSaati: '10:00'
+                  });
+                }}
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Ders Adı *</label>
+                  <input
+                    type="text"
+                    value={yeniDers.ad}
+                    onChange={(e) => setYeniDers(prev => ({ ...prev, ad: e.target.value }))}
+                    placeholder="Örn: Matematik"
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-800"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Sınıf *</label>
+                  <select 
+                    value={yeniDers.sinifId}
+                    onChange={(e) => setYeniDers(prev => ({ ...prev, sinifId: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-800"
+                  >
+                    <option value="">Sınıf Seçin...</option>
+                    {siniflar.map(sinif => (
+                      <option key={sinif.id} value={sinif.id}>{sinif.ad}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Öğretmen *</label>
+                  <select 
+                    value={yeniDers.ogretmenId}
+                    onChange={(e) => setYeniDers(prev => ({ ...prev, ogretmenId: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-800"
+                  >
+                    <option value="">Öğretmen Seçin...</option>
+                    {ogretmenlerList.map(ogretmen => (
+                      <option key={ogretmen.id} value={ogretmen.id}>
+                        {ogretmen.ad} {ogretmen.soyad} {ogretmen.brans ? `(${ogretmen.brans})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Gün *</label>
+                  <select 
+                    value={yeniDers.gun}
+                    onChange={(e) => setYeniDers(prev => ({ ...prev, gun: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-800"
+                  >
+                    <option value="Pazartesi">Pazartesi</option>
+                    <option value="Salı">Salı</option>
+                    <option value="Çarşamba">Çarşamba</option>
+                    <option value="Perşembe">Perşembe</option>
+                    <option value="Cuma">Cuma</option>
+                    <option value="Cumartesi">Cumartesi</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Başlangıç Saati *</label>
+                    <input
+                      type="time"
+                      value={yeniDers.baslangicSaati}
+                      onChange={(e) => setYeniDers(prev => ({ ...prev, baslangicSaati: e.target.value }))}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-800"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Bitiş Saati *</label>
+                    <input
+                      type="time"
+                      value={yeniDers.bitisSaati}
+                      onChange={(e) => setYeniDers(prev => ({ ...prev, bitisSaati: e.target.value }))}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-800"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Açıklama (İsteğe Bağlı)</label>
+                  <textarea
+                    value={yeniDers.aciklama}
+                    onChange={(e) => setYeniDers(prev => ({ ...prev, aciklama: e.target.value }))}
+                    placeholder="Ders hakkında ek bilgiler..."
+                    rows={2}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-800 resize-none"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="p-6 border-t border-slate-200 flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDersEkleModal(false);
+                  setYeniDers({
+                    ad: '',
+                    aciklama: '',
+                    sinifId: '',
+                    ogretmenId: '',
+                    gun: 'Pazartesi',
+                    baslangicSaati: '09:00',
+                    bitisSaati: '10:00'
+                  });
+                }}
+                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition-colors"
+              >
+                İptal
+              </button>
+              <button
+                onClick={handleDersEkle}
+                disabled={programLoading || !yeniDers.ad || !yeniDers.sinifId || !yeniDers.ogretmenId}
+                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+              >
+                {programLoading ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    Ekleniyor...
+                  </>
+                ) : (
+                  <>
+                    <Plus size={18} />
+                    Ders Ekle
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Ders Düzenle Modal */}
+      {showDersDuzenleModal && selectedDersForEdit && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden">
+            <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-gradient-to-r from-amber-500 to-orange-600 text-white">
+              <div>
+                <h3 className="text-xl font-bold">Ders Düzenle</h3>
+                <p className="text-amber-100 text-sm mt-1">{selectedDersForEdit.extendedProps.dersAd} dersini düzenleyin</p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowDersDuzenleModal(false);
+                  setSelectedDersForEdit(null);
+                }}
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Ders Adı *</label>
+                  <input
+                    type="text"
+                    value={yeniDers.ad}
+                    onChange={(e) => setYeniDers(prev => ({ ...prev, ad: e.target.value }))}
+                    placeholder="Örn: Matematik"
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent text-slate-800"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Öğretmen</label>
+                  <select 
+                    value={yeniDers.ogretmenId}
+                    onChange={(e) => setYeniDers(prev => ({ ...prev, ogretmenId: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent text-slate-800"
+                  >
+                    <option value="">Öğretmen Seçin...</option>
+                    {ogretmenlerList.map(ogretmen => (
+                      <option key={ogretmen.id} value={ogretmen.id}>
+                        {ogretmen.ad} {ogretmen.soyad} {ogretmen.brans ? `(${ogretmen.brans})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Gün *</label>
+                  <select 
+                    value={yeniDers.gun}
+                    onChange={(e) => setYeniDers(prev => ({ ...prev, gun: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent text-slate-800"
+                  >
+                    <option value="Pazartesi">Pazartesi</option>
+                    <option value="Salı">Salı</option>
+                    <option value="Çarşamba">Çarşamba</option>
+                    <option value="Perşembe">Perşembe</option>
+                    <option value="Cuma">Cuma</option>
+                    <option value="Cumartesi">Cumartesi</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Başlangıç Saati *</label>
+                    <input
+                      type="time"
+                      value={yeniDers.baslangicSaati}
+                      onChange={(e) => setYeniDers(prev => ({ ...prev, baslangicSaati: e.target.value }))}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent text-slate-800"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Bitiş Saati *</label>
+                    <input
+                      type="time"
+                      value={yeniDers.bitisSaati}
+                      onChange={(e) => setYeniDers(prev => ({ ...prev, bitisSaati: e.target.value }))}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent text-slate-800"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Açıklama (İsteğe Bağlı)</label>
+                  <textarea
+                    value={yeniDers.aciklama}
+                    onChange={(e) => setYeniDers(prev => ({ ...prev, aciklama: e.target.value }))}
+                    placeholder="Ders hakkında ek bilgiler..."
+                    rows={2}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent text-slate-800 resize-none"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="p-6 border-t border-slate-200 flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDersDuzenleModal(false);
+                  setSelectedDersForEdit(null);
+                }}
+                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition-colors"
+              >
+                İptal
+              </button>
+              <button
+                onClick={handleDersGuncelle}
+                disabled={programLoading || !yeniDers.ad}
+                className="flex-1 py-2.5 bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+              >
+                {programLoading ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    Güncelleniyor...
+                  </>
+                ) : (
+                  <>
+                    <Edit size={18} />
+                    Güncelle
+                  </>
+                )}
               </button>
             </div>
           </div>

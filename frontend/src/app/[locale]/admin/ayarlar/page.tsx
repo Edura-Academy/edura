@@ -17,15 +17,13 @@ export default function AyarlarPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState<'email' | 'sifre' | 'hesap'>('email');
+  const [activeTab, setActiveTab] = useState<'email' | 'sifre'>('email');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Form states
   const [emailForm, setEmailForm] = useState({ yeniEmail: '', sifre: '' });
   const [sifreForm, setSifreForm] = useState({ mevcutSifre: '', yeniSifre: '', yeniSifreTekrar: '' });
-  const [silmeOnay, setSilmeOnay] = useState('');
-  const [showSilmeModal, setShowSilmeModal] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -125,36 +123,6 @@ export default function AyarlarPage() {
     }
   };
 
-  const handleHesapSil = async () => {
-    if (silmeOnay !== 'HESABIMI SIL') {
-      setMessage({ type: 'error', text: 'Lütfen onay metnini doğru yazın' });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/users/hesap`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        localStorage.clear();
-        router.push('/login/admin');
-      } else {
-        setMessage({ type: 'error', text: data.error || 'Hesap silinemedi' });
-      }
-    } catch {
-      setMessage({ type: 'error', text: 'Bir hata oluştu' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -204,15 +172,6 @@ export default function AyarlarPage() {
             >
               Şifre Değiştir
               {activeTab === 'sifre' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-violet-600" />}
-            </button>
-            <button
-              onClick={() => { setActiveTab('hesap'); setMessage(null); }}
-              className={`flex-1 px-6 py-4 text-sm font-medium transition-colors relative ${
-                activeTab === 'hesap' ? 'text-red-600' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Hesabı Sil
-              {activeTab === 'hesap' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-600" />}
             </button>
           </div>
 
@@ -325,78 +284,24 @@ export default function AyarlarPage() {
               </form>
             )}
 
-            {/* Delete Account Tab */}
-            {activeTab === 'hesap' && (
-              <div className="max-w-md">
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-                  <div className="flex items-start gap-3">
-                    <svg className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                    <div>
-                      <h3 className="text-sm font-medium text-red-800">Dikkat!</h3>
-                      <p className="text-sm text-red-700 mt-1">
-                        Hesabınızı sildiğinizde tüm verileriniz kalıcı olarak silinecektir. Bu işlem geri alınamaz.
-                      </p>
-                    </div>
-                  </div>
+            {/* Hesap Silme Bilgilendirmesi */}
+            <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <h3 className="text-sm font-medium text-blue-800">Hesap Silme Hakkında</h3>
+                  <p className="text-sm text-blue-700 mt-1">
+                    Admin hesapları sistem güvenliği açısından kendi kendilerine silinemez. 
+                    Hesabınızı silmek için lütfen üst düzey sistem yöneticisi ile iletişime geçin.
+                  </p>
                 </div>
-
-                <p className="text-gray-600 mb-6">
-                  Hesabınızı silmek istediğinizden emin misiniz? Bu işlem:
-                </p>
-                <ul className="list-disc list-inside text-gray-600 mb-6 space-y-1">
-                  <li>Tüm kişisel bilgilerinizi silecek</li>
-                  <li>Tüm ayarlarınızı sıfırlayacak</li>
-                  <li>Geri alınamaz</li>
-                </ul>
-
-                <button
-                  onClick={() => setShowSilmeModal(true)}
-                  className="w-full py-3 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition-colors"
-                >
-                  Hesabımı Sil
-                </button>
               </div>
-            )}
-          </div>
-        </div>
-      </main>
-
-      {/* Delete Confirmation Modal */}
-      {showSilmeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowSilmeModal(false)} />
-          <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Hesabı Sil</h2>
-            <p className="text-gray-600 mb-4">
-              Hesabınızı kalıcı olarak silmek için aşağıya <strong>HESABIMI SIL</strong> yazın:
-            </p>
-            <input
-              type="text"
-              value={silmeOnay}
-              onChange={(e) => setSilmeOnay(e.target.value)}
-              className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent mb-4"
-              placeholder="HESABIMI SIL"
-            />
-            <div className="flex gap-3">
-              <button
-                onClick={() => { setShowSilmeModal(false); setSilmeOnay(''); }}
-                className="flex-1 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                İptal
-              </button>
-              <button
-                onClick={handleHesapSil}
-                disabled={loading || silmeOnay !== 'HESABIMI SIL'}
-                className="flex-1 py-2.5 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? 'Siliniyor...' : 'Hesabı Sil'}
-              </button>
             </div>
           </div>
         </div>
-      )}
+      </main>
     </div>
   );
 }

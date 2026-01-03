@@ -1,12 +1,14 @@
-import { Request, Response } from 'express';
-import prisma from '../config/database';
-import { AuthRequest } from '../middleware/auth';
+import { Response } from 'express';
+import { PrismaClient } from '@prisma/client';
+import { AuthRequest } from '../types';
 import { pushService } from '../services/push.service';
+
+const prisma = new PrismaClient();
 
 // Veli Dashboard - Ana sayfa verileri
 export const getVeliDashboard = async (req: AuthRequest, res: Response) => {
   try {
-    const veliId = req.user?.userId;
+    const veliId = req.user?.id;
 
     // Velinin çocuklarını getir
     const cocuklar = await prisma.user.findMany({
@@ -158,7 +160,7 @@ export const getVeliDashboard = async (req: AuthRequest, res: Response) => {
 // Çocuğun detaylı bilgilerini getir
 export const getCocukDetay = async (req: AuthRequest, res: Response) => {
   try {
-    const veliId = req.user?.userId;
+    const veliId = req.user?.id;
     const { cocukId } = req.params;
 
     // Çocuğun bu veliye ait olduğunu doğrula
@@ -191,7 +193,7 @@ export const getCocukDetay = async (req: AuthRequest, res: Response) => {
 // Çocuğun notlarını getir
 export const getCocukNotlar = async (req: AuthRequest, res: Response) => {
   try {
-    const veliId = req.user?.userId;
+    const veliId = req.user?.id;
     const { cocukId } = req.params;
 
     // Çocuğun bu veliye ait olduğunu doğrula
@@ -277,7 +279,7 @@ export const getCocukNotlar = async (req: AuthRequest, res: Response) => {
 // Çocuğun devamsızlık kayıtlarını getir
 export const getCocukDevamsizlik = async (req: AuthRequest, res: Response) => {
   try {
-    const veliId = req.user?.userId;
+    const veliId = req.user?.id;
     const { cocukId } = req.params;
 
     // Çocuğun bu veliye ait olduğunu doğrula
@@ -333,7 +335,7 @@ export const getCocukDevamsizlik = async (req: AuthRequest, res: Response) => {
 // Çocuğun ödevlerini getir
 export const getCocukOdevler = async (req: AuthRequest, res: Response) => {
   try {
-    const veliId = req.user?.userId;
+    const veliId = req.user?.id;
     const { cocukId } = req.params;
 
     // Çocuğun bu veliye ait olduğunu doğrula
@@ -430,7 +432,7 @@ export const getCocukOdevler = async (req: AuthRequest, res: Response) => {
 // Çocuğun ders programını getir
 export const getCocukDersProgrami = async (req: AuthRequest, res: Response) => {
   try {
-    const veliId = req.user?.userId;
+    const veliId = req.user?.id;
     const { cocukId } = req.params;
 
     // Çocuğun bu veliye ait olduğunu doğrula
@@ -501,7 +503,7 @@ export const getCocukDersProgrami = async (req: AuthRequest, res: Response) => {
 // Çocuğun öğretmenleriyle mesajlaşma - Öğretmenleri listele
 export const getCocukOgretmenler = async (req: AuthRequest, res: Response) => {
   try {
-    const veliId = req.user?.userId;
+    const veliId = req.user?.id;
     const { cocukId } = req.params;
 
     // Çocuğun bu veliye ait olduğunu doğrula
@@ -568,7 +570,7 @@ export const getCocukOgretmenler = async (req: AuthRequest, res: Response) => {
 // Veli - Öğretmen mesajlaşma başlat/devam et
 export const startConversationWithTeacher = async (req: AuthRequest, res: Response) => {
   try {
-    const veliId = req.user?.userId;
+    const veliId = req.user?.id;
     const { ogretmenId, cocukId } = req.body;
 
     // Velinin bu öğrencinin velisi olduğunu doğrula
