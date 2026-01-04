@@ -52,3 +52,6 @@ prisma/*.db-journal
 firebase-service-account.json
 *-firebase-adminsdk-*.json
 backend/firebase-service-account.json
+
+# Sunum Dosyaları (Gizli)
+Sunum/

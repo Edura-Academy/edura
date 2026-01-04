@@ -193,7 +193,7 @@ model Sinif {
   @@index([seviye])
 }
 
-// Dersler/Kurslar
+// Dersler (veritabanında "Ders" tablosu)
 model Course {
   id              String   @id @default(uuid())
   ad              String
@@ -221,14 +221,15 @@ model Course {
 
   @@index([sinifId])
   @@index([ogretmenId])
+  @@map("Ders")
 }
 
-// Ders kayıtları (Öğrenci-Ders ilişkisi)
+// Ders kayıtları (veritabanında "DersKayit" tablosu)
 model CourseEnrollment {
   id          String   @id @default(uuid())
   ogrenciId   String
   ogrenci     User     @relation(fields: [ogrenciId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  courseId    String
+  courseId    String   @map("dersId")
   course      Course   @relation(fields: [courseId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   kayitTarihi DateTime @default(now())
   aktif       Boolean  @default(true)
@@ -239,6 +240,7 @@ model CourseEnrollment {
   @@unique([ogrenciId, courseId])
   @@index([ogrenciId])
   @@index([courseId])
+  @@map("DersKayit")
 }
 
 // Sınavlar

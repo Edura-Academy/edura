@@ -161,6 +161,156 @@ export const getSinavDetay = async (req: AuthRequest, res: Response) => {
   }
 };
 
+// Sınav güncelle
+export const updateSinav = async (req: AuthRequest, res: Response) => {
+  try {
+    const ogretmenId = req.user?.id;
+    const { sinavId } = req.params;
+    const { 
+      baslik, aciklama, courseId, dersAdi, bransKodu, sure, 
+      baslangicTarihi, bitisTarihi, maksimumPuan,
+      karistir, geriDonus, sonucGoster
+    } = req.body;
+
+    // Sınavın öğretmene ait olduğunu kontrol et
+    const sinav = await prisma.onlineSinav.findFirst({
+      where: { id: sinavId, ogretmenId }
+    });
+
+    if (!sinav) {
+      return res.status(404).json({ success: false, message: 'Sınav bulunamadı' });
+    }
+
+    // Aktif sınav düzenlenemez
+    if (sinav.durum === 'AKTIF') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Aktif sınav düzenlenemez. Önce taslağa alın.' 
+      });
+    }
+
+    // Eğer courseId değiştirildiyse yetki kontrolü
+    if (courseId && courseId !== sinav.courseId) {
+      const course = await prisma.course.findFirst({
+        where: { id: courseId, ogretmenId }
+      });
+      if (!course) {
+        return res.status(403).json({ success: false, message: 'Bu derse erişim yetkiniz yok' });
+      }
+    }
+
+    const updatedSinav = await prisma.onlineSinav.update({
+      where: { id: sinavId },
+      data: {
+        baslik,
+        aciklama,
+        courseId: courseId || null,
+        dersAdi: dersAdi || null,
+        bransKodu: bransKodu || null,
+        sure,
+        maksimumPuan,
+        baslangicTarihi: baslangicTarihi ? new Date(baslangicTarihi) : undefined,
+        bitisTarihi: bitisTarihi ? new Date(bitisTarihi) : undefined,
+        karistir,
+        geriDonus,
+        sonucGoster
+      },
+      include: {
+        course: { select: { id: true, ad: true } },
+        sorular: { orderBy: { siraNo: 'asc' } }
+      }
+    });
+
+    res.json({ success: true, message: 'Sınav güncellendi', data: updatedSinav });
+  } catch (error) {
+    console.error('Sınav güncelleme hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+// Sınavı taslağa al (yayından kaldır)
+export const unpublishSinav = async (req: AuthRequest, res: Response) => {
+  try {
+    const ogretmenId = req.user?.id;
+    const { sinavId } = req.params;
+
+    const sinav = await prisma.onlineSinav.findFirst({
+      where: { id: sinavId, ogretmenId },
+      include: { oturumlar: { where: { tamamlandi: false } } }
+    });
+
+    if (!sinav) {
+      return res.status(404).json({ success: false, message: 'Sınav bulunamadı' });
+    }
+
+    if (sinav.durum !== 'AKTIF') {
+      return res.status(400).json({ success: false, message: 'Sadece aktif sınavlar taslağa alınabilir' });
+    }
+
+    // Devam eden oturumlar varsa uyarı ver
+    if (sinav.oturumlar.length > 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: `${sinav.oturumlar.length} öğrenci henüz sınavı tamamlamadı. Önce bekleyin veya sınavı bitirin.` 
+      });
+    }
+
+    await prisma.onlineSinav.update({
+      where: { id: sinavId },
+      data: { durum: 'TASLAK' }
+    });
+
+    res.json({ success: true, message: 'Sınav taslağa alındı' });
+  } catch (error) {
+    console.error('Sınav taslağa alma hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+// Sınav sil
+export const deleteSinav = async (req: AuthRequest, res: Response) => {
+  try {
+    const ogretmenId = req.user?.id;
+    const { sinavId } = req.params;
+
+    const sinav = await prisma.onlineSinav.findFirst({
+      where: { id: sinavId, ogretmenId },
+      include: { oturumlar: true }
+    });
+
+    if (!sinav) {
+      return res.status(404).json({ success: false, message: 'Sınav bulunamadı' });
+    }
+
+    // Aktif sınav silinemez
+    if (sinav.durum === 'AKTIF') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Aktif sınav silinemez. Önce taslağa alın.' 
+      });
+    }
+
+    // Eğer oturum varsa (birileri girmiş), sınav silinemez
+    if (sinav.oturumlar.length > 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Bu sınava katılım olmuş, silinemez. Arşivlemeyi düşünün.' 
+      });
+    }
+
+    // Önce soruları sil (cascade değilse)
+    await prisma.onlineSoru.deleteMany({ where: { sinavId } });
+    
+    // Sonra sınavı sil
+    await prisma.onlineSinav.delete({ where: { id: sinavId } });
+
+    res.json({ success: true, message: 'Sınav silindi' });
+  } catch (error) {
+    console.error('Sınav silme hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
 // Soru ekle
 export const addSoru = async (req: AuthRequest, res: Response) => {
   try {

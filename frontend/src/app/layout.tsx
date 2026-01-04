@@ -5,6 +5,29 @@ export const metadata: Metadata = {
   title: "Edura - Eğitim Yönetim Sistemi",
   description: "Modern eğitim yönetim platformu - Öğrenci, öğretmen ve veli takip sistemi",
   manifest: "/manifest.json",
+  metadataBase: new URL("https://myedura.com"),
+  openGraph: {
+    title: "Edura - Eğitim Yönetim Sistemi",
+    description: "Modern eğitim yönetim platformu - Öğrenci, öğretmen ve veli takip sistemi",
+    url: "https://myedura.com",
+    siteName: "Edura",
+    images: [
+      {
+        url: "/logos/Edura-logo-gradient.png",
+        width: 512,
+        height: 512,
+        alt: "Edura Logo",
+      },
+    ],
+    locale: "tr_TR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Edura - Eğitim Yönetim Sistemi",
+    description: "Modern eğitim yönetim platformu - Öğrenci, öğretmen ve veli takip sistemi",
+    images: ["/logos/Edura-logo-gradient.png"],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -15,11 +38,12 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
+      { url: "/logos/Edura-logo-gradient.png", sizes: "any", type: "image/png" },
+      { url: "/logos/Edura-logo-gradient-lower-res.png", sizes: "32x32", type: "image/png" },
     ],
+    shortcut: "/logos/Edura-logo-gradient.png",
     apple: [
-      { url: "/icons/icon-152x152.png", sizes: "152x152", type: "image/png" },
+      { url: "/logos/Edura-logo-gradient.png", sizes: "180x180", type: "image/png" },
     ],
   },
 };
@@ -40,7 +64,8 @@ export default function RootLayout({
   return (
     <html lang="tr" suppressHydrationWarning>
       <head>
-        <link rel="apple-touch-icon" href="/icons/icon-152x152.png" />
+        <link rel="icon" type="image/png" href="/logos/Edura-logo-gradient.png" />
+        <link rel="apple-touch-icon" href="/logos/Edura-logo-gradient.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="mobile-web-app-capable" content="yes" />
       </head>

@@ -4,6 +4,9 @@ import {
   createSinav,
   getOgretmenSinavlari,
   getSinavDetay,
+  updateSinav,
+  unpublishSinav,
+  deleteSinav,
   addSoru,
   updateSoru,
   deleteSoru,
@@ -27,7 +30,10 @@ const router = Router();
 router.post('/', authenticateToken, authorizeRoles('ogretmen', 'mudur'), createSinav);
 router.get('/ogretmen', authenticateToken, authorizeRoles('ogretmen', 'mudur'), getOgretmenSinavlari);
 router.get('/ogretmen/:sinavId', authenticateToken, authorizeRoles('ogretmen', 'mudur'), getSinavDetay);
+router.put('/ogretmen/:sinavId', authenticateToken, authorizeRoles('ogretmen', 'mudur'), updateSinav);
+router.delete('/ogretmen/:sinavId', authenticateToken, authorizeRoles('ogretmen', 'mudur'), deleteSinav);
 router.post('/ogretmen/:sinavId/yayinla', authenticateToken, authorizeRoles('ogretmen', 'mudur'), publishSinav);
+router.post('/ogretmen/:sinavId/taslak', authenticateToken, authorizeRoles('ogretmen', 'mudur'), unpublishSinav);
 router.get('/ogretmen/:sinavId/sonuclar', authenticateToken, authorizeRoles('ogretmen', 'mudur'), getSinavSonuclari);
 
 // Soru yönetimi
