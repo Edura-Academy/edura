@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from 'next-intl/plugin';
+// @ts-expect-error - next-pwa has no type declarations
 import withPWAInit from 'next-pwa';
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
