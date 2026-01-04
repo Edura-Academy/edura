@@ -32,6 +32,10 @@ const UPLOADS_DIR = path.join(__dirname, '../../uploads');
  * ├── students/
  * │   └── {ogrenciId}/
  * │       └── belgeler/
+ * ├── deneme-sinavlari/
+ * │   └── {denemeId}/
+ * │       └── sorular/
+ * │           └── {soruId}/
  * └── documents/
  *     ├── odev/
  *     ├── sinav/
@@ -110,6 +114,18 @@ export const getStudentDocumentPath = (ogrenciId: number | string): string => {
  */
 export const getDocumentPath = (documentType: string = 'diger'): string => {
   return `documents/${documentType.toLowerCase()}`;
+};
+
+/**
+ * Deneme sınavı soru resmi için klasör yolu oluştur
+ * @param denemeId - Deneme sınavı ID'si
+ * @param soruId - Soru ID'si (opsiyonel)
+ */
+export const getDenemeSoruImagePath = (denemeId: string, soruId?: string): string => {
+  if (soruId) {
+    return `deneme-sinavlari/${denemeId}/sorular/${soruId}`;
+  }
+  return `deneme-sinavlari/${denemeId}/sorular`;
 };
 
 // ==================== UPLOAD FONKSİYONLARI ====================
@@ -354,5 +370,35 @@ export const uploadDocument = async (
   documentType: string = 'diger'
 ): Promise<UploadResult> => {
   const folder = getDocumentPath(documentType);
+  return uploadToFirebase(file, folder);
+};
+
+/**
+ * Deneme sınavı soru resmi yükle (max 8MB)
+ */
+export const uploadDenemeSoruImage = async (
+  file: Express.Multer.File,
+  denemeId: string,
+  soruId?: string
+): Promise<UploadResult> => {
+  // Dosya boyutu kontrolü (8MB)
+  const MAX_SIZE = 8 * 1024 * 1024; // 8MB
+  if (file.size > MAX_SIZE) {
+    return {
+      success: false,
+      error: 'Dosya boyutu 8MB\'dan büyük olamaz',
+    };
+  }
+
+  // Sadece resim dosyalarını kabul et
+  const allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+  if (!allowedMimes.includes(file.mimetype)) {
+    return {
+      success: false,
+      error: 'Sadece resim dosyaları yüklenebilir (JPEG, PNG, GIF, WebP)',
+    };
+  }
+
+  const folder = getDenemeSoruImagePath(denemeId, soruId);
   return uploadToFirebase(file, folder);
 };

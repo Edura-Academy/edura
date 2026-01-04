@@ -160,6 +160,11 @@ model User {
   denemeSonuclari            DenemeSonucu[] @relation("OgrenciDenemeSonuclari")
   girdigiDenemeSonuclari     DenemeSonucu[] @relation("DenemeSonucuGiren")
   
+  // Kurum İçi Deneme Sınavı ilişkileri
+  kurumIciDenemeler          KurumIciDeneme[] @relation("KurumIciDenemeOlusturan")
+  soruPaketleri              DenemeSoruPaketi[] @relation("OgretmenSoruPaketleri")
+  denemeOturumlari           DenemeOturumu[] @relation("OgrenciDenemeOturumlari")
+  
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -983,34 +988,44 @@ enum DenemeTuru {
 }
 
 enum DenemeBrans {
-  // TYT Branşları
-  TYT_TURKCE
-  TYT_MATEMATIK
-  TYT_SOSYAL
-  TYT_FEN
+  // TYT Branşları (120 soru)
+  TYT_TURKCE        // 40 soru
+  TYT_MATEMATIK     // 40 soru
+  // Sosyal Bilimler (20 soru)
+  TYT_TARIH         // 5 soru
+  TYT_COGRAFYA      // 5 soru
+  TYT_FELSEFE       // 5 soru
+  TYT_DIN           // 5 soru
+  // Fen Bilimleri (20 soru)
+  TYT_FIZIK         // 7 soru
+  TYT_KIMYA         // 7 soru
+  TYT_BIYOLOJI      // 6 soru
   
-  // AYT Branşları
-  AYT_MATEMATIK
-  AYT_FIZIK
-  AYT_KIMYA
-  AYT_BIYOLOJI
-  AYT_EDEBIYAT
-  AYT_TARIH1
-  AYT_COGRAFYA1
-  AYT_TARIH2
-  AYT_COGRAFYA2
-  AYT_FELSEFE
-  AYT_DIN
+  // AYT Branşları (160 soru)
+  AYT_MATEMATIK     // 40 soru
+  // Fen Bilimleri (40 soru)
+  AYT_FIZIK         // 14 soru
+  AYT_KIMYA         // 13 soru
+  AYT_BIYOLOJI      // 13 soru
+  // Edebiyat-Sosyal 1 (40 soru)
+  AYT_EDEBIYAT      // 24 soru
+  AYT_TARIH1        // 10 soru
+  AYT_COGRAFYA1     // 6 soru
+  // Sosyal Bilimler 2 (40 soru)
+  AYT_TARIH2        // 11 soru
+  AYT_COGRAFYA2     // 11 soru
+  AYT_FELSEFE       // 12 soru
+  AYT_DIN           // 6 soru
   
-  // LGS Branşları
-  LGS_TURKCE
-  LGS_MATEMATIK
-  LGS_FEN
-  LGS_SOSYAL
-  LGS_DIN
-  LGS_INGILIZCE
+  // LGS Branşları (90 soru)
+  LGS_TURKCE        // 20 soru
+  LGS_MATEMATIK     // 20 soru
+  LGS_FEN           // 20 soru
+  LGS_INKILAP       // 10 soru (T.C. İnkılap Tarihi ve Atatürkçülük)
+  LGS_DIN           // 10 soru
+  LGS_INGILIZCE     // 10 soru
   
-  // Yabancı Dil
+  // Yabancı Dil Testleri
   YDT_INGILIZCE
   YDT_ALMANCA
   YDT_FRANSIZCA
@@ -1392,4 +1407,136 @@ model FAQ {
   @@index([kategori])
   @@index([aktif])
   @@index([siraNo])
+}
+
+// ================== KURUM İÇİ DENEME SINAVI SİSTEMİ ==================
+
+enum KurumIciDenemeDurum {
+  HAZIRLANIYOR    // Öğretmenler soru hazırlıyor
+  ONAY_BEKLIYOR   // Müdür onayı bekliyor
+  AKTIF           // Yayında, öğrenciler çözebilir
+  TAMAMLANDI      // Sınav süresi doldu
+  IPTAL           // İptal edildi
+}
+
+// Kurum İçi Deneme Sınavı (Müdür tarafından başlatılır)
+model KurumIciDeneme {
+  id              String       @id @default(uuid())
+  ad              String       // "2024 Ocak LGS Denemesi"
+  tur             DenemeTuru   // TYT, AYT, LGS
+  
+  // Hedef sınıflar (JSON array)
+  // Örnek: ["9-A", "9-B", "10-A"] veya ["8-A", "8-B"] LGS için
+  hedefSiniflar   String       @db.Text
+  
+  // Sınav zamanlaması
+  baslangicTarihi DateTime
+  bitisTarihi     DateTime
+  sure            Int          // dakika cinsinden toplam süre
+  
+  // Durum
+  durum           KurumIciDenemeDurum @default(HAZIRLANIYOR)
+  
+  // Oluşturan (Müdür)
+  olusturanId     String
+  olusturan       User         @relation("KurumIciDenemeOlusturan", fields: [olusturanId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  // Branş soru paketleri
+  soruPaketleri   DenemeSoruPaketi[]
+  
+  // Öğrenci oturumları
+  oturumlar       DenemeOturumu[]
+  
+  aciklama        String?      @db.Text
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([tur])
+  @@index([durum])
+  @@index([baslangicTarihi])
+  @@index([olusturanId])
+}
+
+// Branş bazlı soru paketi (Her öğretmen kendi branşı için hazırlar)
+model DenemeSoruPaketi {
+  id              String       @id @default(uuid())
+  
+  denemeId        String
+  deneme          KurumIciDeneme @relation(fields: [denemeId], references: [id], onDelete: Cascade)
+  
+  // Branş bilgisi
+  bransKodu       DenemeBrans  // TYT_TURKCE, LGS_MATEMATIK, vs.
+  bransAdi        String       // "Türkçe", "Matematik", vs.
+  soruSayisi      Int          // Bu branş için beklenen soru sayısı
+  
+  // Hazırlayan öğretmen
+  ogretmenId      String
+  ogretmen        User         @relation("OgretmenSoruPaketleri", fields: [ogretmenId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  // Sorular (JSON array)
+  // Her soru: { 
+  //   id: uuid,
+  //   soruMetni: string, 
+  //   resimUrl?: string (max 8MB, Firebase Storage),
+  //   secenekA: string,
+  //   secenekB: string,
+  //   secenekC: string,
+  //   secenekD: string,
+  //   secenekE?: string (LGS için null),
+  //   dogruCevap: 'A'|'B'|'C'|'D'|'E', 
+  //   puan: number
+  // }
+  sorular         String?      @db.LongText
+  
+  // Onay durumu
+  hazirMi         Boolean      @default(false)  // Öğretmen tamamladı mı
+  onaylandiMi     Boolean      @default(false)  // Müdür onayladı mı
+  onaylayanId     String?
+  onayTarihi      DateTime?
+  
+  // Geri bildirim (müdürden öğretmene)
+  geriBildirim    String?      @db.Text
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([denemeId, bransKodu])
+  @@index([denemeId])
+  @@index([ogretmenId])
+  @@index([hazirMi])
+  @@index([onaylandiMi])
+}
+
+// Öğrenci deneme oturumu
+model DenemeOturumu {
+  id              String       @id @default(uuid())
+  
+  denemeId        String
+  deneme          KurumIciDeneme @relation(fields: [denemeId], references: [id], onDelete: Cascade)
+  
+  ogrenciId       String
+  ogrenci         User         @relation("OgrenciDenemeOturumlari", fields: [ogrenciId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  baslangicZamani DateTime     @default(now())
+  bitisZamani     DateTime?
+  
+  // Cevaplar (JSON)
+  // { "TYT_TURKCE": ["A", "B", "C", ...], "TYT_MATEMATIK": [...] }
+  cevaplar        String?      @db.LongText
+  
+  // Sonuçlar (hesaplanan)
+  // { "TYT_TURKCE": { dogru: 30, yanlis: 8, bos: 2, net: 28 }, ... }
+  sonuclar        String?      @db.LongText
+  toplamNet       Float?
+  
+  tamamlandi      Boolean      @default(false)
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([denemeId, ogrenciId])
+  @@index([denemeId])
+  @@index([ogrenciId])
+  @@index([tamamlandi])
 }

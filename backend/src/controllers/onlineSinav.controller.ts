@@ -3,12 +3,58 @@ import prisma from '../config/database';
 import { AuthRequest } from '../middleware/auth';
 import { pushService } from '../services/push.service';
 
+// ==================== BRANŞ KONTROLÜ ====================
+
+// Öğretmen branşı ile ders adı eşleştirme
+const bransEslestirme: Record<string, string[]> = {
+  'turkce': ['türkçe', 'turkce'],
+  'matematik': ['matematik', 'geometri'],
+  'fizik': ['fizik', 'fen bilimleri', 'fen'],
+  'kimya': ['kimya', 'fen bilimleri', 'fen'],
+  'biyoloji': ['biyoloji', 'fen bilimleri', 'fen'],
+  'fen bilimleri': ['fen bilimleri', 'fen', 'fizik', 'kimya', 'biyoloji'],
+  'fen': ['fen bilimleri', 'fen', 'fizik', 'kimya', 'biyoloji'],
+  'tarih': ['tarih', 'sosyal bilgiler', 'sosyal'],
+  'cografya': ['coğrafya', 'cografya', 'sosyal bilgiler', 'sosyal'],
+  'coğrafya': ['coğrafya', 'cografya', 'sosyal bilgiler', 'sosyal'],
+  'sosyal bilgiler': ['sosyal bilgiler', 'sosyal', 'tarih', 'coğrafya', 'cografya'],
+  'sosyal': ['sosyal bilgiler', 'sosyal', 'tarih', 'coğrafya', 'cografya'],
+  'felsefe': ['felsefe'],
+  'din kültürü': ['din kültürü', 'din', 'dkab'],
+  'din': ['din kültürü', 'din', 'dkab'],
+  'ingilizce': ['ingilizce', 'yabancı dil', 'foreign language'],
+  'almanca': ['almanca'],
+  'edebiyat': ['edebiyat', 'türk dili ve edebiyatı'],
+  'türk dili ve edebiyatı': ['türk dili ve edebiyatı', 'edebiyat', 'türkçe'],
+};
+
+// Öğretmenin branşı ile ders adının uyumlu olup olmadığını kontrol et
+const bransUyumluMu = (ogretmenBrans: string | null, dersAdi: string): boolean => {
+  if (!ogretmenBrans) return false;
+  
+  const normalizedBrans = ogretmenBrans.toLowerCase().trim();
+  const normalizedDersAdi = dersAdi.toLowerCase().trim();
+  
+  // Direkt eşleşme
+  if (normalizedBrans === normalizedDersAdi) return true;
+  
+  // Eşleştirme tablosundan kontrol
+  const uygunDersler = bransEslestirme[normalizedBrans];
+  if (uygunDersler) {
+    return uygunDersler.some(d => normalizedDersAdi.includes(d) || d.includes(normalizedDersAdi));
+  }
+  
+  // Kısmi eşleşme
+  return normalizedDersAdi.includes(normalizedBrans) || normalizedBrans.includes(normalizedDersAdi);
+};
+
 // ==================== ÖĞRETMEN - SINAV YÖNETİMİ ====================
 
 // Sınav oluştur
 export const createSinav = async (req: AuthRequest, res: Response) => {
   try {
     const ogretmenId = req.user?.id;
+    const userRole = req.user?.role;
     
     if (!ogretmenId) {
       return res.status(401).json({ success: false, message: 'Yetkilendirme hatası' });
@@ -22,6 +68,25 @@ export const createSinav = async (req: AuthRequest, res: Response) => {
     } = req.body;
 
     let finalCourseId = courseId;
+
+    // Öğretmenin branş bilgisini al (müdür hariç)
+    if (userRole === 'ogretmen') {
+      const ogretmen = await prisma.user.findUnique({
+        where: { id: ogretmenId },
+        select: { brans: true }
+      });
+
+      // Branş kontrolü
+      const secilenDersAdi = dersAdi || '';
+      if (secilenDersAdi && ogretmen?.brans) {
+        if (!bransUyumluMu(ogretmen.brans, secilenDersAdi)) {
+          return res.status(403).json({ 
+            success: false, 
+            message: `Branşınız (${ogretmen.brans}) ile seçilen ders (${secilenDersAdi}) uyumlu değil. Sadece kendi branşınızda sınav oluşturabilirsiniz.` 
+          });
+        }
+      }
+    }
 
     // Eğer courseId verilmişse (gerçek bir ders seçilmişse) kontrol et
     if (courseId) {

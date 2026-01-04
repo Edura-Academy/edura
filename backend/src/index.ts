@@ -27,6 +27,7 @@ import materyalRoutes from './routes/materyal.routes';
 import birebirDersRoutes from './routes/birebirDers.routes';
 import gamificationRoutes from './routes/gamification.routes';
 import denemeRoutes from './routes/deneme.routes';
+import kurumIciDenemeRoutes from './routes/kurumIciDeneme.routes';
 import testRoutes from './routes/test.routes';
 import adminSystemRoutes from './routes/admin-system.routes';
 
@@ -67,6 +68,7 @@ app.use('/api/materyaller', materyalRoutes);
 app.use('/api/birebir-ders', birebirDersRoutes);
 app.use('/api/gamification', gamificationRoutes);
 app.use('/api/deneme', denemeRoutes);
+app.use('/api/kurum-ici-deneme', kurumIciDenemeRoutes);
 app.use('/api/test', testRoutes);
 app.use('/api/admin-system', adminSystemRoutes);
 
