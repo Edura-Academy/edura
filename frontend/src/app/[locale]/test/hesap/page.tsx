@@ -204,8 +204,10 @@ export default function TestHesapPage() {
       setCurrentUser({ email: data.data.user.email, role: data.data.user.role });
 
       // Role göre YENİ SEKMEDE aç (test sayfası açık kalır)
+      // localhost'ta çalışırken localhost, production'da production URL kullanır
       const targetPath = roleHomeMap[data.data.user.role] || '/login';
-      window.open(targetPath, '_blank');
+      const fullUrl = `${window.location.origin}${targetPath}`;
+      window.open(fullUrl, '_blank');
       
       setLoginLoading(null);
     } catch (err) {
