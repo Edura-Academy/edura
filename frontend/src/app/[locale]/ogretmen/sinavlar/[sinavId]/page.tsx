@@ -610,7 +610,12 @@ function SinavDetayContent() {
                         </span>
                         <div>
                           <p className="text-slate-800 text-sm line-clamp-1">{soru.soruMetni}</p>
-                          <p className="text-xs text-slate-500">Doğru: {soru.dogruCevap} • {soru.puan} puan</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs text-slate-500">Doğru: {soru.dogruCevap} • {soru.puan} puan</p>
+                            {soru.resimUrl && (
+                              <span className="text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">📷 Resimli</span>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -630,30 +635,48 @@ function SinavDetayContent() {
                       </div>
                     </div>
                     
-                    {expandedSoru === soru.id && soru.secenekler && (
+                    {expandedSoru === soru.id && (
                       <div className="px-4 pb-4 pt-2 border-t border-slate-100 bg-slate-50">
-                        <div className="grid grid-cols-1 gap-2">
-                          {soru.secenekler.map((secenek, i) => {
-                            const harf = ['A', 'B', 'C', 'D', 'E'][i];
-                            const isCorrect = soru.dogruCevap === harf;
-                            return secenek ? (
-                              <div 
-                                key={i}
-                                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${
-                                  isCorrect 
-                                    ? 'bg-green-100 text-green-800 border border-green-200' 
-                                    : 'bg-white text-slate-700 border border-slate-200'
-                                }`}
-                              >
-                                <span className={`font-medium ${isCorrect ? 'text-green-600' : 'text-slate-500'}`}>
-                                  {harf})
-                                </span>
-                                {secenek}
-                                {isCorrect && <CheckCircle className="w-4 h-4 ml-auto text-green-600" />}
-                              </div>
-                            ) : null;
-                          })}
-                        </div>
+                        {/* Soru Resmi */}
+                        {soru.resimUrl && (
+                          <div className="mb-3 rounded-lg overflow-hidden border border-slate-200 bg-white">
+                            <img 
+                              src={soru.resimUrl} 
+                              alt={`Soru ${index + 1} görseli`}
+                              className="w-full max-h-48 object-contain"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                              }}
+                            />
+                          </div>
+                        )}
+                        
+                        {/* Seçenekler */}
+                        {soru.secenekler && (
+                          <div className="grid grid-cols-1 gap-2">
+                            {soru.secenekler.map((secenek, i) => {
+                              const harf = ['A', 'B', 'C', 'D', 'E'][i];
+                              const isCorrect = soru.dogruCevap === harf;
+                              return secenek ? (
+                                <div 
+                                  key={i}
+                                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${
+                                    isCorrect 
+                                      ? 'bg-green-100 text-green-800 border border-green-200' 
+                                      : 'bg-white text-slate-700 border border-slate-200'
+                                  }`}
+                                >
+                                  <span className={`font-medium ${isCorrect ? 'text-green-600' : 'text-slate-500'}`}>
+                                    {harf})
+                                  </span>
+                                  {secenek}
+                                  {isCorrect && <CheckCircle className="w-4 h-4 ml-auto text-green-600" />}
+                                </div>
+                              ) : null;
+                            })}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -812,7 +835,23 @@ function SinavDetayContent() {
                 const soru = sinav.sorular[currentPreviewIndex];
                 return (
                   <div>
-                    <p className="text-lg text-slate-800 mb-6">{soru.soruMetni}</p>
+                    {/* Soru Metni */}
+                    <p className="text-lg text-slate-800 mb-4">{soru.soruMetni}</p>
+                    
+                    {/* Soru Resmi */}
+                    {soru.resimUrl && (
+                      <div className="mb-6 rounded-xl overflow-hidden border border-slate-200 bg-slate-50">
+                        <img 
+                          src={soru.resimUrl} 
+                          alt={`Soru ${currentPreviewIndex + 1} görseli`}
+                          className="w-full max-h-80 object-contain"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                          }}
+                        />
+                      </div>
+                    )}
                     
                     {soru.secenekler && (
                       <div className="space-y-3">
