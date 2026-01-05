@@ -767,16 +767,14 @@ export const getOgrenciDenemeSonuclari = async (req: AuthRequest, res: Response)
           select: { 
             id: true,
             baslik: true, 
-            dersAdi: true, 
-            toplamPuan: true,
+            dersAdi: true,
             course: { select: { ad: true } }
           }
         },
         cevaplar: {
           select: { 
             dogruMu: true,
-            puan: true,
-            secilenCevap: true
+            cevap: true
           }
         }
       },
@@ -784,22 +782,24 @@ export const getOgrenciDenemeSonuclari = async (req: AuthRequest, res: Response)
       take: 20
     });
 
-    const denemeSonuclari = sinavOturumlari.map(oturum => {
-      const dogruSayisi = oturum.cevaplar.filter(c => c.dogruMu).length;
-      const yanlisSayisi = oturum.cevaplar.filter(c => !c.dogruMu && c.secilenCevap).length;
-      const bosSayisi = oturum.cevaplar.filter(c => !c.secilenCevap).length;
+    const denemeSonuclari = (sinavOturumlari as any[]).map((oturum: any) => {
+      const cevaplar = oturum.cevaplar || [];
+      const sinav = oturum.sinav || {};
+      const dogruSayisi = cevaplar.filter((c: any) => c.dogruMu).length;
+      const yanlisSayisi = cevaplar.filter((c: any) => !c.dogruMu && c.cevap).length;
+      const bosSayisi = cevaplar.filter((c: any) => !c.cevap).length;
 
       return {
         id: oturum.id,
-        sinavId: oturum.sinav.id,
-        sinavAd: oturum.sinav.baslik,
-        dersAd: oturum.sinav.course?.ad || oturum.sinav.dersAdi || 'Genel Deneme',
+        sinavId: sinav.id || oturum.sinavId,
+        sinavAd: sinav.baslik || 'Sınav',
+        dersAd: sinav.course?.ad || sinav.dersAdi || 'Genel Deneme',
         tarih: oturum.bitisZamani,
         dogru: dogruSayisi,
         yanlis: yanlisSayisi,
         bos: bosSayisi,
-        toplam: oturum.cevaplar.length,
-        yuzde: oturum.yuzde || Math.round((dogruSayisi / oturum.cevaplar.length) * 100),
+        toplam: cevaplar.length,
+        yuzde: oturum.yuzde || (cevaplar.length > 0 ? Math.round((dogruSayisi / cevaplar.length) * 100) : 0),
         toplamPuan: oturum.toplamPuan || 0
       };
     });
