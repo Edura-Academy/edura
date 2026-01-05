@@ -851,7 +851,7 @@ function OgretmenOdevlerContent() {
                     <option value="">Ders seçin...</option>
                     {courses.map((course) => (
                       <option key={course.id} value={course.id}>
-                        {course.ad} - {course.sinif.ad}
+                        {course.ad}
                       </option>
                     ))}
                   </select>
