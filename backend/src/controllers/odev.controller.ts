@@ -133,7 +133,7 @@ export const getTeacherCourses = async (req: AuthRequest, res: Response) => {
     });
 
     // Branşa uygun dersleri filtrele
-    const courses = tumDersler.filter(ders => {
+    const filtrelenmis = tumDersler.filter(ders => {
       const dersAdi = ders.ad.toLowerCase();
       
       // 1. Kendi atanmış dersleri her zaman göster
@@ -150,7 +150,17 @@ export const getTeacherCourses = async (req: AuthRequest, res: Response) => {
       return false;
     });
 
-    console.log(`📚 Öğretmen branşı: ${ogretmenBrans}, Bulunan ders sayısı: ${courses.length}`);
+    // Benzersiz ders adlarını çıkar (sadece ders adı gösterilsin, sınıf bilgisi ayrı)
+    const benzersizDersAdlari = new Set<string>();
+    const courses = filtrelenmis.filter(ders => {
+      if (benzersizDersAdlari.has(ders.ad)) {
+        return false;
+      }
+      benzersizDersAdlari.add(ders.ad);
+      return true;
+    });
+
+    console.log(`📚 Öğretmen branşı: ${ogretmenBrans}, Bulunan benzersiz ders sayısı: ${courses.length}`);
 
     res.json({ success: true, data: courses });
   } catch (error) {
