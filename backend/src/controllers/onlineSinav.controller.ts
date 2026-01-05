@@ -604,7 +604,21 @@ export const getAktifSinavlar = async (req: AuthRequest, res: Response) => {
     const ogrenciId = req.user?.id;
     const now = new Date();
 
-    // Öğrencinin kayıtlı olduğu derslerin sınavları
+    // Öğrencinin bilgilerini al (sınıf bilgisi dahil)
+    const ogrenci = await prisma.user.findUnique({
+      where: { id: ogrenciId },
+      select: { 
+        id: true, 
+        sinifId: true,
+        sinif: { select: { id: true, ad: true } }
+      }
+    });
+
+    if (!ogrenci) {
+      return res.status(404).json({ success: false, message: 'Öğrenci bulunamadı' });
+    }
+
+    // Öğrencinin kayıtlı olduğu derslerin ID'lerini al
     const kayitlar = await prisma.courseEnrollment.findMany({
       where: { ogrenciId, aktif: true },
       select: { courseId: true }
@@ -612,12 +626,22 @@ export const getAktifSinavlar = async (req: AuthRequest, res: Response) => {
 
     const courseIds = kayitlar.map(k => k.courseId);
 
+    // Sınavları getir: CourseEnrollment VEYA hedefSiniflar üzerinden erişim
     const sinavlar = await prisma.onlineSinav.findMany({
       where: {
-        courseId: { in: courseIds },
         durum: 'AKTIF',
         baslangicTarihi: { lte: now },
-        bitisTarihi: { gte: now }
+        bitisTarihi: { gte: now },
+        OR: [
+          // 1. Ders kaydı üzerinden erişim (CourseEnrollment)
+          { courseId: { in: courseIds.length > 0 ? courseIds : ['none'] } },
+          // 2. Hedef sınıf üzerinden erişim (hedefSiniflar JSON alanı)
+          ...(ogrenci.sinifId ? [{ hedefSiniflar: { contains: ogrenci.sinifId } }] : []),
+          // 3. Sınıf adı üzerinden erişim (5A, 5B gibi)
+          ...(ogrenci.sinif?.ad ? [{ hedefSiniflar: { contains: ogrenci.sinif.ad } }] : []),
+          // 4. Hedef sınıf belirtilmemiş sınavlar (herkese açık)
+          { hedefSiniflar: null, courseId: null }
+        ]
       },
       include: {
         course: { select: { id: true, ad: true } },
@@ -635,7 +659,8 @@ export const getAktifSinavlar = async (req: AuthRequest, res: Response) => {
       id: sinav.id,
       baslik: sinav.baslik,
       aciklama: sinav.aciklama,
-      course: sinav.course,
+      // Course yoksa dersAdi'nı kullan
+      course: sinav.course || { id: sinav.bransKodu || 'genel', ad: sinav.dersAdi || 'Genel Sınav' },
       ogretmen: sinav.ogretmen,
       sure: sinav.sure,
       bitisTarihi: sinav.bitisTarihi,
@@ -659,6 +684,20 @@ export const startSinav = async (req: AuthRequest, res: Response) => {
     const { sinavId } = req.params;
     const now = new Date();
 
+    // Öğrencinin sınıf bilgisini al
+    const ogrenci = await prisma.user.findUnique({
+      where: { id: ogrenciId },
+      select: { 
+        id: true, 
+        sinifId: true,
+        sinif: { select: { id: true, ad: true } }
+      }
+    });
+
+    if (!ogrenci) {
+      return res.status(404).json({ success: false, message: 'Öğrenci bulunamadı' });
+    }
+
     // Sınavı kontrol et
     const sinav = await prisma.onlineSinav.findFirst({
       where: {
@@ -681,10 +720,37 @@ export const startSinav = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ success: false, message: 'Sınav bulunamadı veya aktif değil' });
     }
 
-    // Course'a bağlı sınavlar için kayıt kontrolü yap
-    // Branş bazlı denemeler (courseId null) için bu kontrol atlanır
-    if (sinav.course && sinav.course.kayitlar.length === 0) {
-      return res.status(403).json({ success: false, message: 'Bu derse kayıtlı değilsiniz' });
+    // Erişim kontrolü: CourseEnrollment VEYA hedefSiniflar
+    let erisimVar = false;
+    
+    // 1. Course kaydı üzerinden erişim kontrolü
+    if (sinav.course && sinav.course.kayitlar.length > 0) {
+      erisimVar = true;
+    }
+    
+    // 2. hedefSiniflar üzerinden erişim kontrolü
+    if (!erisimVar && sinav.hedefSiniflar) {
+      try {
+        const hedefSiniflar: string[] = JSON.parse(sinav.hedefSiniflar);
+        // Sınıf ID veya sınıf adı ile eşleşme kontrolü
+        if (ogrenci.sinifId && hedefSiniflar.includes(ogrenci.sinifId)) {
+          erisimVar = true;
+        }
+        if (ogrenci.sinif?.ad && hedefSiniflar.includes(ogrenci.sinif.ad)) {
+          erisimVar = true;
+        }
+      } catch (e) {
+        console.error('hedefSiniflar parse hatası:', e);
+      }
+    }
+    
+    // 3. Herkese açık sınavlar (courseId ve hedefSiniflar null)
+    if (!sinav.courseId && !sinav.hedefSiniflar) {
+      erisimVar = true;
+    }
+    
+    if (!erisimVar) {
+      return res.status(403).json({ success: false, message: 'Bu sınava erişim yetkiniz yok' });
     }
 
     // Mevcut oturum var mı kontrol et

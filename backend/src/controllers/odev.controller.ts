@@ -64,13 +64,14 @@ export const getTeacherCourses = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ success: false, error: 'Yetkisiz erişim' });
     }
 
+    // Öğretmenin bilgilerini al (branş ve kurs)
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { kursId: true, brans: true }
+    });
+
     // Müdür ise tüm kursu derslerini görebilir
     if (userRole === 'mudur') {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { kursId: true }
-      });
-
       const courses = await prisma.course.findMany({
         where: { 
           aktif: true,
@@ -86,14 +87,70 @@ export const getTeacherCourses = async (req: AuthRequest, res: Response) => {
       return res.json({ success: true, data: courses });
     }
 
-    // Öğretmen ise sadece kendi derslerini görebilir
-    const courses = await prisma.course.findMany({
-      where: { ogretmenId: userId, aktif: true },
-      include: {
-        sinif: { select: { id: true, ad: true, seviye: true } }
+    // Öğretmen ise branşına uygun dersleri görebilir
+    const ogretmenBrans = user?.brans?.toLowerCase() || '';
+    
+    // Branş eşleştirme haritası (ders adı -> branşlar)
+    const bransEslestirme: Record<string, string[]> = {
+      'matematik': ['matematik', 'mat'],
+      'türkçe': ['türkçe', 'turkce', 'edebiyat'],
+      'fizik': ['fizik', 'fiz'],
+      'kimya': ['kimya', 'kim'],
+      'biyoloji': ['biyoloji', 'biyo'],
+      'tarih': ['tarih', 'sosyal'],
+      'coğrafya': ['coğrafya', 'cografya', 'sosyal'],
+      'ingilizce': ['ingilizce', 'yabancı dil', 'yabanci dil', 'ing'],
+      'almanca': ['almanca', 'yabancı dil'],
+      'fen': ['fen', 'fen bilimleri', 'fizik', 'kimya', 'biyoloji'],
+      'sosyal': ['sosyal', 'sosyal bilgiler', 'tarih', 'coğrafya'],
+    };
+
+    // Öğretmenin branşına uygun anahtar kelimeleri bul
+    let uygunAnahtarlar: string[] = [];
+    for (const [anahtar, branslar] of Object.entries(bransEslestirme)) {
+      if (branslar.some(b => ogretmenBrans.includes(b))) {
+        uygunAnahtarlar.push(anahtar);
+        uygunAnahtarlar.push(...branslar);
+      }
+    }
+    // Direkt branş adını da ekle
+    if (ogretmenBrans) {
+      uygunAnahtarlar.push(ogretmenBrans);
+    }
+    uygunAnahtarlar = [...new Set(uygunAnahtarlar)]; // Tekrarları kaldır
+
+    // Kursa ait tüm dersleri al
+    const tumDersler = await prisma.course.findMany({
+      where: { 
+        aktif: true,
+        sinif: { kursId: user?.kursId || undefined }
       },
-      orderBy: { ad: 'asc' }
+      include: {
+        sinif: { select: { id: true, ad: true, seviye: true } },
+        ogretmen: { select: { id: true, ad: true, soyad: true, brans: true } }
+      },
+      orderBy: [{ sinif: { seviye: 'asc' } }, { ad: 'asc' }]
     });
+
+    // Branşa uygun dersleri filtrele
+    const courses = tumDersler.filter(ders => {
+      const dersAdi = ders.ad.toLowerCase();
+      
+      // 1. Kendi atanmış dersleri her zaman göster
+      if (ders.ogretmenId === userId) {
+        return true;
+      }
+      
+      // 2. Branşa uygun dersleri göster
+      if (uygunAnahtarlar.length > 0) {
+        return uygunAnahtarlar.some(anahtar => dersAdi.includes(anahtar));
+      }
+      
+      // 3. Branş belirtilmemişse sadece kendi derslerini göster
+      return false;
+    });
+
+    console.log(`📚 Öğretmen branşı: ${ogretmenBrans}, Bulunan ders sayısı: ${courses.length}`);
 
     res.json({ success: true, data: courses });
   } catch (error) {
