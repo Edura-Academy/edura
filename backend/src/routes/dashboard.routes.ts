@@ -9,7 +9,11 @@ import {
   getSekreterBekleyenOdemeler,
   getOgrenciDashboardStats,
   getOgrenciBugunDersler,
-  getOgrenciBekleyenOdevler
+  getOgrenciBekleyenOdevler,
+  getOgrenciHaftalikProgram,
+  getOgrenciOgretmenler,
+  getOgrenciDenemeSonuclari,
+  getOgrenciDevamsizlik
 } from '../controllers/dashboard.controller';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.middleware';
 
@@ -41,6 +45,18 @@ router.get('/ogrenci/bugun-dersler', authenticateToken, authorizeRoles('ogrenci'
 
 // Öğrenci bekleyen ödevler
 router.get('/ogrenci/bekleyen-odevler', authenticateToken, authorizeRoles('ogrenci'), getOgrenciBekleyenOdevler);
+
+// Öğrenci haftalık program
+router.get('/ogrenci/haftalik-program', authenticateToken, authorizeRoles('ogrenci'), getOgrenciHaftalikProgram);
+
+// Öğrenci öğretmenler
+router.get('/ogrenci/ogretmenler', authenticateToken, authorizeRoles('ogrenci'), getOgrenciOgretmenler);
+
+// Öğrenci deneme sonuçları
+router.get('/ogrenci/deneme-sonuclari', authenticateToken, authorizeRoles('ogrenci'), getOgrenciDenemeSonuclari);
+
+// Öğrenci devamsızlık
+router.get('/ogrenci/devamsizlik', authenticateToken, authorizeRoles('ogrenci'), getOgrenciDevamsizlik);
 
 // Öğrenci ilerleme (detaylı)
 router.get('/ogrenci', authenticateToken, authorizeRoles('ogrenci'), getOgrenciIlerleme);

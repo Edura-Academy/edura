@@ -3,19 +3,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import ClientOnlyDate from '../../../components/ClientOnlyDate';
-import {
-  mockDersler,
-  mockDevamsizliklar,
-  mockBildirimler,
-  mockMesajlar,
-  mockSinavSonuclari,
-  mockKurslar,
-  mockOgretmenler,
-  type Ders,
-  type Devamsizlik,
-  type Bildirim,
-  type Mesaj,
-} from '../../../lib/mockData';
 import { useAuth } from '@/contexts/AuthContext';
 import { RoleGuard } from '@/components/RoleGuard';
 
@@ -49,21 +36,87 @@ interface AktifSinav {
   soruSayisi: number;
 }
 
+interface Ogretmen {
+  id: string;
+  ad: string;
+  soyad: string;
+  email: string;
+  brans: string;
+  dersler: string[];
+}
+
+interface HaftalikDers {
+  id: string;
+  ad: string;
+  ogretmen: string;
+  baslangicSaati: string;
+  bitisSaati: string;
+}
+
+interface HaftalikProgram {
+  [gun: string]: HaftalikDers[];
+}
+
+interface DenemeSonuc {
+  id: string;
+  sinavId: string;
+  sinavAd: string;
+  dersAd: string;
+  tarih: string;
+  dogru: number;
+  yanlis: number;
+  bos: number;
+  toplam: number;
+  yuzde: number;
+  toplamPuan: number;
+}
+
+interface DevamsizlikData {
+  istatistik: {
+    toplam: number;
+    katildi: number;
+    katilmadi: number;
+    gecKaldi: number;
+    katilimOrani: number;
+  };
+  sonDevamsizliklar: Array<{
+    id: string;
+    tarih: string;
+    ders: string;
+    durum: string;
+    aciklama: string | null;
+  }>;
+}
+
+interface Bildirim {
+  id: string;
+  baslik: string;
+  mesaj: string;
+  tarih: string;
+  okundu: boolean;
+}
+
+interface Mesaj {
+  id: string;
+  gonderenAd: string;
+  baslik: string;
+  mesaj: string;
+  tarih: string;
+  okundu: boolean;
+}
+
 function OgrenciDashboardContent() {
   const { user, token, logout } = useAuth();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [bugunDersler, setBugunDersler] = useState<BugunDers[]>([]);
   const [aktifSinavlar, setAktifSinavlar] = useState<AktifSinav[]>([]);
+  const [ogretmenler, setOgretmenler] = useState<Ogretmen[]>([]);
+  const [haftalikProgram, setHaftalikProgram] = useState<HaftalikProgram>({});
+  const [denemeSonuclari, setDenemeSonuclari] = useState<DenemeSonuc[]>([]);
+  const [devamsizlikData, setDevamsizlikData] = useState<DevamsizlikData | null>(null);
+  const [bildirimler] = useState<Bildirim[]>([]);
+  const [mesajlar] = useState<Mesaj[]>([]);
   const [loading, setLoading] = useState(true);
-  
-  // Mock data ile çalışan state'ler (API tamamlanana kadar)
-  const [dersler] = useState<Ders[]>(mockDersler);
-  const [devamsizliklar] = useState<Devamsizlik[]>(mockDevamsizliklar);
-  const [bildirimler] = useState<Bildirim[]>(mockBildirimler);
-  const [mesajlar] = useState<Mesaj[]>(mockMesajlar);
-  const [sinavSonuclari] = useState(mockSinavSonuclari);
-  // Kurs bilgisini user'dan al, yoksa mock data kullan
-  const kurs = (user as any)?.kurs || mockKurslar[0];
 
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [showProfilModal, setShowProfilModal] = useState(false);
@@ -75,8 +128,8 @@ function OgrenciDashboardContent() {
 
   // Deneme sınavlarını grupla (sınav bazlı)
   const grupluDenemeler = useMemo(() => {
-    const gruplar: { [key: string]: typeof sinavSonuclari } = {};
-    sinavSonuclari.forEach(sonuc => {
+    const gruplar: { [key: string]: DenemeSonuc[] } = {};
+    denemeSonuclari.forEach(sonuc => {
       if (!gruplar[sonuc.sinavAd]) {
         gruplar[sonuc.sinavAd] = [];
       }
@@ -85,13 +138,13 @@ function OgrenciDashboardContent() {
     return Object.entries(gruplar).map(([sinavAd, sonuclar]) => ({
       sinavAd,
       sonuclar,
-      tarih: sonuclar[0].tarih,
-      ortalama: sonuclar.reduce((acc, s) => acc + s.yuzde, 0) / sonuclar.length,
+      tarih: sonuclar[0]?.tarih || new Date().toISOString(),
+      ortalama: sonuclar.length > 0 ? sonuclar.reduce((acc, s) => acc + s.yuzde, 0) / sonuclar.length : 0,
       toplamDogru: sonuclar.reduce((acc, s) => acc + s.dogru, 0),
       toplamYanlis: sonuclar.reduce((acc, s) => acc + s.yanlis, 0),
       toplamBos: sonuclar.reduce((acc, s) => acc + s.bos, 0),
     }));
-  }, [sinavSonuclari]);
+  }, [denemeSonuclari]);
 
   // Veri çekme
   useEffect(() => {
@@ -102,7 +155,15 @@ function OgrenciDashboardContent() {
 
   const fetchDashboardData = async (token: string) => {
     try {
-      const [statsRes, derslerRes, sinavlarRes] = await Promise.all([
+      const [
+        statsRes, 
+        derslerRes, 
+        sinavlarRes,
+        ogretmenlerRes,
+        programRes,
+        denemeRes,
+        devamsizlikRes
+      ] = await Promise.all([
         fetch(`${API_URL}/dashboard/ogrenci/stats`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
@@ -110,6 +171,18 @@ function OgrenciDashboardContent() {
           headers: { Authorization: `Bearer ${token}` }
         }),
         fetch(`${API_URL}/online-sinav/ogrenci/aktif`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        fetch(`${API_URL}/dashboard/ogrenci/ogretmenler`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        fetch(`${API_URL}/dashboard/ogrenci/haftalik-program`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        fetch(`${API_URL}/dashboard/ogrenci/deneme-sonuclari`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        fetch(`${API_URL}/dashboard/ogrenci/devamsizlik`, {
           headers: { Authorization: `Bearer ${token}` }
         })
       ]);
@@ -132,6 +205,34 @@ function OgrenciDashboardContent() {
         const sinavlarData = await sinavlarRes.json();
         if (sinavlarData.success) {
           setAktifSinavlar(sinavlarData.data || []);
+        }
+      }
+
+      if (ogretmenlerRes.ok) {
+        const ogretmenlerData = await ogretmenlerRes.json();
+        if (ogretmenlerData.success) {
+          setOgretmenler(ogretmenlerData.data || []);
+        }
+      }
+
+      if (programRes.ok) {
+        const programData = await programRes.json();
+        if (programData.success) {
+          setHaftalikProgram(programData.data || {});
+        }
+      }
+
+      if (denemeRes.ok) {
+        const denemeData = await denemeRes.json();
+        if (denemeData.success) {
+          setDenemeSonuclari(denemeData.data?.tumSonuclar || []);
+        }
+      }
+
+      if (devamsizlikRes.ok) {
+        const devamsizlikDataRes = await devamsizlikRes.json();
+        if (devamsizlikDataRes.success) {
+          setDevamsizlikData(devamsizlikDataRes.data);
         }
       }
     } catch (error) {
@@ -165,9 +266,11 @@ function OgrenciDashboardContent() {
   const isLise = userSeviye >= 9;
 
   const gunler = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
-  const dersSayisi = stats?.toplamDers || dersler.length;
-  const devamsizlikSayisi = stats?.devamsizliklar || devamsizliklar.length;
-  const ortalamaPuan = stats?.genelOrtalama || (sinavSonuclari.reduce((acc, sonuc) => acc + sonuc.yuzde, 0) / sinavSonuclari.length);
+  const dersSayisi = stats?.toplamDers || 0;
+  const devamsizlikSayisi = stats?.devamsizliklar || devamsizlikData?.istatistik?.katilmadi || 0;
+  const ortalamaPuan = stats?.genelOrtalama || (denemeSonuclari.length > 0 
+    ? Math.round(denemeSonuclari.reduce((acc, sonuc) => acc + sonuc.yuzde, 0) / denemeSonuclari.length)
+    : 0);
   
   // ogrenci değişkenini user'dan oluştur (geriye uyumluluk için)
   const ogrenci = user ? {
@@ -182,7 +285,8 @@ function OgrenciDashboardContent() {
     telefon: (user as any).telefon || ''
   } : { id: '', ad: '', soyad: '', email: '', sinif: '', seviye: 10, ogrenciNo: '', kursId: '', telefon: '' };
 
-  const ogretmenler = mockOgretmenler.filter(o => o.kursId === ogrenci.kursId);
+  // Kurs bilgisini user'dan al
+  const kurs = (user as any)?.kurs || { ad: 'Kurs' };
 
   if (loading) {
     return (
@@ -636,12 +740,12 @@ function OgrenciDashboardContent() {
                 <div className="p-5">
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                     {gunler.map((gun) => {
-                      const gunDersleri = dersler.filter(d => d.gun === gun);
+                      const gunDersleri = haftalikProgram[gun] || [];
                       return (
                         <div key={gun} className="text-center">
                           <p className="text-xs font-medium text-slate-500 mb-2">{gun.slice(0, 3)}</p>
                           <div className="space-y-1.5">
-                            {gunDersleri.length > 0 ? gunDersleri.map(ders => (
+                            {gunDersleri.length > 0 ? gunDersleri.map((ders: HaftalikDers) => (
                               <div key={ders.id} className="bg-slate-50 rounded-lg p-2 text-xs border border-slate-100">
                                 <p className="font-medium text-slate-900 truncate">{ders.ad}</p>
                                 <p className="text-slate-500 mt-0.5">{ders.baslangicSaati}</p>
@@ -666,7 +770,7 @@ function OgrenciDashboardContent() {
                   <h3 className="font-semibold text-slate-900">Öğretmenlerim</h3>
                 </div>
                 <div className="divide-y divide-slate-100">
-                  {ogretmenler.slice(0, 5).map(ogretmen => (
+                  {ogretmenler.length > 0 ? ogretmenler.slice(0, 5).map((ogretmen: Ogretmen) => (
                     <div key={ogretmen.id} className="p-4 hover:bg-slate-50 transition-colors">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 bg-gradient-to-br from-slate-500 to-slate-700 rounded-lg flex items-center justify-center text-white font-medium text-sm">
@@ -675,6 +779,9 @@ function OgrenciDashboardContent() {
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-slate-900 text-sm truncate">{ogretmen.ad} {ogretmen.soyad}</p>
                           <p className="text-xs text-slate-500">{ogretmen.brans}</p>
+                          {ogretmen.dersler.length > 0 && (
+                            <p className="text-xs text-slate-400 mt-0.5">{ogretmen.dersler.join(', ')}</p>
+                          )}
                         </div>
                         <Link
                           href="/ogrenci/mesajlar"
@@ -687,21 +794,25 @@ function OgrenciDashboardContent() {
                         </Link>
                       </div>
                     </div>
-                  ))}
+                  )) : (
+                    <div className="p-4 text-center text-sm text-slate-400">
+                      Henüz öğretmen kaydı bulunmuyor
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Devamsızlıklar */}
-              {devamsizliklar.length > 0 && (
+              {devamsizlikData && devamsizlikData.sonDevamsizliklar.length > 0 && (
                 <div className="bg-white rounded-xl border border-slate-200">
                   <div className="p-5 border-b border-slate-100 flex items-center gap-2">
                     <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
                     <h3 className="font-semibold text-slate-900">Devamsızlık Kaydı</h3>
                   </div>
                   <div className="divide-y divide-slate-100">
-                    {devamsizliklar.map(kayit => (
+                    {devamsizlikData.sonDevamsizliklar.map((kayit: {id: string; tarih: string; ders: string; durum: string; aciklama: string | null}) => (
                       <div key={kayit.id} className="p-4">
-                        <p className="font-medium text-slate-900 text-sm">{kayit.dersAdi}</p>
+                        <p className="font-medium text-slate-900 text-sm">{kayit.ders}</p>
                         <p className="text-xs text-slate-500 mt-0.5">
                           <ClientOnlyDate dateString={kayit.tarih} />
                         </p>
@@ -1215,7 +1326,7 @@ function OgrenciDashboardContent() {
             <span>👨‍🏫</span> Öğretmenlerim
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {ogretmenler.map((ogretmen) => (
+            {ogretmenler.length > 0 ? ogretmenler.map((ogretmen: Ogretmen) => (
               <div
                 key={ogretmen.id}
                 className="bg-white rounded-2xl p-5 border border-gray-200 hover:shadow-xl transition-all hover:scale-105"
@@ -1229,14 +1340,10 @@ function OgrenciDashboardContent() {
                       {ogretmen.ad} {ogretmen.soyad}
                     </h3>
                     <p className="text-sm text-blue-600 font-semibold">{ogretmen.brans}</p>
-                    <div className="mt-3 space-y-1">
-                      <a
-                        href={`tel:${ogretmen.telefon}`}
-                        className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors"
-                      >
-                        <span>📞</span>
-                        <span>{ogretmen.telefon}</span>
-                      </a>
+                    {ogretmen.dersler.length > 0 && (
+                      <p className="text-xs text-gray-500 mt-1">{ogretmen.dersler.join(', ')}</p>
+                    )}
+                    <div className="mt-3">
                       <a
                         href={`mailto:${ogretmen.email}`}
                         className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors truncate"
@@ -1254,7 +1361,12 @@ function OgrenciDashboardContent() {
                   💬 Mesaj Gönder
                 </Link>
               </div>
-            ))}
+            )) : (
+              <div className="col-span-full text-center py-8 text-gray-400">
+                <span className="text-4xl mb-2 block">👨‍🏫</span>
+                Henüz öğretmen kaydı bulunmuyor
+              </div>
+            )}
           </div>
         </div>
 
@@ -1266,7 +1378,7 @@ function OgrenciDashboardContent() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {gunler.map((gun) => {
-              const gunDersleri = dersler.filter((d) => d.gun === gun);
+              const gunDersleri = haftalikProgram[gun] || [];
               const gunRenkleri: { [key: string]: { bg: string; border: string; text: string } } = {
                 'Pazartesi': { bg: 'from-blue-50 to-blue-100/50', border: 'border-blue-200', text: 'text-blue-700' },
                 'Salı': { bg: 'from-purple-50 to-purple-100/50', border: 'border-purple-200', text: 'text-purple-700' },
@@ -1285,13 +1397,13 @@ function OgrenciDashboardContent() {
                   <h3 className={`font-bold ${renkler.text} mb-4 text-base sm:text-lg`}>{gun}</h3>
                   {gunDersleri.length > 0 ? (
                     <div className="space-y-2">
-                      {gunDersleri.map((ders) => (
+                      {gunDersleri.map((ders: HaftalikDers) => (
                         <div
                           key={ders.id}
                           className="bg-white rounded-xl p-3 hover:shadow-md transition-shadow border border-gray-100 hover:border-gray-200"
                         >
                           <p className="font-bold text-gray-900 text-sm">{ders.ad}</p>
-                          <p className="text-xs text-gray-600 mt-1">👨‍🏫 {ders.ogretmenAd}</p>
+                          <p className="text-xs text-gray-600 mt-1">👨‍🏫 {ders.ogretmen}</p>
                           <p className="text-xs text-gray-500 mt-1">⏰ {ders.baslangicSaati} - {ders.bitisSaati}</p>
                         </div>
                       ))}
@@ -1306,20 +1418,20 @@ function OgrenciDashboardContent() {
         </div>
 
         {/* Devamsızlık Kaydı */}
-        {devamsizliklar.length > 0 && (
+        {devamsizlikData && devamsizlikData.sonDevamsizliklar.length > 0 && (
           <div className="mb-8 sm:mb-12">
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6 flex items-center gap-3">
               <span>⚠️</span> Devamsızlık Kaydım
             </h2>
             <div className="bg-gradient-to-br from-red-50 to-red-100/50 rounded-2xl p-4 sm:p-6 border border-red-200">
               <div className="space-y-3">
-                {devamsizliklar.map((kayit) => (
+                {devamsizlikData.sonDevamsizliklar.map((kayit: {id: string; tarih: string; ders: string; durum: string; aciklama: string | null}) => (
                   <div
                     key={kayit.id}
                     className="flex items-center justify-between bg-white rounded-xl p-4 border border-red-100 hover:shadow-md transition-shadow"
                   >
                     <div>
-                      <p className="text-gray-900 font-bold">{kayit.dersAdi}</p>
+                      <p className="text-gray-900 font-bold">{kayit.ders}</p>
                       <p className="text-gray-500 text-sm">
                         <ClientOnlyDate dateString={kayit.tarih} />
                       </p>

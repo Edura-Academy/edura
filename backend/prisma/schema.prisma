@@ -47,6 +47,13 @@ enum OdevDurum {
   DEGERLENDIRILDI
 }
 
+enum OdevTipi {
+  KLASIK          // Klasik metin tabanlı ödev
+  SORU_CEVAP      // Sorulu ödev (klasik sorular)
+  DOSYA_YUKLE     // Sadece dosya yükleme
+  KARISIK         // Hepsi bir arada
+}
+
 enum YoklamaDurum {
   KATILDI
   KATILMADI
@@ -450,16 +457,31 @@ model Yoklama {
 model Odev {
   id              String    @id @default(uuid())
   baslik          String
-  aciklama        String?
-  courseId        String
-  course          Course    @relation(fields: [courseId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  aciklama        String?   @db.Text
+  courseId        String?   // Opsiyonel - hedefSiniflar kullanılabilir
+  course          Course?   @relation(fields: [courseId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   ogretmenId      String
   ogretmen        User      @relation("OgretmenOdevler", fields: [ogretmenId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  // Zamanlama
+  baslangicTarihi DateTime? // Ödevin başlangıç tarihi (opsiyonel)
   sonTeslimTarihi DateTime
   maxPuan         Int       @default(100)
   aktif           Boolean   @default(true)
   
+  // Ödev tipi ve içerik
+  odevTipi        OdevTipi  @default(KARISIK)
+  konuBasligi     String?   // Konu başlığı
+  icerik          String?   @db.Text // Zengin metin içerik (HTML/Markdown)
+  resimler        String?   @db.Text // JSON array - ödev için eklenen resimler
+  dosyalar        String?   @db.Text // JSON array - ödev için eklenen dosyalar
+  
+  // Hedef sınıflar (course yerine veya ek olarak kullanılabilir)
+  hedefSiniflar   String?   @db.Text // JSON array - birden fazla sınıf ID'si
+  
+  // İlişkiler
   teslimler       OdevTeslim[]
+  sorular         OdevSoru[]
   
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -467,21 +489,74 @@ model Odev {
   @@index([courseId])
   @@index([ogretmenId])
   @@index([sonTeslimTarihi])
+  @@index([baslangicTarihi])
+  @@index([odevTipi])
+}
+
+// Ödev Soruları - Öğretmen klasik sorular ekleyebilir
+model OdevSoru {
+  id          String   @id @default(uuid())
+  odevId      String
+  odev        Odev     @relation(fields: [odevId], references: [id], onDelete: Cascade)
+  
+  siraNo      Int      @default(1)
+  soruMetni   String   @db.Text
+  resimUrl    String?  // Soru için resim (max 8MB)
+  puan        Int      @default(10)
+  
+  // Öğrenci cevapları
+  cevaplar    OdevSoruCevap[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([odevId])
+  @@index([siraNo])
+}
+
+// Ödev Soru Cevapları - Öğrencinin sorulara verdiği cevaplar
+model OdevSoruCevap {
+  id          String    @id @default(uuid())
+  soruId      String
+  soru        OdevSoru  @relation(fields: [soruId], references: [id], onDelete: Cascade)
+  teslimId    String
+  teslim      OdevTeslim @relation(fields: [teslimId], references: [id], onDelete: Cascade)
+  
+  cevapMetni  String?   @db.Text // Yazılı cevap
+  resimUrl    String?   // Cevap için resim (max 8MB)
+  puan        Int?      // Verilen puan
+  yorum       String?   @db.Text // Öğretmen yorumu
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([soruId, teslimId])
+  @@index([soruId])
+  @@index([teslimId])
 }
 
 // Ödev teslimleri - Öğrenci tarafından teslim edilir, Öğretmen tarafından değerlendirilir
 model OdevTeslim {
   id          String    @id @default(uuid())
   odevId      String
-  odev        Odev      @relation(fields: [odevId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  odev        Odev      @relation(fields: [odevId], references: [id], onDelete: Cascade)
   ogrenciId   String
   ogrenci     User      @relation(fields: [ogrenciId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   teslimTarihi DateTime @default(now())
-  dosyaUrl    String?
-  aciklama    String?
+  
+  // Dosya ve açıklama
+  dosyaUrl    String?   // Eski alan - geriye uyumluluk
+  dosyalar    String?   @db.Text // JSON array - birden fazla dosya URL [{url, ad, boyut, tip}]
+  resimler    String?   @db.Text // JSON array - birden fazla resim URL
+  aciklama    String?   @db.Text
+  
+  // Durum ve değerlendirme
   durum       OdevDurum @default(BEKLEMEDE)
   puan        Int?
-  ogretmenYorumu String?
+  ogretmenYorumu String? @db.Text
+  
+  // Soru cevapları ilişkisi
+  soruCevaplari OdevSoruCevap[]
   
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
