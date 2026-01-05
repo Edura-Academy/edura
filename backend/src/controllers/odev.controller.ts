@@ -150,14 +150,35 @@ export const getTeacherCourses = async (req: AuthRequest, res: Response) => {
       return false;
     });
 
-    // Benzersiz ders adlarını çıkar (sadece ders adı gösterilsin, sınıf bilgisi ayrı)
-    const benzersizDersAdlari = new Set<string>();
-    const courses = filtrelenmis.filter(ders => {
-      if (benzersizDersAdlari.has(ders.ad)) {
-        return false;
+    // Ders adından sınıf bilgisini ayıkla (örn: "Matematik - 5-A" -> "Matematik")
+    const extractBaseDersAdi = (ad: string): string => {
+      // " - " ile ayrılmış ise ilk kısmı al
+      const parts = ad.split(' - ');
+      if (parts.length > 1) {
+        // Son kısım sınıf adı gibi görünüyorsa (5-A, 6-B, 10-A gibi) sadece ilk kısmı al
+        const lastPart = parts[parts.length - 1];
+        if (/^\d+[-]?[A-Za-z]?$/.test(lastPart)) {
+          return parts.slice(0, -1).join(' - ').trim();
+        }
       }
-      benzersizDersAdlari.add(ders.ad);
-      return true;
+      return ad;
+    };
+
+    // Benzersiz ana ders adlarını çıkar
+    const benzersizDersAdlari = new Set<string>();
+    const courses: any[] = [];
+    
+    filtrelenmis.forEach(ders => {
+      const baseDersAdi = extractBaseDersAdi(ders.ad);
+      if (!benzersizDersAdlari.has(baseDersAdi)) {
+        benzersizDersAdlari.add(baseDersAdi);
+        // Ders objesini kopyala ve adını sadeleştir
+        courses.push({
+          ...ders,
+          ad: baseDersAdi,
+          originalAd: ders.ad // Orijinal adı sakla
+        });
+      }
     });
 
     console.log(`📚 Öğretmen branşı: ${ogretmenBrans}, Bulunan benzersiz ders sayısı: ${courses.length}`);
