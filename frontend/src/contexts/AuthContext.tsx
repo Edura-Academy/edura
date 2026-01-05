@@ -5,6 +5,18 @@ import { useRouter, usePathname } from '@/i18n/routing';
 
 export type UserRole = 'admin' | 'mudur' | 'ogretmen' | 'sekreter' | 'ogrenci' | 'veli';
 
+export interface Sinif {
+  id: string;
+  ad: string;
+  seviye: number;
+  tip: 'ORTAOKUL' | 'LISE';
+}
+
+export interface Kurs {
+  id: string;
+  ad: string;
+}
+
 export interface User {
   id: string;
   ad: string;
@@ -13,6 +25,10 @@ export interface User {
   role: UserRole;
   kursId?: string;
   sinifId?: string;
+  sinif?: Sinif;
+  kurs?: Kurs;
+  ogrenciNo?: string;
+  brans?: string;
   sifreDegistirildiMi?: boolean;
 }
 

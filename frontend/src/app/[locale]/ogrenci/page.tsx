@@ -39,10 +39,21 @@ interface BugunDers {
   durum: 'bekliyor' | 'devam_ediyor' | 'tamamlandi';
 }
 
+interface AktifSinav {
+  id: string;
+  baslik: string;
+  dersAdi: string;
+  sure: number;
+  baslangicTarihi: string;
+  bitisTarihi: string;
+  soruSayisi: number;
+}
+
 function OgrenciDashboardContent() {
   const { user, token, logout } = useAuth();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [bugunDersler, setBugunDersler] = useState<BugunDers[]>([]);
+  const [aktifSinavlar, setAktifSinavlar] = useState<AktifSinav[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Mock data ile çalışan state'ler (API tamamlanana kadar)
@@ -51,7 +62,8 @@ function OgrenciDashboardContent() {
   const [bildirimler] = useState<Bildirim[]>(mockBildirimler);
   const [mesajlar] = useState<Mesaj[]>(mockMesajlar);
   const [sinavSonuclari] = useState(mockSinavSonuclari);
-  const [kurs] = useState(mockKurslar[0]);
+  // Kurs bilgisini user'dan al, yoksa mock data kullan
+  const kurs = (user as any)?.kurs || mockKurslar[0];
 
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [showProfilModal, setShowProfilModal] = useState(false);
@@ -90,11 +102,14 @@ function OgrenciDashboardContent() {
 
   const fetchDashboardData = async (token: string) => {
     try {
-      const [statsRes, derslerRes] = await Promise.all([
+      const [statsRes, derslerRes, sinavlarRes] = await Promise.all([
         fetch(`${API_URL}/dashboard/ogrenci/stats`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
         fetch(`${API_URL}/dashboard/ogrenci/bugun-dersler`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        fetch(`${API_URL}/online-sinav/ogrenci/aktif`, {
           headers: { Authorization: `Bearer ${token}` }
         })
       ]);
@@ -110,6 +125,13 @@ function OgrenciDashboardContent() {
         const derslerData = await derslerRes.json();
         if (derslerData.success) {
           setBugunDersler(derslerData.data);
+        }
+      }
+
+      if (sinavlarRes.ok) {
+        const sinavlarData = await sinavlarRes.json();
+        if (sinavlarData.success) {
+          setAktifSinavlar(sinavlarData.data || []);
         }
       }
     } catch (error) {
@@ -139,7 +161,8 @@ function OgrenciDashboardContent() {
   };
 
   // Lise mi ortaokul mu kontrolü (9 ve üzeri lise)
-  const isLise = user ? (user as any).seviye >= 9 : true;
+  const userSeviye = user?.sinif?.seviye || (user as any)?.seviye || 10;
+  const isLise = userSeviye >= 9;
 
   const gunler = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
   const dersSayisi = stats?.toplamDers || dersler.length;
@@ -152,11 +175,12 @@ function OgrenciDashboardContent() {
     ad: user.ad,
     soyad: user.soyad,
     email: user.email,
-    sinif: '10-A', // TODO: Kullanıcı bilgilerinden çekilecek
-    seviye: 10,
-    ogrenciNo: user.ogrenciNo || '',
-    kursId: user.kursId || ''
-  } : { id: '', ad: '', soyad: '', email: '', sinif: '', seviye: 10, ogrenciNo: '', kursId: '' };
+    sinif: user.sinif?.ad || 'Sınıf Yok',
+    seviye: user.sinif?.seviye || userSeviye,
+    ogrenciNo: (user as any).ogrenciNo || '',
+    kursId: user.kursId || '',
+    telefon: (user as any).telefon || ''
+  } : { id: '', ad: '', soyad: '', email: '', sinif: '', seviye: 10, ogrenciNo: '', kursId: '', telefon: '' };
 
   const ogretmenler = mockOgretmenler.filter(o => o.kursId === ogrenci.kursId);
 
@@ -511,6 +535,47 @@ function OgrenciDashboardContent() {
               </div>
             </div>
           </div>
+
+          {/* Aktif Online Sınavlar - Dikkat Çekici Banner */}
+          {aktifSinavlar.length > 0 && (
+            <div className="mb-6 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl p-5 text-white shadow-lg">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg">Aktif Online Sınavlar</h3>
+                    <p className="text-white/80 text-sm">{aktifSinavlar.length} sınav seni bekliyor!</p>
+                  </div>
+                </div>
+                <Link
+                  href="/ogrenci/sinavlar"
+                  className="px-4 py-2 bg-white text-purple-600 rounded-lg font-semibold text-sm hover:bg-white/90 transition-colors"
+                >
+                  Tümünü Gör
+                </Link>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {aktifSinavlar.slice(0, 3).map((sinav) => (
+                  <Link
+                    key={sinav.id}
+                    href={`/ogrenci/sinavlar/${sinav.id}`}
+                    className="bg-white/10 backdrop-blur-sm rounded-lg p-4 hover:bg-white/20 transition-colors border border-white/20"
+                  >
+                    <h4 className="font-semibold text-white truncate">{sinav.baslik}</h4>
+                    <p className="text-white/70 text-sm mt-1">{sinav.dersAdi}</p>
+                    <div className="flex items-center gap-3 mt-2 text-xs text-white/60">
+                      <span>⏱ {sinav.sure} dk</span>
+                      <span>📝 {sinav.soruSayisi} soru</span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Sol Kolon - Deneme Sınavları ve Öğretmenler */}
@@ -1020,6 +1085,57 @@ function OgrenciDashboardContent() {
             </div>
           </div>
         </div>
+
+        {/* 🎯 Aktif Online Sınavlar - Ortaokul için daha eğlenceli tasarım */}
+        {aktifSinavlar.length > 0 && (
+          <div className="mb-8 sm:mb-12">
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+              <span className="animate-bounce">📝</span> Aktif Sınavlar
+              <span className="ml-2 px-3 py-1 bg-red-500 text-white text-sm rounded-full animate-pulse">
+                {aktifSinavlar.length} YENİ!
+              </span>
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              {aktifSinavlar.map((sinav) => (
+                <Link
+                  key={sinav.id}
+                  href={`/ogrenci/sinavlar/${sinav.id}`}
+                  className="block bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl p-5 sm:p-6 text-white hover:shadow-2xl transition-all hover:scale-105 group cursor-pointer relative overflow-hidden"
+                >
+                  {/* Dekoratif arka plan */}
+                  <div className="absolute -top-4 -right-4 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
+                  <div className="absolute -bottom-4 -left-4 w-20 h-20 bg-white/10 rounded-full blur-xl"></div>
+                  
+                  <div className="relative">
+                    <div className="flex items-start justify-between mb-3">
+                      <h3 className="font-bold text-lg sm:text-xl group-hover:scale-105 transition-transform">
+                        {sinav.baslik}
+                      </h3>
+                      <span className="text-3xl">🎯</span>
+                    </div>
+                    <p className="text-white/80 text-sm mb-4">{sinav.dersAdi}</p>
+                    
+                    <div className="flex items-center gap-4 text-sm">
+                      <span className="flex items-center gap-1 bg-white/20 px-3 py-1 rounded-full">
+                        ⏱ {sinav.sure} dk
+                      </span>
+                      <span className="flex items-center gap-1 bg-white/20 px-3 py-1 rounded-full">
+                        📝 {sinav.soruSayisi} soru
+                      </span>
+                    </div>
+                    
+                    <div className="mt-4 flex items-center justify-end text-white/90 font-semibold text-sm group-hover:text-white">
+                      <span>Sınava Başla</span>
+                      <svg className="w-5 h-5 ml-1 group-hover:translate-x-2 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Deneme Sonuçları - Kart Görünümü */}
         <div className="mb-8 sm:mb-12">
