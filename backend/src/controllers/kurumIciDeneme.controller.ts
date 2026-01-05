@@ -837,8 +837,7 @@ export const downloadDenemePDF = async (req: AuthRequest, res: Response) => {
 
     const pdfBuffer = await generateDenemePDF(sinavData, {
       includeAnswerKey: cevapAnahtariDahil === 'true',
-      pageSize: 'A4',
-      orientation: 'portrait'
+      pageSize: 'A4'
     });
 
     // PDF'i indir

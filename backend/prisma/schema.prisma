@@ -759,6 +759,10 @@ model OnlineSinav {
   dersAdi         String?
   bransKodu       String?
   
+  // Hedef sınıflar (JSON array: ["sinif-id-1", "sinif-id-2"])
+  // Boşsa tüm sınıflara açık
+  hedefSiniflar   String?          @db.Text
+  
   ogretmenId      String
   ogretmen        User             @relation("OgretmenOnlineSinavlar", fields: [ogretmenId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   
@@ -804,7 +808,7 @@ model OnlineSoru {
   dogruCevap      String                 // "A" veya "DOGRU" veya açık uçlu için cevap
   
   // Görsel (opsiyonel)
-  resimUrl        String?
+  resimUrl        String?      @db.Text
   
   cevaplar        SinavCevap[]
   

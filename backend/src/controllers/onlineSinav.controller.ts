@@ -61,7 +61,7 @@ export const createSinav = async (req: AuthRequest, res: Response) => {
     }
     
     const { 
-      baslik, aciklama, courseId, dersAdi, bransKodu, sure, 
+      baslik, aciklama, courseId, dersAdi, bransKodu, hedefSiniflar, sure, 
       baslangicTarihi, bitisTarihi, maksimumPuan,
       karistir, geriDonus, sonucGoster,
       sorular 
@@ -108,6 +108,7 @@ export const createSinav = async (req: AuthRequest, res: Response) => {
         courseId: finalCourseId || null,
         dersAdi: dersAdi || null,
         bransKodu: bransKodu || null,
+        hedefSiniflar: hedefSiniflar && hedefSiniflar.length > 0 ? JSON.stringify(hedefSiniflar) : null,
         ogretmenId: ogretmenId!,
         sure,
         maksimumPuan: maksimumPuan || 100,

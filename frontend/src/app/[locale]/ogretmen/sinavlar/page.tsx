@@ -1,14 +1,18 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   ArrowLeft, Plus, Search, FileQuestion, Clock, Users,
   CheckCircle, Play, Eye, Trash2, Edit, 
-  BarChart2, XCircle, Loader2, Calendar, AlertCircle
+  BarChart2, XCircle, Loader2, Calendar, AlertCircle,
+  Image as ImageIcon, X, Upload
 } from 'lucide-react';
 import Link from 'next/link';
 import { RoleGuard } from '@/components/RoleGuard';
+
+// API URL - fallback to localhost if not defined
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 interface Sinav {
   id: string;
@@ -32,6 +36,12 @@ interface Course {
   ad: string;
 }
 
+interface Sinif {
+  id: string;
+  ad: string;
+  seviye?: number;
+}
+
 interface Soru {
   id?: string;
   soruMetni: string;
@@ -39,6 +49,9 @@ interface Soru {
   puan: number;
   secenekler: string[];
   dogruCevap: string;
+  resimUrl?: string;
+  resimFile?: File;
+  resimPreview?: string;
 }
 
 // Tüm branşlar/dersler listesi (deneme sınavları için)
@@ -65,6 +78,7 @@ function OgretmenSinavlarContent() {
   const router = useRouter();
   const [sinavlar, setSinavlar] = useState<Sinav[]>([]);
   const [dersler, setDersler] = useState<Course[]>([]);
+  const [siniflar, setSiniflar] = useState<Sinif[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [durumFilter, setDurumFilter] = useState('');
@@ -75,12 +89,17 @@ function OgretmenSinavlarContent() {
   const [puanUyarisi, setPuanUyarisi] = useState('');
   const [showAlertModal, setShowAlertModal] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
+  
+  // File input ref
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Yeni sınav form
   const [newSinav, setNewSinav] = useState({
     baslik: '',
     aciklama: '',
     courseId: '',
+    hedefSiniflar: [] as string[], // Sınıf ID'leri
     sure: 60,
     baslangicTarihi: '',
     bitisTarihi: '',
@@ -97,7 +116,9 @@ function OgretmenSinavlarContent() {
     soruTipi: 'COKTAN_SECMELI',
     puan: 10,
     secenekler: ['', '', '', '', ''],
-    dogruCevap: 'A'
+    dogruCevap: 'A',
+    resimUrl: '',
+    resimPreview: ''
   });
 
   // Toplam puan hesaplama
@@ -142,12 +163,13 @@ function OgretmenSinavlarContent() {
   useEffect(() => {
     fetchSinavlar();
     fetchDersler();
+    fetchSiniflar();
   }, []);
 
   const fetchSinavlar = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/online-sinav/ogretmen`, {
+      const response = await fetch(`${API_URL}/online-sinav/ogretmen`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -166,7 +188,7 @@ function OgretmenSinavlarContent() {
     try {
       const token = localStorage.getItem('token');
       // Tüm dersleri getir (öğretmen kısıtlaması olmadan)
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/courses`, {
+      const response = await fetch(`${API_URL}/courses`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -189,6 +211,73 @@ function OgretmenSinavlarContent() {
       console.error('Dersler yüklenemedi:', error);
       // Hata durumunda sabit listeyi kullan
       setDersler(TÜMBRANSLAR);
+    }
+  };
+
+  const fetchSiniflar = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      console.log('🔍 fetchSiniflar çağrıldı, API URL:', API_URL);
+      // Öğretmen sadece kendi derslerinin olduğu sınıfları görsün
+      const response = await fetch(`${API_URL}/users/siniflar?ogretmenDersleri=true`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      console.log('🔍 Siniflar response status:', response.status);
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('🔍 Siniflar sonucu:', result);
+        setSiniflar(result.data || result || []);
+      } else {
+        const errorText = await response.text();
+        console.error('🔍 Siniflar hatası:', response.status, errorText);
+      }
+    } catch (error) {
+      console.error('Sınıflar yüklenemedi:', error);
+    }
+  };
+
+  // Soru resmi yükleme
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Boyut kontrolü (8MB)
+    if (file.size > 8 * 1024 * 1024) {
+      showAlert('Resim boyutu 8MB\'dan küçük olmalıdır.');
+      return;
+    }
+
+    // Tip kontrolü
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      showAlert('Sadece JPEG, PNG, GIF veya WebP formatları desteklenir.');
+      return;
+    }
+
+    // Preview oluştur
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setCurrentSoru({
+        ...currentSoru,
+        resimFile: file,
+        resimPreview: reader.result as string
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Soru resmini kaldır
+  const removeImage = () => {
+    setCurrentSoru({
+      ...currentSoru,
+      resimUrl: '',
+      resimFile: undefined,
+      resimPreview: ''
+    });
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -232,6 +321,7 @@ function OgretmenSinavlarContent() {
         courseId: isSabitBrans ? null : newSinav.courseId,
         dersAdi: secilenDers?.ad || newSinav.courseId,
         bransKodu: isSabitBrans ? newSinav.courseId : null,
+        hedefSiniflar: newSinav.hedefSiniflar,
         sure: newSinav.sure,
         baslangicTarihi: newSinav.baslangicTarihi,
         bitisTarihi: newSinav.bitisTarihi,
@@ -240,12 +330,17 @@ function OgretmenSinavlarContent() {
         geriDonus: newSinav.geriDonus,
         sonucGoster: newSinav.sonucGoster,
         sorular: sorular.map((s, index) => ({
-          ...s,
+          soruMetni: s.soruMetni,
+          soruTipi: s.soruTipi,
+          puan: s.puan,
+          secenekler: s.secenekler,
+          dogruCevap: s.dogruCevap,
+          resimUrl: s.resimPreview || s.resimUrl || null, // Base64 veya URL
           sira: index + 1
         }))
       };
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/online-sinav`, {
+      const response = await fetch(`${API_URL}/online-sinav`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -276,6 +371,7 @@ function OgretmenSinavlarContent() {
       baslik: '', 
       aciklama: '', 
       courseId: '', 
+      hedefSiniflar: [],
       sure: 60,
       baslangicTarihi: '', 
       bitisTarihi: '',
@@ -290,15 +386,20 @@ function OgretmenSinavlarContent() {
       soruTipi: 'COKTAN_SECMELI',
       puan: 10,
       secenekler: ['', '', '', '', ''],
-      dogruCevap: 'A'
+      dogruCevap: 'A',
+      resimUrl: '',
+      resimPreview: ''
     });
     setPuanUyarisi('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handlePublishSinav = async (sinavId: string) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/online-sinav/ogretmen/${sinavId}/yayinla`, {
+      const response = await fetch(`${API_URL}/online-sinav/ogretmen/${sinavId}/yayinla`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -344,8 +445,13 @@ function OgretmenSinavlarContent() {
       soruTipi: 'COKTAN_SECMELI',
       puan: 10,
       secenekler: ['', '', '', '', ''],
-      dogruCevap: 'A'
+      dogruCevap: 'A',
+      resimUrl: '',
+      resimPreview: ''
     });
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const removeSoru = (index: number) => {
@@ -629,6 +735,37 @@ function OgretmenSinavlarContent() {
                   />
                 </div>
 
+                {/* Sınıf Seçimi */}
+                <div className="col-span-2">
+                  <label className="block text-sm text-slate-600 mb-1">Hedef Sınıflar <span className="text-xs text-slate-400">(Boş bırakılırsa tüm sınıflara)</span></label>
+                  <div className="flex flex-wrap gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl max-h-32 overflow-y-auto">
+                    {siniflar.length > 0 ? siniflar.map(sinif => (
+                      <label key={sinif.id} className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={newSinav.hedefSiniflar.includes(sinif.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setNewSinav({...newSinav, hedefSiniflar: [...newSinav.hedefSiniflar, sinif.id]});
+                            } else {
+                              setNewSinav({...newSinav, hedefSiniflar: newSinav.hedefSiniflar.filter(id => id !== sinif.id)});
+                            }
+                          }}
+                          className="w-4 h-4 text-purple-600 rounded"
+                        />
+                        <span className="text-sm text-slate-700">{sinif.ad}</span>
+                      </label>
+                    )) : (
+                      <span className="text-sm text-slate-400">Sınıf bulunamadı</span>
+                    )}
+                  </div>
+                  {newSinav.hedefSiniflar.length > 0 && (
+                    <p className="text-xs text-purple-600 mt-1">
+                      {newSinav.hedefSiniflar.length} sınıf seçildi
+                    </p>
+                  )}
+                </div>
+
                 <div>
                   <label className="block text-sm text-slate-600 mb-1">Başlangıç <span className="text-red-500">*</span></label>
                   <input
@@ -718,9 +855,30 @@ function OgretmenSinavlarContent() {
                   <div className="space-y-2 mb-4">
                     {sorular.map((soru, index) => (
                       <div key={index} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-slate-800 truncate">{index + 1}. {soru.soruMetni}</p>
-                          <p className="text-xs text-slate-500">Doğru: {soru.dogruCevap} • {soru.puan} puan</p>
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          {soru.resimPreview && (
+                            <img 
+                              src={soru.resimPreview} 
+                              alt="Soru resmi" 
+                              className="w-10 h-10 object-cover rounded border border-slate-200 flex-shrink-0"
+                            />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-slate-800 truncate">{index + 1}. {soru.soruMetni}</p>
+                            <div className="flex items-center gap-2 text-xs text-slate-500">
+                              <span>Doğru: {soru.dogruCevap}</span>
+                              <span>•</span>
+                              <span>{soru.puan} puan</span>
+                              {soru.resimPreview && (
+                                <>
+                                  <span>•</span>
+                                  <span className="flex items-center gap-1 text-purple-500">
+                                    <ImageIcon className="w-3 h-3" /> Resimli
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
                         </div>
                         <button
                           onClick={() => removeSoru(index)}
@@ -742,6 +900,43 @@ function OgretmenSinavlarContent() {
                     rows={2}
                     className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
                   />
+
+                  {/* Soru Resmi Yükleme */}
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleImageUpload}
+                      accept="image/jpeg,image/png,image/gif,image/webp"
+                      className="hidden"
+                    />
+                    
+                    {currentSoru.resimPreview ? (
+                      <div className="relative">
+                        <img 
+                          src={currentSoru.resimPreview} 
+                          alt="Soru resmi" 
+                          className="w-24 h-24 object-cover rounded-lg border border-slate-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={removeImage}
+                          className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex items-center gap-2 px-4 py-2 bg-white border border-dashed border-slate-300 rounded-lg text-slate-500 hover:border-purple-400 hover:text-purple-600 transition-colors"
+                      >
+                        <ImageIcon className="w-4 h-4" />
+                        <span className="text-sm">Resim Ekle (max 8MB)</span>
+                      </button>
+                    )}
+                  </div>
 
                   <div className="grid grid-cols-2 gap-2">
                     {['A', 'B', 'C', 'D', 'E'].map((harf, i) => (

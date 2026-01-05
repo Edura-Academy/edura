@@ -228,10 +228,47 @@ export const createKurs = async (req: Request, res: Response): Promise<void> => 
 };
 
 // Sınıfları getir
-export const getSiniflar = async (req: Request, res: Response): Promise<void> => {
+export const getSiniflar = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { kursId } = req.query;
+    const { kursId, ogretmenDersleri } = req.query;
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
+    
+    console.log('📚 getSiniflar çağrıldı:', { userId, userRole, ogretmenDersleri });
 
+    // Eğer öğretmen ve ogretmenDersleri=true ise, sadece kendi derslerindeki sınıfları getir
+    if (userRole === 'ogretmen' && ogretmenDersleri === 'true') {
+      const ogretmenDersler = await prisma.course.findMany({
+        where: {
+          ogretmenId: userId,
+          aktif: true
+        },
+        select: {
+          sinifId: true
+        }
+      });
+
+      const sinifIds = [...new Set(ogretmenDersler.map(d => d.sinifId))];
+
+      const siniflar = await prisma.sinif.findMany({
+        where: {
+          id: { in: sinifIds },
+          aktif: true
+        },
+        include: {
+          kurs: true,
+          _count: {
+            select: { ogrenciler: true }
+          }
+        },
+        orderBy: [{ seviye: 'asc' }, { ad: 'asc' }]
+      });
+
+      res.json({ success: true, data: siniflar });
+      return;
+    }
+
+    // Normal kullanıcılar için tüm sınıflar
     const siniflar = await prisma.sinif.findMany({
       where: {
         ...(kursId && { kursId: kursId as string }),
