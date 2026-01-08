@@ -23,7 +23,8 @@ import { RoleGuard } from '@/components/RoleGuard';
 interface Course {
   id: string;
   ad: string;
-  sinif: { ad: string };
+  sinif?: { id?: string; ad?: string; seviye?: number };
+  ogretmen?: { id?: string; ad?: string; soyad?: string; brans?: string };
 }
 
 interface Materyal {
@@ -31,9 +32,9 @@ interface Materyal {
   baslik: string;
   aciklama?: string;
   courseId: string;
-  course: {
-    ad: string;
-    sinif: { ad: string };
+  course?: {
+    ad?: string;
+    sinif?: { ad?: string };
   };
   tip: 'PDF' | 'VIDEO' | 'RESIM' | 'BELGE' | 'SUNUM' | 'DIGER';
   dosyaUrl: string;
@@ -96,10 +97,18 @@ function OgretmenMateryallerContent() {
       const res = await fetch(`${API_URL}/materyaller/ogretmen/liste`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      
+      if (!res.ok) {
+        console.error('Materyal API hatası:', res.status);
+        setMateryaller([]);
+        return;
+      }
+      
       const data = await res.json();
       setMateryaller(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Materyaller alınamadı:', error);
+      setMateryaller([]);
     } finally {
       setLoading(false);
     }
@@ -108,13 +117,27 @@ function OgretmenMateryallerContent() {
   const fetchCourses = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_URL}/courses/ogretmen`, {
+      // Öğretmenin derslerini al - odevler/ogretmen/dersler endpoint'ini kullan
+      const res = await fetch(`${API_URL}/odevler/ogretmen/dersler`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      
+      if (!res.ok) {
+        console.error('Dersler API hatası:', res.status);
+        setCourses([]);
+        return;
+      }
+      
       const data = await res.json();
-      setCourses(Array.isArray(data) ? data : []);
+      // API { success: true, data: [...] } formatında dönüyor
+      if (data.success && Array.isArray(data.data)) {
+        setCourses(data.data);
+      } else {
+        setCourses(Array.isArray(data) ? data : []);
+      }
     } catch (error) {
       console.error('Dersler alınamadı:', error);
+      setCourses([]);
     }
   };
 
@@ -122,21 +145,33 @@ function OgretmenMateryallerContent() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Boyut kontrolü (50MB)
+    if (file.size > 50 * 1024 * 1024) {
+      alert('Dosya boyutu 50MB\'dan küçük olmalıdır.');
+      return;
+    }
+
     setUploading(true);
     try {
       const token = localStorage.getItem('token');
       const formDataUpload = new FormData();
       formDataUpload.append('file', file);
 
-      const res = await fetch(`${API_URL}/upload`, {
+      const res = await fetch(`${API_URL}/upload/materyal`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formDataUpload
       });
 
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        alert(errorData.error || 'Dosya yüklenirken bir hata oluştu.');
+        return;
+      }
+
       const data = await res.json();
 
-      if (res.ok) {
+      if (data.success || data.url) {
         const ext = file.name.split('.').pop()?.toLowerCase();
         let tip: Materyal['tip'] = 'DIGER';
         if (ext === 'pdf') tip = 'PDF';
@@ -147,14 +182,17 @@ function OgretmenMateryallerContent() {
 
         setFormData({
           ...formData,
-          dosyaUrl: data.url,
+          dosyaUrl: data.url || data.data?.url,
           dosyaAdi: file.name,
           dosyaBoyutu: file.size,
           tip
         });
+      } else {
+        alert(data.error || 'Dosya yüklenirken bir hata oluştu.');
       }
     } catch (error) {
       console.error('Dosya yükleme hatası:', error);
+      alert('Dosya yüklenirken bir bağlantı hatası oluştu.');
     } finally {
       setUploading(false);
     }
@@ -282,7 +320,7 @@ function OgretmenMateryallerContent() {
           >
             <option value="">Tüm Dersler</option>
             {courses.map(c => (
-              <option key={c.id} value={c.id}>{c.sinif.ad} - {c.ad}</option>
+              <option key={c.id} value={c.id}>{c.sinif?.ad ? `${c.sinif.ad} - ` : ''}{c.ad}</option>
             ))}
           </select>
           <select
@@ -345,7 +383,7 @@ function OgretmenMateryallerContent() {
                     <div>
                       <h3 className="text-lg font-semibold text-slate-800">{materyal.baslik}</h3>
                       <p className="text-slate-500 text-sm">
-                        {materyal.course.sinif.ad} - {materyal.course.ad}
+                        {materyal.course?.sinif?.ad ? `${materyal.course.sinif.ad} - ` : ''}{materyal.course?.ad || 'Ders bilgisi yok'}
                       </p>
                       <div className="flex items-center gap-4 mt-1 text-xs text-slate-400">
                         <span>{materyal.dosyaAdi}</span>
@@ -477,7 +515,7 @@ function OgretmenMateryallerContent() {
                   >
                     <option value="">Ders Seçin</option>
                     {courses.map(c => (
-                      <option key={c.id} value={c.id}>{c.sinif.ad} - {c.ad}</option>
+                      <option key={c.id} value={c.id}>{c.sinif?.ad ? `${c.sinif.ad} - ` : ''}{c.ad}</option>
                     ))}
                   </select>
                 </div>

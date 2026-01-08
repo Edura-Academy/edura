@@ -17,7 +17,12 @@ import {
   ArrowLeft,
   FileText,
   Upload,
-  CheckCircle
+  CheckCircle,
+  Pin,
+  Archive,
+  ArchiveRestore,
+  Tag,
+  Filter
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -31,6 +36,10 @@ interface Duyuru {
   icerik: string;
   hedef: 'HERKESE' | 'SINIF' | 'OGRETMENLER' | 'OGRENCILER' | 'VELILER' | 'PERSONEL';
   oncelik: 'NORMAL' | 'ONEMLI' | 'ACIL';
+  kategori: string | null;
+  pinlendi: boolean;
+  arsivlendi: boolean;
+  arsivTarihi: string | null;
   sinifIds: string | null;
   dosyaUrl: string | null;
   dosyaAd: string | null;
@@ -47,6 +56,17 @@ interface Duyuru {
   _count: { okuyanlar: number };
   createdAt: string;
 }
+
+// Kategori seçenekleri
+const kategoriOptions = [
+  { value: '', label: 'Kategori Seçin' },
+  { value: 'GENEL', label: 'Genel', color: 'bg-slate-100 text-slate-700' },
+  { value: 'AKADEMIK', label: 'Akademik', color: 'bg-blue-100 text-blue-700' },
+  { value: 'ETKINLIK', label: 'Etkinlik', color: 'bg-green-100 text-green-700' },
+  { value: 'SINAV', label: 'Sınav', color: 'bg-purple-100 text-purple-700' },
+  { value: 'IDARI', label: 'İdari', color: 'bg-amber-100 text-amber-700' },
+  { value: 'DIGER', label: 'Diğer', color: 'bg-gray-100 text-gray-700' },
+];
 
 interface Sinif {
   id: string;
@@ -77,6 +97,9 @@ export default function DuyurularPage() {
   const [editingDuyuru, setEditingDuyuru] = useState<Duyuru | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterOncelik, setFilterOncelik] = useState<string>('');
+  const [filterKategori, setFilterKategori] = useState<string>('');
+  const [showArsiv, setShowArsiv] = useState(false);
+  const [processing, setProcessing] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -84,6 +107,7 @@ export default function DuyurularPage() {
     icerik: '',
     hedef: 'HERKESE' as Duyuru['hedef'],
     oncelik: 'NORMAL' as Duyuru['oncelik'],
+    kategori: '',
     sinifIds: [] as string[],
     dosyaUrl: '',
     dosyaAd: '',
@@ -101,7 +125,10 @@ export default function DuyurularPage() {
   // Duyuruları getir
   const fetchDuyurular = useCallback(async () => {
     try {
-      const response = await fetch(`${API_URL}/duyurular/yonetim`, {
+      const params = new URLSearchParams();
+      if (showArsiv) params.append('arsivlenmis', 'true');
+      
+      const response = await fetch(`${API_URL}/duyurular/yonetim?${params}`, {
         headers: getAuthHeaders()
       });
       const data = await response.json();
@@ -113,7 +140,7 @@ export default function DuyurularPage() {
     } finally {
       setLoading(false);
     }
-  }, [getAuthHeaders]);
+  }, [getAuthHeaders, showArsiv]);
 
   // Sınıfları getir
   const fetchSiniflar = useCallback(async () => {
@@ -138,6 +165,7 @@ export default function DuyurularPage() {
   // Form submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setProcessing(true);
 
     try {
       const url = editingDuyuru 
@@ -152,7 +180,8 @@ export default function DuyurularPage() {
         body: JSON.stringify({
           ...formData,
           sinifIds: formData.hedef === 'SINIF' ? formData.sinifIds : null,
-          bitisTarihi: formData.bitisTarihi || null
+          bitisTarihi: formData.bitisTarihi || null,
+          kategori: formData.kategori || null
         })
       });
 
@@ -169,6 +198,54 @@ export default function DuyurularPage() {
     } catch (error) {
       console.error('Hata:', error);
       alert('Bir hata oluştu');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Pin/Unpin
+  const handlePin = async (duyuruId: string, pinle: boolean) => {
+    setProcessing(true);
+    try {
+      const response = await fetch(`${API_URL}/duyurular/${duyuruId}/pin`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ pinle })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        fetchDuyurular();
+      } else {
+        alert(data.error || 'İşlem başarısız');
+      }
+    } catch (error) {
+      console.error('Pin hatası:', error);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Arşivle/Arşivden Çıkar
+  const handleArsivle = async (duyuruId: string, arsivle: boolean) => {
+    setProcessing(true);
+    try {
+      const response = await fetch(`${API_URL}/duyurular/${duyuruId}/arsivle`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ arsivle })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        fetchDuyurular();
+      } else {
+        alert(data.error || 'İşlem başarısız');
+      }
+    } catch (error) {
+      console.error('Arşivleme hatası:', error);
+    } finally {
+      setProcessing(false);
     }
   };
 
@@ -199,6 +276,7 @@ export default function DuyurularPage() {
       icerik: duyuru.icerik,
       hedef: duyuru.hedef,
       oncelik: duyuru.oncelik,
+      kategori: duyuru.kategori || '',
       sinifIds: duyuru.sinifIds ? JSON.parse(duyuru.sinifIds) : [],
       dosyaUrl: duyuru.dosyaUrl || '',
       dosyaAd: duyuru.dosyaAd || '',
@@ -215,6 +293,7 @@ export default function DuyurularPage() {
       icerik: '',
       hedef: 'HERKESE',
       oncelik: 'NORMAL',
+      kategori: '',
       sinifIds: [],
       dosyaUrl: '',
       dosyaAd: '',
@@ -223,15 +302,25 @@ export default function DuyurularPage() {
   };
 
   // Filtreleme
-  const filteredDuyurular = duyurular.filter(d => {
-    if (searchQuery && !d.baslik.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return false;
-    }
-    if (filterOncelik && d.oncelik !== filterOncelik) {
-      return false;
-    }
-    return true;
-  });
+  const filteredDuyurular = duyurular
+    .filter(d => {
+      if (searchQuery && !d.baslik.toLowerCase().includes(searchQuery.toLowerCase())) {
+        return false;
+      }
+      if (filterOncelik && d.oncelik !== filterOncelik) {
+        return false;
+      }
+      if (filterKategori && d.kategori !== filterKategori) {
+        return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      // Pinlenmiş olanları öne al
+      if (a.pinlendi && !b.pinlendi) return -1;
+      if (!a.pinlendi && b.pinlendi) return 1;
+      return 0;
+    });
 
   // Tarih formatla
   const formatDate = (dateStr: string) => {
@@ -310,6 +399,27 @@ export default function DuyurularPage() {
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
+            <select
+              value={filterKategori}
+              onChange={(e) => setFilterKategori(e.target.value)}
+              className="px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00A884]"
+            >
+              <option value="">Tüm Kategoriler</option>
+              {kategoriOptions.filter(k => k.value).map(k => (
+                <option key={k.value} value={k.value}>{k.label}</option>
+              ))}
+            </select>
+            <button
+              onClick={() => setShowArsiv(!showArsiv)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                showArsiv
+                  ? 'bg-amber-100 text-amber-700 border border-amber-200'
+                  : 'bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200'
+              }`}
+            >
+              <Archive size={18} />
+              {showArsiv ? 'Arşiv' : 'Arşivi Gör'}
+            </button>
           </div>
         </div>
 
@@ -343,16 +453,31 @@ export default function DuyurularPage() {
           ) : (
             <div className="divide-y divide-slate-100">
               {filteredDuyurular.map(duyuru => (
-                <div key={duyuru.id} className="p-4 hover:bg-slate-50">
+                <div key={duyuru.id} className={`p-4 hover:bg-slate-50 ${duyuru.pinlendi ? 'bg-amber-50/50 border-l-4 border-amber-400' : ''}`}>
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-2">
+                        {duyuru.pinlendi && (
+                          <span className="text-xs text-amber-600 bg-amber-100 px-2 py-0.5 rounded flex items-center gap-1">
+                            <Pin size={10} /> Sabitlendi
+                          </span>
+                        )}
                         {getOncelikBadge(duyuru.oncelik)}
+                        {duyuru.kategori && (
+                          <span className={`text-xs px-2 py-0.5 rounded ${kategoriOptions.find(k => k.value === duyuru.kategori)?.color || 'bg-slate-100 text-slate-600'}`}>
+                            {kategoriOptions.find(k => k.value === duyuru.kategori)?.label || duyuru.kategori}
+                          </span>
+                        )}
                         <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
                           {hedefOptions.find(h => h.value === duyuru.hedef)?.label}
                         </span>
                         {!duyuru.aktif && (
                           <span className="text-xs text-red-500 bg-red-50 px-2 py-0.5 rounded">Pasif</span>
+                        )}
+                        {duyuru.arsivlendi && (
+                          <span className="text-xs text-slate-500 bg-slate-200 px-2 py-0.5 rounded flex items-center gap-1">
+                            <Archive size={10} /> Arşivlenmiş
+                          </span>
                         )}
                       </div>
                       <h3 className="font-semibold text-slate-800">{duyuru.baslik}</h3>
@@ -369,7 +494,33 @@ export default function DuyurularPage() {
                         <span>{duyuru.olusturan.ad} {duyuru.olusturan.soyad}</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
+                      {!duyuru.arsivlendi && (
+                        <button
+                          onClick={() => handlePin(duyuru.id, !duyuru.pinlendi)}
+                          disabled={processing}
+                          className={`p-2 rounded-lg transition-colors ${
+                            duyuru.pinlendi
+                              ? 'bg-amber-100 text-amber-600 hover:bg-amber-200'
+                              : 'hover:bg-slate-200 text-slate-400'
+                          }`}
+                          title={duyuru.pinlendi ? 'Sabitlenmeyi Kaldır' : 'Sabitle'}
+                        >
+                          <Pin size={18} />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleArsivle(duyuru.id, !duyuru.arsivlendi)}
+                        disabled={processing}
+                        className={`p-2 rounded-lg transition-colors ${
+                          duyuru.arsivlendi
+                            ? 'hover:bg-green-100 text-green-600'
+                            : 'hover:bg-slate-200 text-slate-400'
+                        }`}
+                        title={duyuru.arsivlendi ? 'Arşivden Çıkar' : 'Arşivle'}
+                      >
+                        {duyuru.arsivlendi ? <ArchiveRestore size={18} /> : <Archive size={18} />}
+                      </button>
                       <button
                         onClick={() => handleEdit(duyuru)}
                         className="p-2 hover:bg-slate-200 rounded-lg text-slate-600"
@@ -431,8 +582,8 @@ export default function DuyurularPage() {
                 />
               </div>
 
-              {/* Hedef & Öncelik */}
-              <div className="grid grid-cols-2 gap-4">
+              {/* Hedef & Öncelik & Kategori */}
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Hedef Kitle</label>
                   <select
@@ -454,6 +605,18 @@ export default function DuyurularPage() {
                   >
                     {oncelikOptions.map(o => (
                       <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Kategori</label>
+                  <select
+                    value={formData.kategori}
+                    onChange={(e) => setFormData(prev => ({ ...prev, kategori: e.target.value }))}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00A884]"
+                  >
+                    {kategoriOptions.map(k => (
+                      <option key={k.value} value={k.value}>{k.label}</option>
                     ))}
                   </select>
                 </div>

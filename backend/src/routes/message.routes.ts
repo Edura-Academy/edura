@@ -5,6 +5,7 @@ import {
   sendMessage,
   createConversation,
   getAvailableUsers,
+  getClassmates,
   getNewMessages,
   updateConversationName,
   updateMemberRole,
@@ -32,6 +33,9 @@ router.delete('/conversations/:conversationId/members/:memberId', removeMember);
 
 // Kullanıcılar (yeni mesaj için)
 router.get('/users', getAvailableUsers);
+
+// Sınıf arkadaşları (tüm arkadaşları gruplu getir)
+router.get('/classmates', getClassmates);
 
 // Mesajlar
 router.get('/conversations/:conversationId/messages', getMessages);

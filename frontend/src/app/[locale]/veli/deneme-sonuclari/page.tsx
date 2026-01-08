@@ -1,12 +1,16 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   FaChartLine, FaTrophy, FaMedal, FaArrowUp, FaArrowDown,
   FaUser, FaCalendarAlt, FaBook, FaGraduationCap,
   FaChartBar, FaInfoCircle, FaChevronDown, FaChevronUp,
-  FaExclamationTriangle, FaCheckCircle
+  FaExclamationTriangle, FaCheckCircle, FaArrowLeft
 } from 'react-icons/fa';
+import { RoleGuard } from '@/components/RoleGuard';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useAccessibility } from '@/contexts/AccessibilityContext';
 
 interface Cocuk {
   id: string;
@@ -90,6 +94,21 @@ const BRANS_ISIMLERI: Record<string, string> = {
 };
 
 export default function VeliDenemeSonuclariPage() {
+  const router = useRouter();
+  const { resolvedTheme } = useTheme();
+  const { speak, stop, ttsEnabled } = useAccessibility();
+  const isDark = resolvedTheme === 'dark';
+  
+  // TTS yardımcı fonksiyonu
+  const ttsHandlers = useCallback((text: string) => ({
+    onMouseEnter: () => ttsEnabled && speak(text),
+    onMouseLeave: () => stop(),
+    onFocus: () => ttsEnabled && speak(text),
+    onBlur: () => stop(),
+    tabIndex: 0,
+    'aria-label': text,
+  }), [ttsEnabled, speak, stop]);
+  
   const [cocuklar, setCocuklar] = useState<Cocuk[]>([]);
   const [selectedCocuk, setSelectedCocuk] = useState<string>('');
   const [sonuclar, setSonuclar] = useState<DenemeSonucu[]>([]);
@@ -100,17 +119,17 @@ export default function VeliDenemeSonuclariPage() {
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
-  // Çocukları getir
+  // Çocukları getir (dashboard endpoint'inden)
   const fetchCocuklar = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/veli/cocuklarim`, {
+      const response = await fetch(`${API_URL}/veli/dashboard`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
-      if (data.success && data.data.length > 0) {
-        setCocuklar(data.data);
-        setSelectedCocuk(data.data[0].id);
+      if (data.success && data.data.cocuklar && data.data.cocuklar.length > 0) {
+        setCocuklar(data.data.cocuklar);
+        setSelectedCocuk(data.data.cocuklar[0].id);
       }
     } catch (err) {
       console.error('Çocuklar yüklenemedi', err);
@@ -224,10 +243,18 @@ export default function VeliDenemeSonuclariPage() {
   }
 
   return (
+    <RoleGuard allowedRoles={['veli']}>
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 md:p-6">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-6">
+          <button
+            onClick={() => router.push('/veli')}
+            className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white mb-4 transition-colors"
+          >
+            <FaArrowLeft className="w-4 h-4" />
+            <span>Veli Paneline Dön</span>
+          </button>
           <h1 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-white flex items-center gap-3">
             <FaGraduationCap className="text-blue-600" />
             Deneme Sonuçları
@@ -558,6 +585,7 @@ export default function VeliDenemeSonuclariPage() {
         )}
       </div>
     </div>
+    </RoleGuard>
   );
 }
 

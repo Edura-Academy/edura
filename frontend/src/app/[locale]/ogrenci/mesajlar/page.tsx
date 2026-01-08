@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useSocket, useConversation, useOnlineUsers } from '@/hooks/useSocket';
+import { socketClient, SocketEvents } from '@/lib/socket';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
@@ -51,6 +53,13 @@ interface AvailableUser {
   rol: string;
   brans?: string;
   sinif?: string;
+  sinifId?: string;
+  sinifSeviye?: number;
+  dersler?: string[];
+}
+
+interface GroupedUsers {
+  [key: string]: AvailableUser[];
 }
 
 export default function OgrenciMesajlar() {
@@ -82,17 +91,24 @@ export default function OgrenciMesajlar() {
   const [loading, setLoading] = useState(true);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [availableUsers, setAvailableUsers] = useState<AvailableUser[]>([]);
+  const [groupedUsers, setGroupedUsers] = useState<GroupedUsers>({});
   const [searchingUsers, setSearchingUsers] = useState(false);
   const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [totalUsersCount, setTotalUsersCount] = useState(0);
   
   // Current user
   const [currentUser, setCurrentUser] = useState<any>(null);
 
   const mesajListRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const lastMessageTimeRef = useRef<string | null>(null);
   const seciliKonusmaRef = useRef<Konusma | null>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 🔌 WebSocket Hook'ları
+  const { isConnected } = useSocket();
+  const { isUserOnline, onlineUserIds } = useOnlineUsers();
+  const { typingUsers, sendTyping, sendStopTyping } = useConversation(seciliKonusma?.id || null);
 
   // seciliKonusma değiştiğinde ref'i de güncelle
   useEffect(() => {
@@ -202,17 +218,34 @@ export default function OgrenciMesajlar() {
     }
   }, [seciliKonusma, fetchMessages]);
 
-  // Polling başlat/durdur
+  // 🔌 WebSocket: Yeni mesajları dinle
   useEffect(() => {
-    if (seciliKonusma) {
-      pollingRef.current = setInterval(checkNewMessages, 3000);
-    }
-    return () => {
-      if (pollingRef.current) {
-        clearInterval(pollingRef.current);
-      }
+    if (!seciliKonusma) return;
+
+    // Konuşmaya katıl
+    socketClient.joinConversation(seciliKonusma.id);
+
+    // Yeni mesaj geldiğinde
+    const handleNewMessage = (message: Mesaj) => {
+      if (!seciliKonusmaRef.current) return;
+      
+      // Mesaj bu konuşmaya aitse ekle
+      setMesajlar(prev => {
+        // Duplicate kontrolü
+        if (prev.some(m => m.id === message.id)) return prev;
+        return [...prev, message];
+      });
+      lastMessageTimeRef.current = message.tarih;
+      fetchConversations(); // Konuşma listesini güncelle
     };
-  }, [seciliKonusma, checkNewMessages]);
+
+    const cleanup = socketClient.on<Mesaj>(SocketEvents.MESSAGE_NEW, handleNewMessage);
+
+    return () => {
+      cleanup();
+      socketClient.leaveConversation(seciliKonusma.id);
+    };
+  }, [seciliKonusma, fetchConversations]);
 
   // Mesaj listesini en alta kaydır
   useEffect(() => {
@@ -221,9 +254,32 @@ export default function OgrenciMesajlar() {
     }
   }, [mesajlar]);
 
+  // 🔌 Typing indicator gönder
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setYeniMesaj(e.target.value);
+    
+    if (seciliKonusma && currentUser && e.target.value.trim()) {
+      sendTyping(`${currentUser.ad} ${currentUser.soyad}`);
+      
+      // 2 saniye sonra typing durumunu kaldır
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      typingTimeoutRef.current = setTimeout(() => {
+        sendStopTyping();
+      }, 2000);
+    }
+  };
+
   // Mesaj gönder
   const handleMesajGonder = async () => {
     if (!yeniMesaj.trim() || !seciliKonusma || sendingMessage) return;
+
+    // Typing durumunu hemen durdur
+    sendStopTyping();
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
 
     setSendingMessage(true);
     const mesajIcerik = yeniMesaj.trim();
@@ -238,7 +294,11 @@ export default function OgrenciMesajlar() {
       
       const data = await response.json();
       if (data.success) {
-        setMesajlar(prev => [...prev, data.data]);
+        // WebSocket zaten mesajı broadcast edecek, ama response'u da ekleyelim
+        setMesajlar(prev => {
+          if (prev.some(m => m.id === data.data.id)) return prev;
+          return [...prev, data.data];
+        });
         lastMessageTimeRef.current = data.data.tarih;
         fetchConversations();
       } else {
@@ -259,20 +319,45 @@ export default function OgrenciMesajlar() {
   const searchUsers = useCallback(async (query: string, type: 'ogretmen' | 'ogrenci') => {
     setSearchingUsers(true);
     try {
-      const params = new URLSearchParams({ type: type === 'ogretmen' ? 'personel' : 'ogrenci' });
-      if (query.trim()) {
-        params.append('search', query);
-      }
-      const response = await fetch(`${API_URL}/messages/users?${params}`, {
-        headers: getAuthHeaders()
-      });
-      const data = await response.json();
-      if (data.success) {
-        // Öğretmen aramasında sadece öğretmenleri filtrele
-        if (type === 'ogretmen') {
-          setAvailableUsers(data.data.filter((u: AvailableUser) => u.rol === 'ogretmen'));
-        } else {
-          setAvailableUsers(data.data);
+      // Arkadaş araması için gruplanmış endpoint kullan
+      if (type === 'ogrenci') {
+        const params = new URLSearchParams({ grouped: 'true', type: 'ogrenci' });
+        if (query.trim()) {
+          params.append('search', query);
+        }
+        const response = await fetch(`${API_URL}/messages/users?${params}`, {
+          headers: getAuthHeaders()
+        });
+        const data = await response.json();
+        if (data.success) {
+          if (data.grouped) {
+            setGroupedUsers(data.data);
+            // Flat liste için tüm kullanıcıları birleştir
+            const allUsers = Object.values(data.data).flat() as AvailableUser[];
+            setAvailableUsers(allUsers);
+            setTotalUsersCount(data.total || allUsers.length);
+          } else {
+            setAvailableUsers(data.data);
+            setGroupedUsers({});
+            setTotalUsersCount(data.total || data.data.length);
+          }
+        }
+      } else {
+        // Öğretmen araması için standart endpoint
+        const params = new URLSearchParams({ type: 'personel' });
+        if (query.trim()) {
+          params.append('search', query);
+        }
+        const response = await fetch(`${API_URL}/messages/users?${params}`, {
+          headers: getAuthHeaders()
+        });
+        const data = await response.json();
+        if (data.success) {
+          // Öğretmen aramasında sadece öğretmenleri filtrele
+          const teachers = data.data.filter((u: AvailableUser) => u.rol === 'ogretmen');
+          setAvailableUsers(teachers);
+          setGroupedUsers({});
+          setTotalUsersCount(teachers.length);
         }
       }
     } catch (error) {
@@ -284,9 +369,15 @@ export default function OgrenciMesajlar() {
 
   // Yeni mesaj modalı açıldığında kullanıcıları yükle
   useEffect(() => {
-    if (showYeniKonusmaModal && yeniKonusmaTip !== 'grup') {
-      const type = yeniKonusmaTip === 'ogretmen' ? 'ogretmen' : 'ogrenci';
-      searchUsers(userSearchQuery, type);
+    if (showYeniKonusmaModal) {
+      if (yeniKonusmaTip === 'ogretmen') {
+        searchUsers(userSearchQuery, 'ogretmen');
+      } else if (yeniKonusmaTip === 'arkadas') {
+        searchUsers(userSearchQuery, 'ogrenci');
+      } else if (yeniKonusmaTip === 'grup') {
+        // Grup için de tüm kullanıcıları yükle (öğrenciler)
+        searchUsers(userSearchQuery, 'ogrenci');
+      }
     }
   }, [showYeniKonusmaModal, yeniKonusmaTip, userSearchQuery, searchUsers]);
 
@@ -616,7 +707,8 @@ export default function OgrenciMesajlar() {
                     {getKonusmaIcon(konusma.tip) || konusma.ad.split(' ').map(n => n[0]).join('').slice(0, 2)}
                   </div>
                 )}
-                {konusma.tip === 'OZEL' && konusma.uyeler[0]?.online && (
+                {/* 🔌 Real-time Online Durumu */}
+                {konusma.tip === 'OZEL' && konusma.uyeler.some(u => u.id !== currentUser?.id && isUserOnline(u.id)) && (
                   <div className="absolute bottom-0 right-0 w-3 h-3 bg-[#27AE60] rounded-full border-2 border-white"></div>
                 )}
               </div>
@@ -813,6 +905,22 @@ export default function OgrenciMesajlar() {
               </div>
             </div>
 
+            {/* 🔌 Typing Indicator */}
+            {typingUsers.length > 0 && (
+              <div className="px-4 py-2 bg-[#FAFAFA] border-t border-[#EEEEEE]">
+                <div className="flex items-center gap-2 text-sm text-black/60">
+                  <div className="flex gap-1">
+                    <span className="w-2 h-2 bg-[#27AE60] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                    <span className="w-2 h-2 bg-[#27AE60] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                    <span className="w-2 h-2 bg-[#27AE60] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                  </div>
+                  <span>
+                    {typingUsers.map(u => u.userName).join(', ')} yazıyor...
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* Mesaj Gönderme */}
             <div className="bg-white border-t border-[#EEEEEE] shadow-[0_-1px_3px_rgba(0,0,0,0.05)]">
               <div className="px-4 py-3 flex items-center gap-3">
@@ -826,7 +934,7 @@ export default function OgrenciMesajlar() {
                     ref={inputRef}
                     type="text"
                     value={yeniMesaj}
-                    onChange={(e) => setYeniMesaj(e.target.value)}
+                    onChange={handleInputChange}
                     onKeyPress={handleKeyPress}
                     placeholder="Mesajınızı yazın..."
                     className="w-full px-4 py-2.5 bg-[#FAFAFA] rounded-xl text-sm text-black/85 placeholder:text-black/45 focus:outline-none focus:ring-2 focus:ring-[#27AE60]/30 border border-[#EEEEEE]"
@@ -969,7 +1077,7 @@ export default function OgrenciMesajlar() {
       {/* Yeni Konuşma Modal */}
       {showYeniKonusmaModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col">
             <div className="p-4 bg-gradient-to-r from-[#27AE60] to-[#219653] text-white flex justify-between items-center">
               <h3 className="text-lg font-bold">✉️ Yeni Mesaj</h3>
               <button
@@ -1035,34 +1143,103 @@ export default function OgrenciMesajlar() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Üyeler Seç ({yeniGrupUyeler.length} seçildi)
                     </label>
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                      {availableUsers.map((user) => (
-                        <label
-                          key={user.id}
-                          className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl cursor-pointer transition-colors"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={yeniGrupUyeler.includes(user.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setYeniGrupUyeler([...yeniGrupUyeler, user.id]);
-                              } else {
-                                setYeniGrupUyeler(yeniGrupUyeler.filter(id => id !== user.id));
-                              }
-                            }}
-                            className="w-5 h-5 text-[#27AE60] rounded"
-                          />
-                          <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[#27AE60] to-[#219653] flex items-center justify-center text-white font-bold">
-                            {user.ad.charAt(0)}
-                          </div>
-                          <div className="flex-1 text-left">
-                            <p className="font-medium text-gray-800">{user.ad} {user.soyad}</p>
-                            <p className="text-xs text-gray-500">{user.brans || user.sinif || 'Öğrenci'}</p>
-                          </div>
-                        </label>
-                      ))}
+                    {/* Arama */}
+                    <div className="relative mb-3">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
+                      <input
+                        type="text"
+                        placeholder="Üye ara..."
+                        value={userSearchQuery}
+                        onChange={(e) => setUserSearchQuery(e.target.value)}
+                        className="w-full pl-9 pr-4 py-2 bg-gray-100 rounded-lg text-sm text-gray-800 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#27AE60]"
+                      />
                     </div>
+                    <div className="space-y-1 max-h-[300px] overflow-y-auto border border-gray-100 rounded-xl p-2">
+                      {searchingUsers ? (
+                        <div className="flex items-center justify-center py-6">
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#27AE60]"></div>
+                          <span className="ml-2 text-gray-500 text-sm">Yükleniyor...</span>
+                        </div>
+                      ) : Object.keys(groupedUsers).length > 0 ? (
+                        // Gruplanmış liste
+                        Object.entries(groupedUsers).map(([groupName, users]) => (
+                          <div key={groupName} className="mb-3">
+                            <div className="sticky top-0 bg-white/95 py-1 px-2 text-xs font-semibold text-gray-500 flex items-center gap-1 border-b border-gray-100">
+                              {groupName === 'Sınıf Arkadaşlarım' ? '🎓' : groupName === 'Öğretmenler' ? '👨‍🏫' : '📚'}
+                              {groupName} ({users.length})
+                            </div>
+                            {users.map((user) => (
+                              <label
+                                key={user.id}
+                                className="flex items-center gap-3 p-2.5 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={yeniGrupUyeler.includes(user.id)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setYeniGrupUyeler([...yeniGrupUyeler, user.id]);
+                                    } else {
+                                      setYeniGrupUyeler(yeniGrupUyeler.filter(id => id !== user.id));
+                                    }
+                                  }}
+                                  className="w-4 h-4 text-[#27AE60] rounded"
+                                />
+                                <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm ${
+                                  user.rol === 'ogretmen'
+                                    ? 'bg-gradient-to-br from-[#3498DB] to-[#2980B9]'
+                                    : groupName === 'Sınıf Arkadaşlarım'
+                                    ? 'bg-gradient-to-br from-[#27AE60] to-[#219653]'
+                                    : 'bg-gradient-to-br from-[#95a5a6] to-[#7f8c8d]'
+                                }`}>
+                                  {user.ad.charAt(0)}
+                                </div>
+                                <div className="flex-1 text-left">
+                                  <p className="font-medium text-gray-800 text-sm">{user.ad} {user.soyad}</p>
+                                  <p className="text-xs text-gray-500">{user.brans || user.sinif || 'Öğrenci'}</p>
+                                </div>
+                              </label>
+                            ))}
+                          </div>
+                        ))
+                      ) : (
+                        // Düz liste
+                        availableUsers.map((user) => (
+                          <label
+                            key={user.id}
+                            className="flex items-center gap-3 p-2.5 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={yeniGrupUyeler.includes(user.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setYeniGrupUyeler([...yeniGrupUyeler, user.id]);
+                                } else {
+                                  setYeniGrupUyeler(yeniGrupUyeler.filter(id => id !== user.id));
+                                }
+                              }}
+                              className="w-4 h-4 text-[#27AE60] rounded"
+                            />
+                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#27AE60] to-[#219653] flex items-center justify-center text-white font-bold text-sm">
+                              {user.ad.charAt(0)}
+                            </div>
+                            <div className="flex-1 text-left">
+                              <p className="font-medium text-gray-800 text-sm">{user.ad} {user.soyad}</p>
+                              <p className="text-xs text-gray-500">{user.brans || user.sinif || 'Öğrenci'}</p>
+                            </div>
+                          </label>
+                        ))
+                      )}
+                    </div>
+                    {/* Seçili üyeler özeti */}
+                    {yeniGrupUyeler.length > 0 && (
+                      <div className="mt-2 p-2 bg-[#27AE60]/10 rounded-lg">
+                        <p className="text-xs text-[#27AE60] font-medium">
+                          ✓ {yeniGrupUyeler.length} üye seçildi
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   <button
@@ -1087,8 +1264,18 @@ export default function OgrenciMesajlar() {
                     />
                   </div>
 
+                  {/* Toplam sayı göster */}
+                  {totalUsersCount > 0 && !searchingUsers && (
+                    <div className="mb-3 text-xs text-gray-500 flex items-center justify-between">
+                      <span>Toplam {totalUsersCount} kişi</span>
+                      {yeniKonusmaTip === 'arkadas' && Object.keys(groupedUsers).length > 0 && (
+                        <span className="text-[#27AE60]">✓ Sınıf bazlı gruplandı</span>
+                      )}
+                    </div>
+                  )}
+
                   {/* Liste */}
-                  <div className="space-y-2 max-h-80 overflow-y-auto">
+                  <div className="space-y-2 max-h-[400px] overflow-y-auto">
                     {searchingUsers ? (
                       <div className="flex items-center justify-center py-8">
                         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#27AE60]"></div>
@@ -1098,7 +1285,67 @@ export default function OgrenciMesajlar() {
                       <div className="text-center py-8 text-gray-500">
                         <p>Kullanıcı bulunamadı</p>
                       </div>
+                    ) : yeniKonusmaTip === 'arkadas' && Object.keys(groupedUsers).length > 0 ? (
+                      // Gruplanmış arkadaş listesi
+                      Object.entries(groupedUsers).map(([groupName, users]) => (
+                        <div key={groupName} className="mb-4">
+                          {/* Grup Başlığı */}
+                          <div className="sticky top-0 bg-white/95 backdrop-blur-sm py-2 px-1 mb-2 border-b border-gray-100 z-10">
+                            <h4 className="text-xs font-semibold text-gray-600 flex items-center gap-2">
+                              {groupName === 'Sınıf Arkadaşlarım' ? (
+                                <span className="text-[#27AE60]">🎓</span>
+                              ) : groupName === 'Öğretmenler' ? (
+                                <span className="text-[#3498DB]">👨‍🏫</span>
+                              ) : groupName === 'Personel' ? (
+                                <span className="text-[#9B59B6]">👤</span>
+                              ) : (
+                                <span className="text-[#F39C12]">📚</span>
+                              )}
+                              {groupName}
+                              <span className="text-gray-400 font-normal">({users.length})</span>
+                            </h4>
+                          </div>
+                          {/* Grup Üyeleri */}
+                          <div className="space-y-1 pl-2">
+                            {users.map((user) => (
+                              <button
+                                key={user.id}
+                                onClick={() => handleStartConversation(user)}
+                                className="w-full p-2.5 flex items-center gap-3 hover:bg-gray-50 rounded-xl transition-colors group"
+                              >
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm ${
+                                  user.rol === 'ogretmen'
+                                    ? 'bg-gradient-to-br from-[#3498DB] to-[#2980B9]'
+                                    : groupName === 'Sınıf Arkadaşlarım'
+                                    ? 'bg-gradient-to-br from-[#27AE60] to-[#219653]'
+                                    : 'bg-gradient-to-br from-[#95a5a6] to-[#7f8c8d]'
+                                }`}>
+                                  {user.ad.charAt(0)}
+                                </div>
+                                <div className="flex-1 text-left">
+                                  <p className="font-medium text-gray-800 text-sm group-hover:text-[#27AE60] transition-colors">
+                                    {user.ad} {user.soyad}
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    {user.brans || user.sinif || 'Öğrenci'}
+                                    {user.dersler && user.dersler.length > 0 && (
+                                      <span className="text-gray-400 ml-1">
+                                        • {user.dersler.slice(0, 2).join(', ')}
+                                        {user.dersler.length > 2 && `...`}
+                                      </span>
+                                    )}
+                                  </p>
+                                </div>
+                                <svg className="w-4 h-4 text-gray-300 group-hover:text-[#27AE60] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))
                     ) : (
+                      // Standart liste (öğretmenler için)
                       availableUsers.map((user) => (
                         <button
                           key={user.id}

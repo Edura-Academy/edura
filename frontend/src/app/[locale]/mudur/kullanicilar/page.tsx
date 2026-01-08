@@ -18,6 +18,12 @@ import {
   X,
   Eye,
   EyeOff,
+  Upload,
+  Download,
+  FileSpreadsheet,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { RoleGuard } from '@/components/RoleGuard';
@@ -67,6 +73,15 @@ function KullanicilarContent() {
   const [submitLoading, setSubmitLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importData, setImportData] = useState<string>('');
+  const [importLoading, setImportLoading] = useState(false);
+  const [importResult, setImportResult] = useState<{
+    toplam: number;
+    basarili: number;
+    basarisiz: number;
+    basarisizlar: Array<{ user: any; error: string }>;
+  } | null>(null);
 
   const [form, setForm] = useState({
     email: '',
@@ -261,6 +276,82 @@ function KullanicilarContent() {
     });
   };
 
+  // Toplu import işlemi
+  const handleBulkImport = async () => {
+    if (!importData.trim()) {
+      setMessage({ type: 'error', text: 'Lütfen kullanıcı verisi girin' });
+      return;
+    }
+
+    setImportLoading(true);
+    setImportResult(null);
+
+    try {
+      // JSON parse et
+      let usersToImport;
+      try {
+        usersToImport = JSON.parse(importData);
+      } catch {
+        setMessage({ type: 'error', text: 'Geçersiz JSON formatı' });
+        setImportLoading(false);
+        return;
+      }
+
+      const res = await fetch(`${API_URL}/users/import`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          users: usersToImport,
+          defaultPassword: 'Edura2024!'
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setImportResult({
+          toplam: data.data.toplam,
+          basarili: data.data.basarili,
+          basarisiz: data.data.basarisiz,
+          basarisizlar: data.data.basarisizlar
+        });
+        fetchUsers();
+      } else {
+        setMessage({ type: 'error', text: data.error || 'Import başarısız' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Bir hata oluştu' });
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  // Import şablonunu indir
+  const downloadTemplate = async () => {
+    try {
+      const res = await fetch(`${API_URL}/users/import/sablon`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        const template = JSON.stringify(data.data.exampleData, null, 2);
+        const blob = new Blob([template], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'kullanici-import-sablonu.json';
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error('Şablon indirilemedi:', error);
+    }
+  };
+
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
       user.ad.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -305,16 +396,29 @@ function KullanicilarContent() {
                 </div>
               </div>
             </div>
-            <button
-              onClick={() => {
-                resetForm();
-                setShowAddModal(true);
-              }}
-              className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg transition-colors"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span className="hidden sm:inline">Yeni Kullanıcı</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setImportData('');
+                  setImportResult(null);
+                  setShowImportModal(true);
+                }}
+                className="flex items-center gap-2 border border-teal-600 text-teal-600 hover:bg-teal-50 px-4 py-2 rounded-lg transition-colors"
+              >
+                <Upload className="w-4 h-4" />
+                <span className="hidden sm:inline">Toplu Import</span>
+              </button>
+              <button
+                onClick={() => {
+                  resetForm();
+                  setShowAddModal(true);
+                }}
+                className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg transition-colors"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span className="hidden sm:inline">Yeni Kullanıcı</span>
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -730,6 +834,124 @@ function KullanicilarContent() {
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* Toplu Import Modal */}
+      <Modal isOpen={showImportModal} onClose={() => setShowImportModal(false)} title="Toplu Kullanıcı Import" size="lg" variant="light">
+        <div className="space-y-4">
+          {message && (
+            <div className={`p-3 rounded-lg ${message.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+              {message.text}
+            </div>
+          )}
+
+          {/* Bilgi Kutusu */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <FileSpreadsheet className="w-5 h-5 text-blue-600 mt-0.5" />
+              <div>
+                <h4 className="font-medium text-blue-900">JSON Formatı</h4>
+                <p className="text-sm text-blue-700 mt-1">
+                  Her satırda email, ad, soyad ve role alanları zorunludur. Öğrenciler için sinifAd, öğretmenler için brans ekleyebilirsiniz.
+                </p>
+                <button
+                  onClick={downloadTemplate}
+                  className="mt-2 flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  <Download className="w-4 h-4" />
+                  Örnek şablon indir
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* JSON Textarea */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Kullanıcı Verileri (JSON)
+            </label>
+            <textarea
+              value={importData}
+              onChange={(e) => setImportData(e.target.value)}
+              placeholder={`[
+  { "email": "ogrenci@ornek.com", "ad": "Ali", "soyad": "Yılmaz", "role": "ogrenci", "sinifAd": "8-A" },
+  { "email": "ogretmen@ornek.com", "ad": "Ayşe", "soyad": "Demir", "role": "ogretmen", "brans": "Matematik" }
+]`}
+              className="w-full h-48 px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 font-mono text-sm"
+            />
+          </div>
+
+          {/* Import Sonucu */}
+          {importResult && (
+            <div className="border border-slate-200 rounded-lg p-4 space-y-3">
+              <h4 className="font-medium text-slate-900">Import Sonucu</h4>
+              
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-slate-50 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-slate-900">{importResult.toplam}</p>
+                  <p className="text-xs text-slate-500">Toplam</p>
+                </div>
+                <div className="bg-green-50 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-green-600">{importResult.basarili}</p>
+                  <p className="text-xs text-green-600">Başarılı</p>
+                </div>
+                <div className="bg-red-50 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-red-600">{importResult.basarisiz}</p>
+                  <p className="text-xs text-red-600">Başarısız</p>
+                </div>
+              </div>
+
+              {importResult.basarisizlar.length > 0 && (
+                <div className="mt-3">
+                  <h5 className="text-sm font-medium text-red-700 mb-2 flex items-center gap-1">
+                    <AlertTriangle className="w-4 h-4" />
+                    Başarısız Olanlar
+                  </h5>
+                  <div className="max-h-32 overflow-y-auto space-y-1">
+                    {importResult.basarisizlar.map((item, idx) => (
+                      <div key={idx} className="text-xs bg-red-50 text-red-700 px-2 py-1 rounded flex items-center gap-2">
+                        <XCircle className="w-3 h-3" />
+                        <span>{item.user.email} - {item.error}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+            <button
+              type="button"
+              onClick={() => {
+                setShowImportModal(false);
+                setImportData('');
+                setImportResult(null);
+                setMessage(null);
+              }}
+              className="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              Kapat
+            </button>
+            <button
+              onClick={handleBulkImport}
+              disabled={importLoading || !importData.trim()}
+              className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+            >
+              {importLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Import ediliyor...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4" />
+                  Import Et
+                </>
+              )}
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

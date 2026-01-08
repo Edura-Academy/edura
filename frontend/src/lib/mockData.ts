@@ -102,41 +102,6 @@ export interface Devamsizlik {
   aciklama?: string;
 }
 
-// ==================== EDURA BYPASS - TEST GİRİŞLERİ ====================
-export const eduraBypass = {
-  // Her kurs için test kullanıcıları
-  admin: { email: 'admin@edura.com', password: 'edura123', role: 'admin' },
-  mudurler: [
-    { email: 'mudur.zambak@edura.com', password: 'edura123', kursId: '1', kursAd: 'Maltepe Zambak' },
-    { email: 'mudur.lale@edura.com', password: 'edura123', kursId: '2', kursAd: 'Kadıköy Lale' },
-    { email: 'mudur.papatya@edura.com', password: 'edura123', kursId: '3', kursAd: 'Ataşehir Papatya' },
-    { email: 'mudur.menekse@edura.com', password: 'edura123', kursId: '4', kursAd: 'Yenisahra Menekşe' },
-    { email: 'mudur.gul@edura.com', password: 'edura123', kursId: '5', kursAd: 'Üsküdar Gül' },
-  ],
-  sekreterler: [
-    { email: 'sekreter.zambak@edura.com', password: 'edura123', kursId: '1' },
-    { email: 'sekreter.lale@edura.com', password: 'edura123', kursId: '2' },
-    { email: 'sekreter.papatya@edura.com', password: 'edura123', kursId: '3' },
-    { email: 'sekreter.menekse@edura.com', password: 'edura123', kursId: '4' },
-    { email: 'sekreter.gul@edura.com', password: 'edura123', kursId: '5' },
-  ],
-  ogretmenler: [
-    { email: 'matematik.zambak@edura.com', password: 'edura123', kursId: '1', brans: 'Matematik' },
-    { email: 'turkce.zambak@edura.com', password: 'edura123', kursId: '1', brans: 'Türkçe' },
-  ],
-  ogrenciler: [
-    // Her sınıf türünden örnek öğrenci
-    { email: 'ogrenci.5a@edura.com', password: 'edura123', sinif: '5-A', kursId: '1' },
-    { email: 'ogrenci.6a@edura.com', password: 'edura123', sinif: '6-A', kursId: '1' },
-    { email: 'ogrenci.7a@edura.com', password: 'edura123', sinif: '7-A', kursId: '1' },
-    { email: 'ogrenci.8a@edura.com', password: 'edura123', sinif: '8-A', kursId: '1' },
-    { email: 'ogrenci.9a@edura.com', password: 'edura123', sinif: '9-A', kursId: '1' },
-    { email: 'ogrenci.10a@edura.com', password: 'edura123', sinif: '10-A', kursId: '1' },
-    { email: 'ogrenci.11a@edura.com', password: 'edura123', sinif: '11-A', kursId: '1' },
-    { email: 'ogrenci.12a@edura.com', password: 'edura123', sinif: '12-A', kursId: '1' },
-  ],
-};
-
 // ==================== KURSLAR (5 Şube) ====================
 export const mockKurslar: Kurs[] = [
   { 

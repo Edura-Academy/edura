@@ -15,7 +15,8 @@ import {
   leaveCanliDers,
   getOgrenciKatilimGecmisi,
   getAktifDersler,
-  getYaklasanDersler
+  getYaklasanDersler,
+  getOgretmenSiniflari
 } from '../controllers/canliDers.controller';
 
 const router = Router();
@@ -30,6 +31,13 @@ router.get('/aktif', getAktifDersler);
 
 // Yaklaşan dersler (herkes görebilir)
 router.get('/yaklasan', getYaklasanDersler);
+
+// Öğretmenin sınıflarını getir (canlı ders oluştururken kullanılır)
+router.get(
+  '/ogretmen/siniflar',
+  authorizeRoles('ogretmen', 'mudur', 'admin'),
+  getOgretmenSiniflari
+);
 
 // Canlı ders detayı (herkes görebilir - yetki kontrolü controller'da)
 router.get('/:id', getCanliDersById);

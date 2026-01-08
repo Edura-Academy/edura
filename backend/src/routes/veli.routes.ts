@@ -8,7 +8,12 @@ import {
   getCocukDersProgrami,
   getCocukOgretmenler,
   startConversationWithTeacher,
-  addCocukToVeli
+  addCocukToVeli,
+  compareCocuklar,
+  getCocukRaporKarti,
+  getVeliBildirimAyarlari,
+  updateVeliBildirimAyarlari,
+  getVeliOdemeleri
 } from '../controllers/veli.controller';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.middleware';
 
@@ -22,6 +27,17 @@ router.get('/cocuk/:cocukId/devamsizlik', authenticateToken, authorizeRoles('vel
 router.get('/cocuk/:cocukId/odevler', authenticateToken, authorizeRoles('veli'), getCocukOdevler);
 router.get('/cocuk/:cocukId/ders-programi', authenticateToken, authorizeRoles('veli'), getCocukDersProgrami);
 router.get('/cocuk/:cocukId/ogretmenler', authenticateToken, authorizeRoles('veli'), getCocukOgretmenler);
+router.get('/cocuk/:cocukId/rapor-karti', authenticateToken, authorizeRoles('veli'), getCocukRaporKarti);
+
+// Çoklu çocuk karşılaştırma
+router.get('/karsilastir', authenticateToken, authorizeRoles('veli'), compareCocuklar);
+
+// Bildirim ayarları
+router.get('/bildirim-ayarlari', authenticateToken, authorizeRoles('veli'), getVeliBildirimAyarlari);
+router.put('/bildirim-ayarlari', authenticateToken, authorizeRoles('veli'), updateVeliBildirimAyarlari);
+
+// Ödemeler
+router.get('/odemeler', authenticateToken, authorizeRoles('veli'), getVeliOdemeleri);
 
 // Mesajlaşma
 router.post('/mesaj/baslat', authenticateToken, authorizeRoles('veli'), startConversationWithTeacher);

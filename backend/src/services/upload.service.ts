@@ -57,75 +57,118 @@ const ensureUploadsDir = (folder: string) => {
 
 /**
  * Profil fotoğrafı için klasör yolu oluştur
- * @param userType - admin, mudur, ogretmen, ogrenci, sekreter
+ * Yapı: profiles/{userType}/{userName}-{userId}/
+ * Örnek: profiles/ogretmen/zeynep-ucar-123/
+ * @param userType - admin, mudur, ogretmen, ogrenci, sekreter, veli, kursSahibi, user
  * @param userId - Kullanıcı ID'si
+ * @param userName - Kullanıcı adı (opsiyonel, isimli klasör için)
  */
-export const getProfilePhotoPath = (userType: string, userId: number | string): string => {
-  return `profiles/${userType.toLowerCase()}/${userId}`;
+export const getProfilePhotoPath = (userType: string, userId: number | string, userName?: string): string => {
+  const roleFolder = userType.toLowerCase();
+  
+  if (userName) {
+    // İsim ile klasör: profiles/veli/ahmet-yilmaz-uuid123/
+    const safeName = userName.toLowerCase()
+      .replace(/[ğ]/g, 'g')
+      .replace(/[ü]/g, 'u')
+      .replace(/[ş]/g, 's')
+      .replace(/[ı]/g, 'i')
+      .replace(/[ö]/g, 'o')
+      .replace(/[ç]/g, 'c')
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9-]/g, '');
+    return `profiles/${roleFolder}/${safeName}-${userId}`;
+  }
+  return `profiles/${roleFolder}/${userId}`;
 };
 
 /**
  * Grup fotoğrafı için klasör yolu oluştur
+ * Yapı: groups/{yıl}/{groupId}/
  * @param groupId - Grup (Conversation) ID'si
  */
 export const getGroupPhotoPath = (groupId: string): string => {
-  return `groups/${groupId}`;
+  const year = new Date().getFullYear();
+  return `groups/${year}/${groupId}`;
 };
 
 /**
  * Kurs logosu için klasör yolu oluştur
+ * Yapı: courses/{yıl}/{kursId}/logo/
  * @param kursId - Kurs ID'si
  */
 export const getCourseLogoPath = (kursId: number | string): string => {
-  return `courses/${kursId}/logo`;
+  const year = new Date().getFullYear();
+  return `courses/${year}/${kursId}/logo`;
 };
 
 /**
  * Kurs ödev belgesi için klasör yolu oluştur
+ * Yapı: courses/{yıl}/{kursId}/odevler/{odevId}/
  * @param kursId - Kurs ID'si
  * @param odevId - Ödev ID'si (opsiyonel)
  */
 export const getCourseHomeworkPath = (kursId: number | string, odevId?: number | string): string => {
+  const year = new Date().getFullYear();
   if (odevId) {
-    return `courses/${kursId}/odevler/${odevId}`;
+    return `courses/${year}/${kursId}/odevler/${odevId}`;
   }
-  return `courses/${kursId}/odevler`;
+  return `courses/${year}/${kursId}/odevler`;
 };
 
 /**
  * Kurs genel belgeleri için klasör yolu oluştur
+ * Yapı: courses/{yıl}/{kursId}/belgeler/
  * @param kursId - Kurs ID'si
  */
 export const getCourseDocumentPath = (kursId: number | string): string => {
-  return `courses/${kursId}/belgeler`;
+  const year = new Date().getFullYear();
+  return `courses/${year}/${kursId}/belgeler`;
 };
 
 /**
  * Öğrenci belgesi için klasör yolu oluştur
+ * Yapı: students/{yıl}/{ogrenciId}/belgeler/
  * @param ogrenciId - Öğrenci ID'si
  */
 export const getStudentDocumentPath = (ogrenciId: number | string): string => {
-  return `students/${ogrenciId}/belgeler`;
+  const year = new Date().getFullYear();
+  return `students/${year}/${ogrenciId}/belgeler`;
 };
 
 /**
  * Genel belge yükleme için klasör yolu oluştur
+ * Yapı: documents/{yıl}/{documentType}/
  * @param documentType - odev, sinav, rapor, diger
  */
 export const getDocumentPath = (documentType: string = 'diger'): string => {
-  return `documents/${documentType.toLowerCase()}`;
+  const year = new Date().getFullYear();
+  return `documents/${year}/${documentType.toLowerCase()}`;
 };
 
 /**
  * Deneme sınavı soru resmi için klasör yolu oluştur
+ * Yapı: deneme-sinavlari/{yıl}/{denemeId}/sorular/{soruId}/
  * @param denemeId - Deneme sınavı ID'si
  * @param soruId - Soru ID'si (opsiyonel)
  */
 export const getDenemeSoruImagePath = (denemeId: string, soruId?: string): string => {
+  const year = new Date().getFullYear();
   if (soruId) {
-    return `deneme-sinavlari/${denemeId}/sorular/${soruId}`;
+    return `deneme-sinavlari/${year}/${denemeId}/sorular/${soruId}`;
   }
-  return `deneme-sinavlari/${denemeId}/sorular`;
+  return `deneme-sinavlari/${year}/${denemeId}/sorular`;
+};
+
+/**
+ * Öğrenci ödev teslimi için klasör yolu oluştur
+ * Yapı: students/{yıl}/{ogrenciId}/odevler/{odevId}/
+ * @param ogrenciId - Öğrenci ID'si
+ * @param odevId - Ödev ID'si
+ */
+export const getStudentHomeworkSubmissionPath = (ogrenciId: string, odevId: string): string => {
+  const year = new Date().getFullYear();
+  return `students/${year}/${ogrenciId}/odevler/${odevId}`;
 };
 
 // ==================== UPLOAD FONKSİYONLARI ====================
@@ -370,6 +413,18 @@ export const uploadDocument = async (
   documentType: string = 'diger'
 ): Promise<UploadResult> => {
   const folder = getDocumentPath(documentType);
+  return uploadToFirebase(file, folder);
+};
+
+/**
+ * Öğrenci ödev teslim dosyası yükle
+ */
+export const uploadStudentHomeworkSubmission = async (
+  file: Express.Multer.File,
+  ogrenciId: string,
+  odevId: string
+): Promise<UploadResult> => {
+  const folder = getStudentHomeworkSubmissionPath(ogrenciId, odevId);
   return uploadToFirebase(file, folder);
 };
 

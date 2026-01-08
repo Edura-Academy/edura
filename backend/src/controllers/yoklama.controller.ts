@@ -611,3 +611,250 @@ export const submitQRAttendance = async (req: AuthRequest, res: Response) => {
   }
 };
 
+// ==================== PERSONEL (SEKRETER) İŞLEMLERİ ====================
+
+// Kursa ait tüm dersleri ve yoklama özetini getir
+export const getPersonelYoklamaListesi = async (req: AuthRequest, res: Response) => {
+  try {
+    const kursId = req.user?.kursId;
+    const { sinifId } = req.query;
+
+    if (!kursId) {
+      return res.status(403).json({ success: false, error: 'Kurs bilgisi bulunamadı' });
+    }
+
+    // Kursa ait tüm dersleri getir
+    const whereClause: Record<string, unknown> = {
+      sinif: { kursId },
+      aktif: true
+    };
+
+    if (sinifId) {
+      whereClause.sinifId = sinifId;
+    }
+
+    const courses = await prisma.course.findMany({
+      where: whereClause,
+      include: {
+        sinif: {
+          select: { id: true, ad: true, seviye: true }
+        },
+        ogretmen: {
+          select: { id: true, ad: true, soyad: true }
+        },
+        yoklamalar: {
+          where: {
+            tarih: {
+              gte: new Date(new Date().setHours(0, 0, 0, 0))
+            }
+          }
+        }
+      },
+      orderBy: [
+        { sinif: { seviye: 'asc' } },
+        { gun: 'asc' },
+        { baslangicSaati: 'asc' }
+      ]
+    });
+
+    // Sınıfları da getir (filtreleme için)
+    const siniflar = await prisma.sinif.findMany({
+      where: { kursId, aktif: true },
+      select: { id: true, ad: true, seviye: true },
+      orderBy: { seviye: 'asc' }
+    });
+
+    const data = courses.map(course => ({
+      id: course.id,
+      ad: course.ad,
+      sinif: course.sinif,
+      ogretmen: course.ogretmen,
+      gun: course.gun,
+      baslangicSaati: course.baslangicSaati,
+      bitisSaati: course.bitisSaati,
+      bugunYoklamaAlindi: course.yoklamalar.length > 0,
+      bugunKatilanSayisi: course.yoklamalar.filter(y => y.durum === 'KATILDI').length,
+      bugunKatilmayanSayisi: course.yoklamalar.filter(y => y.durum === 'KATILMADI').length
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        dersler: data,
+        siniflar
+      }
+    });
+  } catch (error) {
+    console.error('Personel yoklama listesi hatası:', error);
+    res.status(500).json({ success: false, error: 'Sunucu hatası' });
+  }
+};
+
+// Belirli bir ders için detaylı yoklama bilgisi
+export const getPersonelYoklamaDetay = async (req: AuthRequest, res: Response) => {
+  try {
+    const kursId = req.user?.kursId;
+    const { courseId } = req.params;
+    const { tarih } = req.query;
+
+    if (!kursId) {
+      return res.status(403).json({ success: false, error: 'Kurs bilgisi bulunamadı' });
+    }
+
+    // Dersin kursa ait olduğunu kontrol et
+    const course = await prisma.course.findFirst({
+      where: { id: courseId, sinif: { kursId } },
+      include: {
+        sinif: {
+          include: {
+            ogrenciler: {
+              where: { aktif: true, role: 'ogrenci' },
+              select: { id: true, ad: true, soyad: true, ogrenciNo: true }
+            }
+          }
+        },
+        ogretmen: { select: { id: true, ad: true, soyad: true } }
+      }
+    });
+
+    if (!course) {
+      return res.status(404).json({ success: false, error: 'Ders bulunamadı' });
+    }
+
+    // Tarih hesapla
+    const queryDate = tarih ? new Date(tarih as string) : new Date();
+    const startOfDay = new Date(queryDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(queryDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Yoklamaları getir
+    const yoklamalar = await prisma.yoklama.findMany({
+      where: {
+        courseId,
+        tarih: {
+          gte: startOfDay,
+          lte: endOfDay
+        }
+      }
+    });
+
+    // Öğrenci listesiyle birleştir
+    const ogrenciYoklamalari = course.sinif.ogrenciler.map(ogrenci => {
+      const yoklama = yoklamalar.find(y => y.ogrenciId === ogrenci.id);
+      return {
+        ogrenciId: ogrenci.id,
+        ogrenciAd: `${ogrenci.ad} ${ogrenci.soyad}`,
+        ogrenciNo: ogrenci.ogrenciNo,
+        durum: yoklama?.durum || null,
+        aciklama: yoklama?.aciklama || null,
+        yoklamaId: yoklama?.id || null
+      };
+    });
+
+    // İstatistikler
+    const istatistik = {
+      toplam: ogrenciYoklamalari.length,
+      katildi: ogrenciYoklamalari.filter(o => o.durum === 'KATILDI').length,
+      katilmadi: ogrenciYoklamalari.filter(o => o.durum === 'KATILMADI').length,
+      gecKaldi: ogrenciYoklamalari.filter(o => o.durum === 'GEC_KALDI').length,
+      izinli: ogrenciYoklamalari.filter(o => o.durum === 'IZINLI').length,
+      belirsiz: ogrenciYoklamalari.filter(o => !o.durum).length
+    };
+
+    res.json({
+      success: true,
+      data: {
+        course: {
+          id: course.id,
+          ad: course.ad,
+          sinif: course.sinif,
+          ogretmen: course.ogretmen,
+          gun: course.gun,
+          baslangicSaati: course.baslangicSaati,
+          bitisSaati: course.bitisSaati
+        },
+        tarih: startOfDay,
+        ogrenciYoklamalari,
+        istatistik
+      }
+    });
+  } catch (error) {
+    console.error('Personel yoklama detay hatası:', error);
+    res.status(500).json({ success: false, error: 'Sunucu hatası' });
+  }
+};
+
+// Personel yoklama güncelleme
+export const personelYoklamaGuncelle = async (req: AuthRequest, res: Response) => {
+  try {
+    const kursId = req.user?.kursId;
+    const { courseId, ogrenciId } = req.params;
+    const { durum, aciklama, tarih } = req.body;
+
+    if (!kursId) {
+      return res.status(403).json({ success: false, error: 'Kurs bilgisi bulunamadı' });
+    }
+
+    // Dersin kursa ait olduğunu kontrol et
+    const course = await prisma.course.findFirst({
+      where: { id: courseId, sinif: { kursId } }
+    });
+
+    if (!course) {
+      return res.status(404).json({ success: false, error: 'Ders bulunamadı' });
+    }
+
+    // Tarih hesapla
+    const queryDate = tarih ? new Date(tarih) : new Date();
+    const startOfDay = new Date(queryDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(queryDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Mevcut yoklama kaydı var mı kontrol et
+    const mevcutYoklama = await prisma.yoklama.findFirst({
+      where: {
+        ogrenciId,
+        courseId,
+        tarih: {
+          gte: startOfDay,
+          lte: endOfDay
+        }
+      }
+    });
+
+    let yoklama;
+    if (mevcutYoklama) {
+      // Güncelle
+      yoklama = await prisma.yoklama.update({
+        where: { id: mevcutYoklama.id },
+        data: {
+          durum: durum as YoklamaDurum,
+          aciklama
+        }
+      });
+    } else {
+      // Yeni kayıt oluştur
+      yoklama = await prisma.yoklama.create({
+        data: {
+          ogrenciId,
+          courseId,
+          tarih: new Date(),
+          durum: durum as YoklamaDurum,
+          aciklama
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Yoklama güncellendi',
+      data: yoklama
+    });
+  } catch (error) {
+    console.error('Personel yoklama güncelleme hatası:', error);
+    res.status(500).json({ success: false, error: 'Sunucu hatası' });
+  }
+};
+

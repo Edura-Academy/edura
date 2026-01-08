@@ -31,7 +31,22 @@
     "currentPassword": "Mot de passe actuel",
     "newPassword": "Nouveau mot de passe",
     "confirmPassword": "Confirmer le mot de passe",
-    "rememberMe": "Se souvenir de moi"
+    "rememberMe": "Se souvenir de moi",
+    "courseTrackingSystem": "Système de suivi des cours",
+    "userType": "Type d'utilisateur",
+    "staff": "Personnel",
+    "student": "Étudiant",
+    "staffLoginDesc": "Connexion cours, directeur, enseignant, secrétaire",
+    "studentLoginDesc": "Connexion étudiant",
+    "enterUsername": "Entrez votre nom d'utilisateur",
+    "enterPassword": "Entrez votre mot de passe",
+    "logging": "Connexion en cours...",
+    "invalidCredentials": "Nom d'utilisateur ou mot de passe incorrect",
+    "connectionError": "Erreur de connexion. Le serveur fonctionne-t-il ?",
+    "copyright": "© 2025 Edura Academy. Tous droits réservés.",
+    "testLogin": "Connexion de test",
+    "selectUser": "Avec quel utilisateur souhaitez-vous vous connecter ?",
+    "cancel": "Annuler"
   },
   "admin": {
     "title": "Panneau d'administration",
@@ -77,9 +92,10 @@
     "title": "Langue",
     "turkish": "Türkçe",
     "english": "English",
-    "spanish": "Español",
-    "japanese": "日本語",
-    "french": "Français"
+    "german": "Deutsch",
+    "arabic": "العربية",
+    "french": "Français",
+    "spanish": "Español"
   },
   "courses": {
     "courseName": "Nom du cours",
@@ -127,6 +143,764 @@
     "hoursAgo": "heures",
     "yesterday": "Hier",
     "daysAgo": "jours"
+  },
+  "chatbot": {
+    "title": "Assistant Edura",
+    "placeholder": "Écrivez un message...",
+    "voiceMode": "Mode vocal",
+    "chatMode": "Mode chat",
+    "listening": "Écoute en cours...",
+    "speaking": "Parle...",
+    "stop": "Arrêter",
+    "send": "Envoyer",
+    "welcome": "Bonjour ! Je suis votre assistant Edura. Comment puis-je vous aider ?",
+    "error": "Une erreur s'est produite. Veuillez réessayer.",
+    "connectionError": "Erreur de connexion. Veuillez vérifier votre connexion internet."
+  },
+  "accessibility": {
+    "ttsEnabled": "Synthèse vocale activée",
+    "ttsDisabled": "Synthèse vocale désactivée",
+    "voiceAssistant": "Assistant vocal",
+    "microphoneButton": "Bouton microphone. Cliquez ou appuyez sur Entrée pour parler.",
+    "assistantOpened": "Assistant ouvert",
+    "assistantClosed": "Assistant fermé",
+    "voiceModeActivated": "Mode assistant vocal activé. Cliquez sur le bouton microphone pour parler.",
+    "chatModeActivated": "Mode chat activé.",
+    "noSpeechDetected": "Aucune parole détectée. Veuillez réessayer.",
+    "microphoneAccessDenied": "Accès au microphone refusé.",
+    "browserNotSupported": "Votre navigateur ne prend pas en charge la reconnaissance vocale.",
+    "networkError": "Erreur réseau. Veuillez vérifier votre connexion internet."
+  },
+  "manager": {
+    "panel": "Panneau du directeur",
+    "institutionManager": "Directeur d'établissement",
+    "menu": {
+      "homePage": "Accueil",
+      "userManagement": "Gestion des utilisateurs",
+      "classManagement": "Gestion des classes",
+      "mockExams": "Examens blancs",
+      "reports": "Rapports",
+      "announcements": "Annonces",
+      "messages": "Messages",
+      "systemAnnouncements": "Annonces système",
+      "support": "Demande de support",
+      "helpCenter": "Centre d'aide",
+      "new": "Nouveau"
+    },
+    "welcome": {
+      "title": "Bienvenue, Directeur {name} !",
+      "subtitle": "Vous pouvez suivre l'état général de votre établissement ici."
+    },
+    "stats": {
+      "student": "Étudiant",
+      "teacher": "Enseignant",
+      "secretary": "Secrétaire",
+      "class": "Classe",
+      "totalStudents": "Total des étudiants",
+      "totalTeachers": "Total des enseignants",
+      "totalSecretaries": "Total des secrétaires",
+      "totalClasses": "Total des classes",
+      "activeStudents": "Étudiants actifs dans votre établissement",
+      "activeTeachers": "Enseignants actifs dans votre établissement",
+      "activeSecretaries": "Secrétaires actifs dans votre établissement",
+      "activeClasses": "Classes actives dans votre établissement"
+    },
+    "quickActions": {
+      "addTeacher": "Ajouter un enseignant",
+      "newTeacher": "Nouvel enseignant",
+      "addTeacherDesc": "Cliquez pour ajouter un nouvel enseignant à votre personnel",
+      "createClass": "Créer une classe",
+      "newClass": "Ouvrir une nouvelle classe",
+      "createClassDesc": "Cliquez pour créer une nouvelle classe",
+      "mockExam": "Examen blanc",
+      "createTytAyt": "Créer TYT/AYT",
+      "mockExamDesc": "Cliquez pour créer un examen blanc TYT ou AYT",
+      "publishAnnouncement": "Publier une annonce",
+      "toAllStaff": "À tout le personnel",
+      "publishAnnouncementDesc": "Cliquez pour envoyer une annonce à tout le personnel",
+      "reports": "Rapports",
+      "performanceAnalysis": "Analyse de performance",
+      "reportsDesc": "Cliquez pour voir les analyses de performance et les rapports"
+    },
+    "recentUsers": {
+      "title": "Utilisateurs récemment ajoutés",
+      "viewAll": "Voir tout",
+      "noUsers": "Aucun utilisateur ajouté",
+      "description": "Liste des utilisateurs récemment ajoutés. Cliquez pour voir tout."
+    },
+    "quickActionsPanel": {
+      "title": "Actions rapides",
+      "description": "Panneau d'actions rapides. Accédez aux actions fréquemment utilisées ici.",
+      "createMockExam": "Créer un examen blanc",
+      "createMockExamDesc": "Ajouter un examen TYT, AYT ou LGS",
+      "addNewTeacher": "Ajouter un nouvel enseignant",
+      "addNewTeacherDesc": "Ajoutez un nouvel enseignant à votre personnel",
+      "performanceReports": "Rapports de performance",
+      "performanceReportsDesc": "Analyses et statistiques détaillées",
+      "publishAnnouncementDesc": "Envoyer une annonce à tout le personnel"
+    },
+    "roles": {
+      "teacher": "Enseignant",
+      "secretary": "Secrétaire",
+      "student": "Étudiant",
+      "parent": "Parent"
+    },
+    "header": {
+      "search": "Rechercher...",
+      "mockExams": "Examens blancs",
+      "accountSettings": "Paramètres du compte",
+      "logout": "Déconnexion"
+    },
+    "tts": {
+      "currentPage": "vous êtes sur cette page",
+      "goToPage": "aller à la page",
+      "welcomeMessage": "Bienvenue Directeur {name} ! Vous pouvez suivre l'état général de votre établissement depuis ce tableau de bord. Il y a {students} étudiants, {teachers} enseignants, {secretaries} secrétaires et {classes} classes.",
+      "userInfo": "Utilisateur {index} : {name}, Rôle : {role}",
+      "addUserHint": "Allez à la gestion des utilisateurs pour ajouter des utilisateurs."
+    }
+  },
+  "parent": {
+    "panel": "Tableau de bord Parent",
+    "role": "Parent",
+    "welcome": {
+      "title": "Bienvenue, {name} !",
+      "subtitle": "Vous pouvez suivre le parcours éducatif de votre enfant ici."
+    },
+    "childInfo": {
+      "title": "Mon Enfant",
+      "myChildren": "Mes Enfants",
+      "class": "Classe",
+      "studentNo": "Numéro d'étudiant",
+      "school": "École",
+      "viewDetails": "Voir les détails",
+      "noChildren": "Aucun enfant enregistré"
+    },
+    "stats": {
+      "average": "Moyenne",
+      "absences": "Absences",
+      "pendingHomework": "Devoirs en attente",
+      "completedExams": "Examens terminés",
+      "xp": "Points XP",
+      "badges": "Badges"
+    },
+    "menu": {
+      "homePage": "Accueil",
+      "childProgress": "Progrès de mon enfant",
+      "examResults": "Résultats d'examens",
+      "homeworkStatus": "État des devoirs",
+      "attendance": "Présence",
+      "payments": "Paiements",
+      "messages": "Messages",
+      "announcements": "Annonces",
+      "schedule": "Emploi du temps",
+      "teachers": "Enseignants",
+      "settings": "Paramètres",
+      "compare": "Comparer"
+    },
+    "childProgress": {
+      "title": "Progrès de mon enfant",
+      "lastMonth": "Dernier mois",
+      "generalAverage": "Moyenne générale",
+      "examCount": "Nombre d'examens",
+      "homeworkCompletion": "Achèvement des devoirs",
+      "attendanceRate": "Taux de présence"
+    },
+    "recentExams": {
+      "title": "Résultats d'examens récents",
+      "viewAll": "Voir tout",
+      "noExams": "Pas encore de résultats d'examens"
+    },
+    "pendingHomework": {
+      "title": "Devoirs en attente",
+      "viewAll": "Voir tout",
+      "noHomework": "Pas de devoirs en attente",
+      "deadline": "Date limite"
+    },
+    "payments": {
+      "title": "Paiements",
+      "totalDebt": "Dette totale",
+      "paidAmount": "Payé",
+      "pendingAmount": "En attente",
+      "overdueAmount": "En retard",
+      "pending": "Paiement en attente",
+      "paid": "Payé",
+      "overdue": "En retard",
+      "makePayment": "Effectuer un paiement",
+      "payNow": "Payer maintenant",
+      "paymentHistory": "Historique des paiements",
+      "nextPayment": "Prochain paiement",
+      "upcoming": "À venir",
+      "paymentPlans": "Plans de paiement",
+      "history": "Historique",
+      "noPayments": "Aucun enregistrement de paiement",
+      "progress": "Progression du paiement",
+      "cardNumber": "Numéro de carte",
+      "cardHolder": "Titulaire de la carte",
+      "expiryDate": "Date d'expiration",
+      "cvv": "CVV",
+      "secure3d": "Payer avec 3D Secure",
+      "securityInfo": "Vos informations de paiement sont cryptées avec SSL 256 bits",
+      "processing": "Traitement..."
+    },
+    "teachers": {
+      "title": "Enseignants",
+      "sendMessage": "Envoyer un message",
+      "viewProfile": "Voir le profil",
+      "branch": "Branche"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "newExamResult": "Nouveau résultat d'examen",
+      "homeworkDeadline": "Date limite des devoirs approche",
+      "paymentReminder": "Rappel de paiement",
+      "absenceAlert": "Alerte d'absence",
+      "noNotifications": "Pas de notifications",
+      "markAllRead": "Tout marquer comme lu"
+    },
+    "messages": {
+      "title": "Messages",
+      "newMessage": "Nouveau message",
+      "conversations": "Conversations",
+      "searchConversations": "Rechercher des conversations...",
+      "typeMessage": "Tapez votre message...",
+      "send": "Envoyer",
+      "noMessages": "Pas encore de messages",
+      "selectConversation": "Sélectionnez une conversation",
+      "startConversation": "Sélectionnez un enseignant pour démarrer une conversation",
+      "selectTeacher": "Sélectionner un enseignant",
+      "online": "En ligne",
+      "offline": "Hors ligne",
+      "typing": "en train d'écrire...",
+      "today": "Aujourd'hui",
+      "yesterday": "Hier"
+    },
+    "announcements": {
+      "title": "Annonces",
+      "search": "Rechercher des annonces...",
+      "filter": "Filtrer",
+      "category": "Catégorie",
+      "priority": "Priorité",
+      "allCategories": "Toutes les catégories",
+      "allPriorities": "Toutes les priorités",
+      "clearFilters": "Effacer les filtres",
+      "pinned": "Épinglé",
+      "noAnnouncements": "Pas encore d'annonces",
+      "noResults": "Aucun résultat trouvé",
+      "categories": {
+        "general": "Général",
+        "education": "Éducation",
+        "payment": "Paiement",
+        "event": "Événement",
+        "meeting": "Réunion",
+        "other": "Autre"
+      },
+      "priorities": {
+        "low": "Faible",
+        "normal": "Normal",
+        "high": "Élevé",
+        "urgent": "Urgent"
+      }
+    },
+    "examResults": {
+      "title": "Résultats d'examens",
+      "selectChild": "Sélectionner un enfant",
+      "examType": "Type d'examen",
+      "allTypes": "Tous les types",
+      "totalExams": "Total des examens",
+      "averageNet": "Moyenne nette",
+      "highestNet": "Note la plus élevée",
+      "lastChange": "Dernier changement",
+      "weakSubjects": "Matières faibles",
+      "weakSubjectsWarning": "Besoin de plus de pratique dans ces matières",
+      "detailedResults": "Résultats détaillés",
+      "subjectPerformance": "Performance par matière",
+      "developmentTrend": "Tendance de développement",
+      "noResults": "Pas encore de résultats d'examens",
+      "correct": "Correct",
+      "wrong": "Faux",
+      "empty": "Vide",
+      "net": "Net",
+      "date": "Date",
+      "examName": "Nom de l'examen"
+    },
+    "compare": {
+      "title": "Comparaison des enfants",
+      "performance": "Performance",
+      "generalPerformance": "Performance générale",
+      "ranking": "Classement",
+      "detailedComparison": "Comparaison détaillée",
+      "selectMetric": "Sélectionner une métrique",
+      "metrics": {
+        "examAverage": "Moyenne des examens",
+        "homeworkRate": "Taux de soumission des devoirs",
+        "homeworkScore": "Note des devoirs",
+        "classParticipation": "Participation en classe",
+        "absences": "Absences"
+      },
+      "bestPerformance": "Meilleure performance",
+      "comparisonTable": "Tableau de comparaison",
+      "evaluations": {
+        "excellent": "Excellent",
+        "veryGood": "Très bien",
+        "good": "Bien",
+        "medium": "Moyen",
+        "needsImprovement": "À améliorer",
+        "attention": "Attention !"
+      },
+      "singleChildView": "Impossible de comparer avec un seul enfant",
+      "viewDetails": "Voir les détails"
+    },
+    "settings": {
+      "title": "Paramètres du compte",
+      "subtitle": "Gérez vos paramètres de profil, sécurité et accessibilité",
+      "tabs": {
+        "profile": "Profil",
+        "security": "Sécurité",
+        "notifications": "Notifications",
+        "accessibility": "Accessibilité"
+      },
+      "profile": {
+        "title": "Informations du profil",
+        "photo": "Photo de profil",
+        "uploadPhoto": "Télécharger une nouvelle photo",
+        "deletePhoto": "Supprimer la photo",
+        "photoFormats": "Formats supportés : JPG, PNG, WebP (max 8Mo)",
+        "firstName": "Prénom",
+        "lastName": "Nom",
+        "email": "Email",
+        "emailReadonly": "Contactez votre administrateur pour changer l'email",
+        "phone": "Téléphone",
+        "saveChanges": "Enregistrer les modifications",
+        "saving": "Enregistrement...",
+        "updateSuccess": "Profil mis à jour avec succès !",
+        "photoUploadSuccess": "Photo de profil téléchargée avec succès !",
+        "photoDeleteSuccess": "Photo de profil supprimée !"
+      },
+      "security": {
+        "title": "Changer le mot de passe",
+        "currentPassword": "Mot de passe actuel",
+        "newPassword": "Nouveau mot de passe",
+        "confirmPassword": "Confirmer le nouveau mot de passe",
+        "passwordHint": "Au moins 6 caractères, majuscules/minuscules et chiffres requis",
+        "passwordStrength": {
+          "veryWeak": "Très faible",
+          "weak": "Faible",
+          "medium": "Moyen",
+          "strong": "Fort"
+        },
+        "passwordsMatch": "Les mots de passe correspondent",
+        "passwordsDontMatch": "Les mots de passe ne correspondent pas",
+        "changePassword": "Changer le mot de passe",
+        "changing": "Modification...",
+        "changeSuccess": "Mot de passe changé avec succès !"
+      },
+      "notifications": {
+        "title": "Préférences de notification",
+        "emailNotifications": "Notifications par email",
+        "emailDesc": "Recevoir des emails pour les mises à jour importantes",
+        "pushNotifications": "Notifications push",
+        "pushDesc": "Notifications du navigateur",
+        "permissionGranted": "Permission accordée",
+        "permissionDenied": "Permission refusée",
+        "grantPermission": "Accorder la permission",
+        "categories": "Catégories de notification",
+        "homeworkNotif": "Notifications de devoirs",
+        "homeworkNotifDesc": "À propos des devoirs de votre enfant",
+        "absenceNotif": "Notifications d'absence",
+        "absenceNotifDesc": "Enregistrements d'absence",
+        "examNotif": "Résultats d'examens",
+        "examNotifDesc": "Résultats d'examens et tests",
+        "messageNotif": "Notifications de messages",
+        "messageNotifDesc": "Messages des enseignants",
+        "announcementNotif": "Notifications d'annonces",
+        "announcementNotifDesc": "Annonces de l'établissement",
+        "saveSettings": "Enregistrer les paramètres",
+        "updateSuccess": "Paramètres de notification mis à jour !"
+      },
+      "accessibility": {
+        "title": "Accessibilité",
+        "resetSettings": "Réinitialiser par défaut",
+        "resetSuccess": "Paramètres réinitialisés par défaut"
+      }
+    },
+    "childDetails": {
+      "grades": "Notes",
+      "attendance": "Présence",
+      "homework": "Devoirs",
+      "teachers": "Enseignants",
+      "schedule": "Emploi du temps",
+      "noData": "Aucune donnée trouvée"
+    },
+    "quickAccess": {
+      "title": "Menu d'accès rapide"
+    },
+    "header": {
+      "accountSettings": "Paramètres du compte",
+      "logout": "Déconnexion"
+    },
+    "tts": {
+      "currentPage": "Vous êtes actuellement sur cette page",
+      "goToPage": "Cliquez pour accéder à la page",
+      "welcomeMessage": "Bienvenue, {name}. Vous pouvez suivre le statut académique de vos enfants ici.",
+      "childCard": "{name}. Classe: {class}. Absences: {absences} jours. Moyenne: {average}. Devoirs en attente: {homework}.",
+      "viewGrades": "Voir les notes de",
+      "viewAttendance": "Voir les informations de présence et d'absence de",
+      "viewHomework": "Voir les devoirs de",
+      "notification": "Notification: {title}. {message}",
+      "announcement": "Annonce: {title}. {priority}",
+      "profileMenu": "Menu profil. Cliquez pour ouvrir le menu",
+      "logoutButton": "Déconnexion. Cliquez pour vous déconnecter",
+      "settingsLink": "Paramètres du compte. Cliquez pour accéder aux paramètres",
+      "notificationsButton": "Notifications",
+      "messagesButton": "Messages. Cliquez pour voir vos messages",
+      "newMessageButton": "Nouveau message. Cliquez pour envoyer un message aux enseignants",
+      "payNowButton": "Payer maintenant. Cliquez pour effectuer un paiement",
+      "examResult": "Examen: {name}. Net: {net}. Correct: {correct}. Faux: {wrong}",
+      "compareChild": "{name}. Performance générale: {performance} points",
+      "userInfo": "Utilisateur connecté: {name}. Parent."
+    }
+  },
+  "student": {
+    "panel": "Tableau de bord Étudiant",
+    "welcome": {
+      "title": "Bonjour, {name} !",
+      "subtitle": "Comment te sens-tu aujourd'hui ? De nouvelles réussites t'attendent !"
+    },
+    "stats": {
+      "lessonCount": "Nombre de cours",
+      "absences": "Absences",
+      "average": "Moyenne",
+      "examCount": "Nombre d'examens"
+    },
+    "menu": {
+      "homePage": "Accueil",
+      "homework": "Devoirs",
+      "exams": "Examens",
+      "liveClass": "Cours en direct",
+      "materials": "Matériels",
+      "achievements": "Réussites",
+      "schedule": "Emploi du temps",
+      "progress": "Progrès",
+      "attendance": "Présence",
+      "messages": "Messages",
+      "announcements": "Annonces",
+      "mockExams": "Examens blancs"
+    },
+    "academicProgress": {
+      "title": "Progrès académique",
+      "lastWeeks": "4 dernières semaines",
+      "generalAverage": "Moyenne générale",
+      "solvedExams": "Examens résolus",
+      "submittedHomework": "Devoirs soumis",
+      "attendanceRate": "Taux de présence",
+      "examTrend": "Tendance de performance",
+      "subjectSuccess": "Succès par matière",
+      "weeklyActivity": "Activité hebdomadaire",
+      "week": "Semaine",
+      "exam": "Examen",
+      "homework": "Devoir"
+    },
+    "mockExams": {
+      "title": "Examens blancs",
+      "count": "{count} examens",
+      "correct": "C",
+      "wrong": "F",
+      "empty": "V",
+      "noResults": "Pas encore de résultats d'examens blancs",
+      "noResultsDesc": "Les résultats apparaîtront ici après votre premier examen !"
+    },
+    "weeklySchedule": {
+      "title": "Programme hebdomadaire",
+      "yourSchedule": "Votre emploi du temps",
+      "empty": "Vide",
+      "days": {
+        "monday": "Lundi",
+        "tuesday": "Mardi",
+        "wednesday": "Mercredi",
+        "thursday": "Jeudi",
+        "friday": "Vendredi",
+        "saturday": "Samedi",
+        "sunday": "Dimanche"
+      }
+    },
+    "teachers": {
+      "title": "Mes enseignants",
+      "count": "{count} enseignants",
+      "sendMessage": "Envoyer un message",
+      "noTeachers": "Aucun enseignant enregistré"
+    },
+    "dailyQuestion": {
+      "title": "Question du jour",
+      "dailyChallenge": "Défi quotidien",
+      "preparing": "Préparation de la question...",
+      "newQuestionsDaily": "Nouvelles questions chaque jour !",
+      "correct": "Correct",
+      "wrong": "Faux",
+      "submitAnswer": "Soumettre la réponse",
+      "showHint": "Voir l'indice",
+      "hintWarning": "(XP réduit de moitié)",
+      "congratulations": "Félicitations !",
+      "earnedXP": "+{xp} XP gagnés !",
+      "wrongAnswer": "Mauvaise réponse !",
+      "explanation": "Explication"
+    },
+    "gamification": {
+      "level": "Niveau",
+      "totalXP": "XP Total",
+      "streak": "Série",
+      "days": "jours",
+      "highestStreak": "Meilleure série",
+      "levels": {
+        "beginner": "Débutant",
+        "apprentice": "Apprenti",
+        "master": "Maître",
+        "expert": "Expert",
+        "legend": "Légende"
+      }
+    },
+    "profile": {
+      "editProfile": "Modifier le profil",
+      "updateInfo": "Mettre à jour vos informations",
+      "profilePhoto": "Photo de profil",
+      "photoFormats": "JPG, PNG ou GIF (max 5Mo)",
+      "changePhoto": "Changer",
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "email": "Email",
+      "emailCantChange": "L'adresse email ne peut pas être modifiée",
+      "phone": "Téléphone",
+      "class": "Classe",
+      "studentNo": "Numéro d'étudiant",
+      "saving": "Enregistrement...",
+      "profileUpdated": "Profil mis à jour avec succès !",
+      "updateFailed": "Échec de la mise à jour du profil."
+    },
+    "notifications": {
+      "title": "Notifications",
+      "noNotifications": "Pas de notifications"
+    },
+    "header": {
+      "accountSettings": "Paramètres du compte",
+      "logout": "Déconnexion"
+    },
+    "activeExams": {
+      "title": "Examens en ligne actifs",
+      "waiting": "{count} examens vous attendent !",
+      "viewAll": "Voir tout",
+      "duration": "min",
+      "questions": "questions"
+    }
+  },
+  "teacher": {
+    "panel": "Tableau de bord Enseignant",
+    "welcome": {
+      "title": "Bienvenue, Professeur {name} !",
+      "subtitle": "Vous pouvez gérer vos cours et étudiants ici."
+    },
+    "stats": {
+      "totalStudents": "Total étudiants",
+      "activeClasses": "Classes actives",
+      "pendingHomework": "Devoirs en attente",
+      "upcomingExams": "Examens à venir"
+    },
+    "menu": {
+      "homePage": "Accueil",
+      "myClasses": "Mes classes",
+      "students": "Mes étudiants",
+      "homework": "Devoirs",
+      "exams": "Examens",
+      "liveClass": "Cours en direct",
+      "materials": "Matériels",
+      "attendance": "Présence",
+      "grades": "Notes",
+      "messages": "Messages",
+      "announcements": "Annonces",
+      "questionBank": "Banque de questions",
+      "reports": "Rapports"
+    },
+    "classes": {
+      "title": "Mes classes",
+      "studentCount": "{count} étudiants",
+      "viewClass": "Voir la classe",
+      "noClasses": "Aucune classe attribuée"
+    },
+    "homework": {
+      "title": "Devoirs",
+      "createHomework": "Créer un devoir",
+      "pending": "En attente d'évaluation",
+      "graded": "Noté",
+      "deadline": "Date limite",
+      "submissions": "Soumissions"
+    },
+    "exams": {
+      "title": "Examens",
+      "createExam": "Créer un examen",
+      "activeExams": "Examens actifs",
+      "completedExams": "Examens terminés",
+      "duration": "Durée",
+      "questions": "Questions"
+    },
+    "liveClass": {
+      "title": "Cours en direct",
+      "startClass": "Démarrer le cours",
+      "scheduleClass": "Planifier le cours",
+      "upcomingClasses": "Cours à venir",
+      "pastClasses": "Cours passés"
+    },
+    "attendance": {
+      "title": "Présence",
+      "takeAttendance": "Prendre la présence",
+      "present": "Présent",
+      "absent": "Absent",
+      "late": "En retard",
+      "excused": "Excusé"
+    },
+    "grades": {
+      "title": "Notes",
+      "enterGrades": "Entrer les notes",
+      "classAverage": "Moyenne de classe",
+      "highestGrade": "Note la plus haute",
+      "lowestGrade": "Note la plus basse"
+    },
+    "todaySchedule": {
+      "title": "Programme d'aujourd'hui",
+      "noClass": "Pas de cours aujourd'hui",
+      "nextClass": "Prochain cours"
+    }
+  },
+  "secretary": {
+    "panel": "Tableau de bord Secrétaire",
+    "welcome": {
+      "title": "Bienvenue, {name} !",
+      "subtitle": "Vous pouvez gérer les opérations de l'établissement ici."
+    },
+    "stats": {
+      "totalStudents": "Total étudiants",
+      "pendingRegistrations": "Inscriptions en attente",
+      "pendingPayments": "Paiements en attente",
+      "todayAbsences": "Absences aujourd'hui"
+    },
+    "menu": {
+      "homePage": "Accueil",
+      "studentRegistration": "Inscription étudiants",
+      "payments": "Paiements",
+      "attendance": "Absences",
+      "documents": "Documents",
+      "reports": "Rapports",
+      "messages": "Messages",
+      "announcements": "Annonces"
+    },
+    "registration": {
+      "title": "Inscription étudiants",
+      "newRegistration": "Nouvelle inscription",
+      "pendingRegistrations": "Inscriptions en attente",
+      "completedRegistrations": "Inscriptions complétées"
+    },
+    "payments": {
+      "title": "Paiements",
+      "receivePayment": "Recevoir paiement",
+      "pendingPayments": "Paiements en attente",
+      "paymentHistory": "Historique des paiements",
+      "generateReceipt": "Générer un reçu"
+    },
+    "attendance": {
+      "title": "Absences",
+      "enterAbsence": "Enregistrer absence",
+      "todayAbsences": "Absences du jour",
+      "monthlyReport": "Rapport mensuel"
+    },
+    "documents": {
+      "title": "Documents",
+      "studentDocument": "Document étudiant",
+      "transcript": "Relevé de notes",
+      "certificate": "Certificat"
+    }
+  },
+  "courseOwner": {
+    "panel": "Tableau de bord Propriétaire",
+    "title": "Propriétaire du cours",
+    "menu": {
+      "homePage": "Accueil",
+      "courseOverview": "Vue d'ensemble",
+      "financialReports": "Rapports financiers",
+      "managers": "Gestion des directeurs",
+      "announcements": "Annonces",
+      "messages": "Messages",
+      "settings": "Paramètres"
+    },
+    "welcome": {
+      "title": "Bienvenue, Propriétaire de {courseName}, {name} !",
+      "subtitle": "Vous pouvez suivre l'état général et les rapports financiers de votre cours ici."
+    },
+    "stats": {
+      "totalRevenue": "Revenus totaux",
+      "totalStudents": "Total étudiants",
+      "totalTeachers": "Total enseignants",
+      "totalClasses": "Total classes",
+      "totalManagers": "Nombre de directeurs",
+      "monthlyRevenue": "Revenus mensuels",
+      "pendingPayments": "Paiements en attente",
+      "student": "Étudiant",
+      "teacher": "Enseignant",
+      "class": "Classe",
+      "manager": "Directeur"
+    },
+    "quickActions": {
+      "viewFinancials": "Voir les rapports financiers",
+      "assignManager": "Assigner un directeur",
+      "courseSettings": "Paramètres du cours",
+      "viewReports": "Rapports détaillés",
+      "newManager": "Assigner un nouveau directeur",
+      "incomeExpense": "Revenus/Dépenses",
+      "analysis": "Analyse",
+      "settings": "Paramètres"
+    },
+    "courseInfo": {
+      "title": "Informations du cours",
+      "name": "Nom du cours",
+      "address": "Adresse",
+      "phone": "Téléphone",
+      "manager": "Directeur assigné"
+    },
+    "header": {
+      "search": "Rechercher...",
+      "accountSettings": "Paramètres du compte",
+      "logout": "Déconnexion"
+    },
+    "managers": {
+      "title": "Directeurs assignés",
+      "viewAll": "Voir tout",
+      "active": "Actif",
+      "passive": "Inactif",
+      "noManagers": "Aucun directeur assigné pour l'instant",
+      "assignManager": "Assigner un directeur",
+      "managerList": "Liste des directeurs assignés au cours"
+    },
+    "ownerActions": {
+      "title": "Actions du propriétaire",
+      "managerManagement": "Gestion des directeurs",
+      "managerManagementDesc": "Assigner, modifier ou supprimer des directeurs",
+      "financialReports": "Rapports financiers",
+      "financialReportsDesc": "Suivi des revenus-dépenses et paiements",
+      "courseSettings": "Paramètres du cours",
+      "courseSettingsDesc": "Mettre à jour les informations"
+    },
+    "tts": {
+      "currentPage": "vous êtes sur cette page",
+      "goToPage": "aller à la page",
+      "welcomeMessage": "Bienvenue {name} ! Vous pouvez suivre l'état de votre cours {courseName} depuis ce tableau de bord.",
+      "totalStudentsDesc": "Nombre total d'étudiants dans notre cours",
+      "totalTeachersDesc": "Nombre total d'enseignants dans notre cours",
+      "totalClassesDesc": "Nombre total de classes dans notre cours",
+      "totalManagersDesc": "Nombre de directeurs assignés",
+      "assignManagerDesc": "Cliquez pour assigner un directeur au cours",
+      "viewFinancialsDesc": "Voir les rapports financiers",
+      "viewReportsDesc": "Voir les rapports détaillés",
+      "courseSettingsDesc": "Modifier les paramètres du cours",
+      "ownerActionsDesc": "Panneau d'actions rapides du propriétaire",
+      "managerManagerDesc": "Opérations d'assignation et de gestion des directeurs",
+      "noManagersDesc": "Aucun directeur assigné pour l'instant. Allez à la page de gestion pour assigner un directeur."
+    }
   }
 }
 

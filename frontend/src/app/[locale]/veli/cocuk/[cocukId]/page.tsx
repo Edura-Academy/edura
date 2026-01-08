@@ -8,6 +8,7 @@ import {
   GraduationCap, CheckCircle, XCircle, Award,
   ChevronRight
 } from 'lucide-react';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface Cocuk {
   id: string;
@@ -30,6 +31,8 @@ export default function CocukDetay() {
   const router = useRouter();
   const params = useParams();
   const cocukId = params.cocukId as string;
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   
   const [cocuk, setCocuk] = useState<Cocuk | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,7 +44,7 @@ export default function CocukDetay() {
   const fetchCocuk = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/veli/cocuk/${cocukId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/veli/cocuk/${cocukId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -60,7 +63,7 @@ export default function CocukDetay() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+      <div className={`min-h-screen ${isDark ? 'bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900' : 'bg-gradient-to-br from-slate-100 via-purple-50 to-slate-100'} flex items-center justify-center`}>
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
       </div>
     );
@@ -68,10 +71,10 @@ export default function CocukDetay() {
 
   if (!cocuk) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+      <div className={`min-h-screen ${isDark ? 'bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900' : 'bg-gradient-to-br from-slate-100 via-purple-50 to-slate-100'} flex items-center justify-center`}>
         <div className="text-center">
-          <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-          <p className="text-white">Öğrenci bulunamadı</p>
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <p className={isDark ? 'text-white' : 'text-slate-900'}>Öğrenci bulunamadı</p>
           <button 
             onClick={() => router.push('/veli')}
             className="mt-4 px-4 py-2 bg-purple-500 text-white rounded-lg"
@@ -133,20 +136,20 @@ export default function CocukDetay() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className={`min-h-screen ${isDark ? 'bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900' : 'bg-gradient-to-br from-slate-100 via-purple-50 to-slate-100'}`}>
       {/* Header */}
-      <header className="bg-slate-800/50 backdrop-blur-xl border-b border-slate-700/50 sticky top-0 z-50">
+      <header className={`${isDark ? 'bg-slate-800/50 border-slate-700/50' : 'bg-white/80 border-slate-200'} backdrop-blur-xl border-b sticky top-0 z-50`}>
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center h-16 gap-4">
             <button 
               onClick={() => router.push('/veli')}
-              className="p-2 text-slate-400 hover:text-white transition-colors"
+              className={`p-2 ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'} transition-colors`}
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div>
-              <h1 className="text-lg font-semibold text-white">Öğrenci Detayı</h1>
-              <p className="text-xs text-slate-400">{cocuk.ad} {cocuk.soyad}</p>
+              <h1 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>Öğrenci Detayı</h1>
+              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{cocuk.ad} {cocuk.soyad}</p>
             </div>
           </div>
         </div>
@@ -154,24 +157,24 @@ export default function CocukDetay() {
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Öğrenci Kartı */}
-        <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-6 mb-8">
+        <div className={`${isDark ? 'bg-slate-800/50 border-slate-700/50' : 'bg-white/80 border-slate-200'} backdrop-blur-xl rounded-2xl border p-6 mb-8 shadow-lg`}>
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center text-white font-bold text-2xl">
               {cocuk.ad[0]}{cocuk.soyad[0]}
             </div>
             <div className="flex-1">
-              <h2 className="text-xl font-bold text-white">{cocuk.ad} {cocuk.soyad}</h2>
+              <h2 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{cocuk.ad} {cocuk.soyad}</h2>
               <div className="flex items-center gap-4 mt-1">
-                <span className="text-sm text-slate-400 flex items-center gap-1">
+                <span className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'} flex items-center gap-1`}>
                   <GraduationCap className="w-4 h-4" />
                   {cocuk.sinif?.ad}
                 </span>
-                <span className="text-sm text-slate-400 flex items-center gap-1">
+                <span className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'} flex items-center gap-1`}>
                   <User className="w-4 h-4" />
                   {cocuk.ogrenciNo}
                 </span>
               </div>
-              <p className="text-sm text-purple-400 mt-1">{cocuk.kurs?.ad}</p>
+              <p className="text-sm text-purple-500 mt-1">{cocuk.kurs?.ad}</p>
             </div>
           </div>
         </div>
@@ -184,18 +187,18 @@ export default function CocukDetay() {
               <button
                 key={item.path}
                 onClick={() => router.push(item.path)}
-                className="w-full flex items-center gap-4 p-4 bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 hover:border-purple-500/50 transition-all group text-left"
+                className={`w-full flex items-center gap-4 p-4 ${isDark ? 'bg-slate-800/50 border-slate-700/50' : 'bg-white/80 border-slate-200'} backdrop-blur-xl rounded-2xl border hover:border-purple-500/50 transition-all group text-left shadow-sm`}
               >
                 <div className={`w-12 h-12 ${colors.bg} rounded-xl flex items-center justify-center ${colors.hover} transition-colors`}>
                   <item.icon className={`w-6 h-6 ${colors.text}`} />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-white font-medium group-hover:text-purple-400 transition-colors">
+                  <h3 className={`${isDark ? 'text-white' : 'text-slate-900'} font-medium group-hover:text-purple-500 transition-colors`}>
                     {item.title}
                   </h3>
-                  <p className="text-sm text-slate-400">{item.description}</p>
+                  <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{item.description}</p>
                 </div>
-                <ChevronRight className="w-5 h-5 text-slate-500 group-hover:text-purple-400 transition-colors" />
+                <ChevronRight className={`w-5 h-5 ${isDark ? 'text-slate-500' : 'text-slate-400'} group-hover:text-purple-500 transition-colors`} />
               </button>
             );
           })}

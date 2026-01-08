@@ -2,23 +2,36 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
   ArrowLeft,
   Search,
   Plus,
-  Send,
   Paperclip,
   MoreVertical,
-  Check,
   CheckCheck,
-  Star,
   Phone,
   X,
   Users,
   User,
   GraduationCap,
   Loader2,
+  Home,
+  UserPlus,
+  CreditCard,
+  ClipboardList,
+  FileText,
+  Settings,
+  LogOut,
+  MessageSquare,
+  Bell,
+  Menu,
+  ChevronDown,
 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { RoleGuard } from '@/components/RoleGuard';
+import { useTheme } from '@/contexts/ThemeContext';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
@@ -28,20 +41,9 @@ interface Konusma {
   tip: string;
   ad: string;
   resimUrl?: string;
-  sonMesaj?: {
-    icerik: string;
-    gonderenAd: string;
-    tarih: string;
-  };
+  sonMesaj?: { icerik: string; gonderenAd: string; tarih: string; };
   okunmamis: number;
-  uyeler: Array<{
-    id: string;
-    ad: string;
-    rol: string;
-    brans?: string;
-    grupRol?: string;
-    online?: boolean;
-  }>;
+  uyeler: Array<{ id: string; ad: string; rol: string; brans?: string; grupRol?: string; online?: boolean; }>;
   sabitle: boolean;
   seslesiz: boolean;
   createdAt: string;
@@ -70,8 +72,29 @@ interface AvailableUser {
   sinif?: string;
 }
 
+// Sidebar menü öğeleri
+const menuItems = [
+  { id: 'anasayfa', href: '/sekreter', icon: Home, label: 'Ana Sayfa' },
+  { id: 'kayit', href: '/sekreter/kayit', icon: UserPlus, label: 'Öğrenci Kayıt' },
+  { id: 'yoklama', href: '/sekreter/yoklama', icon: ClipboardList, label: 'Yoklama' },
+  { id: 'odeme', href: '/sekreter/odeme', icon: CreditCard, label: 'Ödemeler' },
+  { id: 'belgeler', href: '/sekreter/belgeler', icon: FileText, label: 'Belgeler' },
+  { id: 'mesajlar', href: '/sekreter/mesajlar', icon: MessageSquare, label: 'Mesajlar' },
+  { id: 'ayarlar', href: '/sekreter/ayarlar', icon: Settings, label: 'Ayarlar' },
+];
+
 export default function MesajlarPage() {
-  // State
+  const { theme } = useTheme();
+  const { user, logout } = useAuth();
+  const pathname = usePathname();
+  const isDark = theme === 'dark';
+
+  // Sidebar state
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+
+  // Mesaj state'leri
   const [konusmalar, setKonusmalar] = useState<Konusma[]>([]);
   const [seciliKonusma, setSeciliKonusma] = useState<Konusma | null>(null);
   const [mesajlar, setMesajlar] = useState<Mesaj[]>([]);
@@ -84,81 +107,47 @@ export default function MesajlarPage() {
   const [showGrupProfil, setShowGrupProfil] = useState(false);
   const [yeniGrupAdi, setYeniGrupAdi] = useState('');
   const [yeniGrupUyeler, setYeniGrupUyeler] = useState<string[]>([]);
-  const [showAdminWarning, setShowAdminWarning] = useState(false);
-  const [selectedUye, setSelectedUye] = useState<any>(null);
-  const [showUyeMenu, setShowUyeMenu] = useState(false);
-  const [showProfilPanel, setShowProfilPanel] = useState(false);
-  const [profilUye, setProfilUye] = useState<any>(null);
-  const [showUyeEkleModal, setShowUyeEkleModal] = useState(false);
-  const [secilenYeniUyeler, setSecilenYeniUyeler] = useState<string[]>([]);
-  const [uyeEkleSearchQuery, setUyeEkleSearchQuery] = useState('');
-  const [uyeEkleUsers, setUyeEkleUsers] = useState<AvailableUser[]>([]);
-  const [uyeEkleLoading, setUyeEkleLoading] = useState(false);
-  const [showMedyaModal, setShowMedyaModal] = useState(false);
-  const [showSikayetModal, setShowSikayetModal] = useState(false);
-  const [sikayetMesaj, setSikayetMesaj] = useState('');
-  const [engellenenKullanicilar, setEngellenenKullanicilar] = useState<string[]>([]);
-  
-  // API Loading states
   const [loading, setLoading] = useState(true);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [availableUsers, setAvailableUsers] = useState<AvailableUser[]>([]);
   const [searchingUsers, setSearchingUsers] = useState(false);
   const [userSearchQuery, setUserSearchQuery] = useState('');
-  
-  // Current user
   const [currentUser, setCurrentUser] = useState<any>(null);
-  
+  const [selectedUye, setSelectedUye] = useState<any>(null);
+  const [showUyeMenu, setShowUyeMenu] = useState(false);
+
   const mesajListRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const lastMessageTimeRef = useRef<string | null>(null);
   const seciliKonusmaRef = useRef<Konusma | null>(null);
-  
-  // seciliKonusma değiştiğinde ref'i de güncelle
+
   useEffect(() => {
     seciliKonusmaRef.current = seciliKonusma;
   }, [seciliKonusma]);
 
-  // Token ve kullanıcı bilgisini al
   const getAuthHeaders = useCallback(() => {
     const token = localStorage.getItem('token');
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    };
+    return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
   }, []);
 
-  // Kullanıcı bilgisini al
   useEffect(() => {
     const userStr = localStorage.getItem('user');
-    if (userStr) {
-      setCurrentUser(JSON.parse(userStr));
-    }
+    if (userStr) setCurrentUser(JSON.parse(userStr));
   }, []);
 
-  // Konuşmaları API'den çek
   const fetchConversations = useCallback(async (selectFirst: boolean = false) => {
     try {
-      const response = await fetch(`${API_URL}/messages/conversations`, {
-        headers: getAuthHeaders()
-      });
+      const response = await fetch(`${API_URL}/messages/conversations`, { headers: getAuthHeaders() });
       const data = await response.json();
       if (data.success) {
         setKonusmalar(data.data);
-        
-        // Ref'ten mevcut seçili konuşmayı al (döngüyü önlemek için)
         const currentSelected = seciliKonusmaRef.current;
-        
-        // İlk yüklemede veya selectFirst parametresi true ise ilk konuşmayı seç
         if (selectFirst && data.data.length > 0 && !currentSelected) {
           setSeciliKonusma(data.data[0]);
         } else if (currentSelected) {
-          // Seçili konuşma varsa güncel verisini al
           const updatedConv = data.data.find((c: Konusma) => c.id === currentSelected.id);
-          if (updatedConv) {
-            setSeciliKonusma(updatedConv);
-          }
+          if (updatedConv) setSeciliKonusma(updatedConv);
         }
       }
     } catch (error) {
@@ -168,28 +157,21 @@ export default function MesajlarPage() {
     }
   }, [getAuthHeaders]);
 
-  // Mesajları API'den çek
   const fetchMessages = useCallback(async (conversationId: string) => {
     try {
-      const response = await fetch(`${API_URL}/messages/conversations/${conversationId}/messages`, {
-        headers: getAuthHeaders()
-      });
+      const response = await fetch(`${API_URL}/messages/conversations/${conversationId}/messages`, { headers: getAuthHeaders() });
       const data = await response.json();
       if (data.success) {
         setMesajlar(data.data);
-        if (data.data.length > 0) {
-          lastMessageTimeRef.current = data.data[data.data.length - 1].tarih;
-        }
+        if (data.data.length > 0) lastMessageTimeRef.current = data.data[data.data.length - 1].tarih;
       }
     } catch (error) {
       console.error('Mesajlar yüklenemedi:', error);
     }
   }, [getAuthHeaders]);
 
-  // Yeni mesajları kontrol et (polling)
   const checkNewMessages = useCallback(async () => {
     if (!seciliKonusma || !lastMessageTimeRef.current) return;
-    
     try {
       const response = await fetch(
         `${API_URL}/messages/conversations/${seciliKonusma.id}/messages/new?after=${encodeURIComponent(lastMessageTimeRef.current)}`,
@@ -198,16 +180,13 @@ export default function MesajlarPage() {
       const data = await response.json();
       if (data.success && data.data.length > 0) {
         setMesajlar(prev => {
-          const newMessages = data.data.filter(
-            (nm: Mesaj) => !prev.some(pm => pm.id === nm.id)
-          );
+          const newMessages = data.data.filter((nm: Mesaj) => !prev.some(pm => pm.id === nm.id));
           if (newMessages.length > 0) {
             lastMessageTimeRef.current = newMessages[newMessages.length - 1].tarih;
             return [...prev, ...newMessages];
           }
           return prev;
         });
-        // Konuşmalar listesini de güncelle
         fetchConversations();
       }
     } catch (error) {
@@ -215,61 +194,38 @@ export default function MesajlarPage() {
     }
   }, [seciliKonusma, getAuthHeaders, fetchConversations]);
 
-  // İlk yüklemede konuşmaları çek
-  useEffect(() => {
-    fetchConversations(true); // true = ilk konuşmayı seç
-  }, [fetchConversations]);
+  useEffect(() => { fetchConversations(true); }, [fetchConversations]);
 
-  // Konuşma değiştiğinde mesajları çek
   useEffect(() => {
-    if (seciliKonusma) {
-      fetchMessages(seciliKonusma.id);
-    }
+    if (seciliKonusma) fetchMessages(seciliKonusma.id);
   }, [seciliKonusma, fetchMessages]);
 
-  // Polling başlat/durdur
   useEffect(() => {
-    if (seciliKonusma) {
-      // Her 3 saniyede bir yeni mesajları kontrol et
-      pollingRef.current = setInterval(checkNewMessages, 3000);
-    }
-    return () => {
-      if (pollingRef.current) {
-        clearInterval(pollingRef.current);
-      }
-    };
+    if (seciliKonusma) pollingRef.current = setInterval(checkNewMessages, 3000);
+    return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
   }, [seciliKonusma, checkNewMessages]);
 
-  // Mesaj listesini en alta kaydır
   useEffect(() => {
-    if (mesajListRef.current) {
-      mesajListRef.current.scrollTop = mesajListRef.current.scrollHeight;
-    }
+    if (mesajListRef.current) mesajListRef.current.scrollTop = mesajListRef.current.scrollHeight;
   }, [mesajlar]);
 
-  // Mesaj gönder
   const handleMesajGonder = async () => {
     if (!yeniMesaj.trim() || !seciliKonusma || sendingMessage) return;
-
     setSendingMessage(true);
     const mesajIcerik = yeniMesaj.trim();
     setYeniMesaj('');
 
     try {
       const response = await fetch(`${API_URL}/messages/conversations/${seciliKonusma.id}/messages`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ icerik: mesajIcerik })
+        method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ icerik: mesajIcerik })
       });
-      
       const data = await response.json();
       if (data.success) {
         setMesajlar(prev => [...prev, data.data]);
         lastMessageTimeRef.current = data.data.tarih;
-        // Konuşmalar listesini güncelle
         fetchConversations();
       } else {
-        setYeniMesaj(mesajIcerik); // Hata durumunda mesajı geri koy
+        setYeniMesaj(mesajIcerik);
         alert('Mesaj gönderilemedi: ' + (data.error || 'Bilinmeyen hata'));
       }
     } catch (error) {
@@ -282,21 +238,14 @@ export default function MesajlarPage() {
     }
   };
 
-  // Kullanıcıları ara (yeni mesaj için)
   const searchUsers = useCallback(async (query: string, type: 'personel' | 'ogrenci') => {
     setSearchingUsers(true);
     try {
       const params = new URLSearchParams({ type });
-      if (query.trim()) {
-        params.append('search', query);
-      }
-      const response = await fetch(`${API_URL}/messages/users?${params}`, {
-        headers: getAuthHeaders()
-      });
+      if (query.trim()) params.append('search', query);
+      const response = await fetch(`${API_URL}/messages/users?${params}`, { headers: getAuthHeaders() });
       const data = await response.json();
-      if (data.success) {
-        setAvailableUsers(data.data);
-      }
+      if (data.success) setAvailableUsers(data.data);
     } catch (error) {
       console.error('Kullanıcılar aranamadı:', error);
     } finally {
@@ -304,43 +253,23 @@ export default function MesajlarPage() {
     }
   }, [getAuthHeaders]);
 
-  // Yeni mesaj modalı açıldığında kullanıcıları yükle
   useEffect(() => {
-    if (showYeniMesajModal && yeniMesajTip !== 'grup') {
-      searchUsers(userSearchQuery, yeniMesajTip);
-    }
+    if (showYeniMesajModal && yeniMesajTip !== 'grup') searchUsers(userSearchQuery, yeniMesajTip);
   }, [showYeniMesajModal, yeniMesajTip, userSearchQuery, searchUsers]);
 
-  // Yeni konuşma oluştur ve mesajlaşma başlat
   const handleStartConversation = async (targetUser: AvailableUser) => {
     try {
       const response = await fetch(`${API_URL}/messages/conversations`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          targetUserId: targetUser.id,
-          tip: 'OZEL'
-        })
+        method: 'POST', headers: getAuthHeaders(),
+        body: JSON.stringify({ targetUserId: targetUser.id, tip: 'OZEL' })
       });
-      
       const data = await response.json();
       if (data.success) {
-        // Konuşmaları yeniden yükle
         await fetchConversations();
-        
-        // Yeni veya mevcut konuşmayı bul ve seç
         const newConv: Konusma = {
-          id: data.data.id,
-          tip: data.data.tip,
-          ad: data.data.ad,
-          okunmamis: 0,
-          uyeler: data.data.uyeler,
-          sabitle: false,
-          seslesiz: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
+          id: data.data.id, tip: data.data.tip, ad: data.data.ad, okunmamis: 0, uyeler: data.data.uyeler,
+          sabitle: false, seslesiz: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
         };
-        
         setSeciliKonusma(newConv);
         setShowYeniMesajModal(false);
         setShowMobileSidebar(false);
@@ -352,21 +281,13 @@ export default function MesajlarPage() {
     }
   };
 
-  // Yeni grup oluştur
   const handleCreateGroup = async () => {
     if (!yeniGrupAdi.trim() || yeniGrupUyeler.length === 0) return;
-
     try {
       const response = await fetch(`${API_URL}/messages/conversations`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          tip: 'OZEL_GRUP',
-          ad: yeniGrupAdi.trim(),
-          uyeIds: yeniGrupUyeler
-        })
+        method: 'POST', headers: getAuthHeaders(),
+        body: JSON.stringify({ tip: 'OZEL_GRUP', ad: yeniGrupAdi.trim(), uyeIds: yeniGrupUyeler })
       });
-      
       const data = await response.json();
       if (data.success) {
         await fetchConversations();
@@ -382,33 +303,12 @@ export default function MesajlarPage() {
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleMesajGonder();
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleMesajGonder(); }
   };
 
-  // Tarihi Date objesine çevirme (sıralama için)
-  const parseTarih = (tarih: string): Date => {
-    // Format: "2024-12-18 14:30" veya "18.12.2024 14:30:00"
-    if (tarih.includes('-')) {
-      // ISO formatı: 2024-12-18 14:30
-      return new Date(tarih.replace(' ', 'T'));
-    } else if (tarih.includes('.')) {
-      // TR formatı: 18.12.2024 14:30:00
-      const [datePart, timePart] = tarih.split(' ');
-      const [day, month, year] = datePart.split('.');
-      return new Date(`${year}-${month}-${day}T${timePart || '00:00:00'}`);
-    }
-    return new Date(tarih);
-  };
-
-  // Filtrelenmiş ve sıralanmış konuşmalar (en yeni mesaj en üstte)
   const filteredKonusmalar = konusmalar
     .filter(k => {
-      if (aramaText && !k.ad.toLowerCase().includes(aramaText.toLowerCase())) {
-        return false;
-      }
+      if (aramaText && !k.ad.toLowerCase().includes(aramaText.toLowerCase())) return false;
       if (filterType === 'okunmamis' && k.okunmamis === 0) return false;
       if (filterType === 'gruplar' && k.tip === 'OZEL') return false;
       return true;
@@ -416,41 +316,26 @@ export default function MesajlarPage() {
     .sort((a, b) => {
       const tarihA = a.sonMesaj?.tarih ? new Date(a.sonMesaj.tarih) : new Date(a.updatedAt);
       const tarihB = b.sonMesaj?.tarih ? new Date(b.sonMesaj.tarih) : new Date(b.updatedAt);
-      return tarihB.getTime() - tarihA.getTime(); // En yeni en üstte
+      return tarihB.getTime() - tarihA.getTime();
     });
 
-  // Sadece saat formatı (HH:mm)
   const formatSaat = (tarih: string) => {
-    try {
-      const date = new Date(tarih);
-      return date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-    } catch {
-      return '';
-    }
+    try { return new Date(tarih).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }); }
+    catch { return ''; }
   };
 
-  // Konuşma listesi için kısa tarih
   const formatTarih = (tarih: string) => {
     try {
       const date = new Date(tarih);
       const now = new Date();
       const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-      
-      if (diffDays === 0) {
-        return date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-      } else if (diffDays === 1) {
-        return 'Dün';
-      } else if (diffDays < 7) {
-        return date.toLocaleDateString('tr-TR', { weekday: 'long' });
-      } else {
-        return date.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      }
-    } catch {
-      return '';
-    }
+      if (diffDays === 0) return date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+      if (diffDays === 1) return 'Dün';
+      if (diffDays < 7) return date.toLocaleDateString('tr-TR', { weekday: 'long' });
+      return date.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    } catch { return ''; }
   };
 
-  // Tarih ayracı için gün etiketi (WhatsApp tarzı)
   const getTarihAyrac = (tarih: string) => {
     try {
       const date = new Date(tarih);
@@ -458,41 +343,28 @@ export default function MesajlarPage() {
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const messageDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
       const diffDays = Math.floor((today.getTime() - messageDate.getTime()) / (1000 * 60 * 60 * 24));
-      
-      if (diffDays === 0) {
-        return 'Bugün';
-      } else if (diffDays === 1) {
-        return 'Dün';
-      } else if (diffDays < 7) {
-        return date.toLocaleDateString('tr-TR', { weekday: 'long' });
-      } else {
-        return date.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      }
-    } catch {
-      return '';
-    }
+      if (diffDays === 0) return 'Bugün';
+      if (diffDays === 1) return 'Dün';
+      if (diffDays < 7) return date.toLocaleDateString('tr-TR', { weekday: 'long' });
+      return date.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    } catch { return ''; }
   };
 
-  // Mesajları tarihe göre grupla
   const getMesajlarWithDateSeparators = () => {
     const result: Array<{ type: 'date' | 'message'; content: string | Mesaj }> = [];
     let lastDateKey = '';
-
     mesajlar.forEach((mesaj) => {
       const date = new Date(mesaj.tarih);
       const dateKey = date.toLocaleDateString('tr-TR');
-      
       if (dateKey !== lastDateKey) {
         result.push({ type: 'date', content: getTarihAyrac(mesaj.tarih) });
         lastDateKey = dateKey;
       }
       result.push({ type: 'message', content: mesaj });
     });
-
     return result;
   };
 
-  // Konuşma tipi ikonu
   const getKonusmaIcon = (tip: string) => {
     switch (tip) {
       case 'OGRETMEN': return '👨‍🏫';
@@ -503,1555 +375,517 @@ export default function MesajlarPage() {
     }
   };
 
-  // Kullanıcı grup yöneticisi mi kontrolü
   const isGrupYoneticisi = () => {
     if (!seciliKonusma || seciliKonusma.tip === 'OZEL' || !currentUser) return false;
-    // Personel grubunda müdürler yöneticidir
     const currentUserName = `${currentUser.ad} ${currentUser.soyad}`;
     const member = seciliKonusma.uyeler.find(u => u.ad === currentUserName);
     return member?.grupRol === 'admin' || currentUser.role === 'mudur';
   };
 
-  // Grup ayarı tıklama handler
-  const handleGrupAyarClick = async (action: string) => {
-    if (!isGrupYoneticisi() && action !== 'ayril') {
-      setShowAdminWarning(true);
-      return;
-    }
-    
-    // Yönetici ise işlem yap
-    switch(action) {
-      case 'resim':
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = 'image/*';
-        fileInput.onchange = async (e: any) => {
-          const file = e.target.files?.[0];
-          if (file) {
-            // Dosya boyutu kontrolü (8MB)
-            if (file.size > 8 * 1024 * 1024) {
-              alert('Dosya boyutu 8MB\'dan küçük olmalı');
-              return;
-            }
-            
-            // Dosya türü kontrolü
-            if (!file.type.startsWith('image/')) {
-              alert('Sadece resim dosyaları yüklenebilir');
-              return;
-            }
-
-            try {
-              const formData = new FormData();
-              formData.append('photo', file);
-
-              const token = localStorage.getItem('token');
-              const response = await fetch(`${API_URL.replace('/api', '')}/api/upload/group/${seciliKonusma?.id}`, {
-                method: 'POST',
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                },
-                body: formData,
-              });
-
-              const data = await response.json();
-
-              if (!response.ok || !data.success) {
-                throw new Error(data.error || 'Fotoğraf yüklenirken bir hata oluştu');
-              }
-
-              // Başarılı yükleme
-              alert('Grup fotoğrafı başarıyla güncellendi!');
-              
-              // Seçili konuşmayı yeni resim URL'i ile güncelle
-              if (seciliKonusma) {
-                setSeciliKonusma(prev => prev ? {...prev, resimUrl: data.data.url} : null);
-              }
-              
-              // Konuşma listesini yenile
-              fetchConversations();
-            } catch (err) {
-              console.error('Upload error:', err);
-              alert(err instanceof Error ? err.message : 'Fotoğraf yüklenirken bir hata oluştu');
-            }
-          }
-        };
-        fileInput.click();
-        break;
-      case 'ad':
-        const yeniAd = prompt('Yeni grup adını girin:', seciliKonusma?.ad);
-        if (yeniAd && yeniAd.trim() && yeniAd !== seciliKonusma?.ad) {
-          try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_URL}/messages/conversations/${seciliKonusma?.id}/name`, {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`,
-              },
-              body: JSON.stringify({ ad: yeniAd.trim() }),
-            });
-            const data = await response.json();
-            if (data.success) {
-              // Seçili konuşmayı güncelle
-              setSeciliKonusma(prev => prev ? { ...prev, ad: yeniAd.trim() } : null);
-              fetchConversations();
-              alert('Grup adı güncellendi!');
-            } else {
-              alert(data.error || 'Grup adı güncellenemedi');
-            }
-          } catch (err) {
-            console.error('Update name error:', err);
-            alert('Grup adı güncellenirken bir hata oluştu');
-          }
-        }
-        break;
-      case 'ayril':
-        if (confirm('Gruptan ayrılmak istediğinizden emin misiniz?')) {
-          try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_URL}/messages/conversations/${seciliKonusma?.id}/members/${currentUser?.id}`, {
-              method: 'DELETE',
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            });
-            const data = await response.json();
-            if (data.success) {
-              setShowGrupProfil(false);
-              setSeciliKonusma(null);
-              fetchConversations();
-              alert('Gruptan ayrıldınız!');
-            } else {
-              alert(data.error || 'Gruptan ayrılınamadı');
-            }
-          } catch (err) {
-            console.error('Leave group error:', err);
-            alert('Gruptan ayrılırken bir hata oluştu');
-          }
-        }
-        break;
-    }
-  };
-
-  // Kullanıcıyla mesajlaşma başlat (API ile)
-  const handleUyeyleMesajlasma = async (uye: any) => {
-    setShowUyeMenu(false);
-    setShowProfilPanel(false);
-    setShowGrupProfil(false);
-    
-    // Mevcut konuşmayı kontrol et
-    const mevcutKonusma = konusmalar.find(k => 
-      k.tip === 'OZEL' && k.uyeler.some(u => u.ad === uye.ad)
-    );
-
-    if (mevcutKonusma) {
-      // Mevcut konuşma varsa onu seç
-      setSeciliKonusma(mevcutKonusma);
-      setShowMobileSidebar(false);
-    } else {
-      // API ile yeni konuşma oluştur
-      try {
-        const response = await fetch(`${API_URL}/messages/conversations`, {
-          method: 'POST',
-          headers: getAuthHeaders(),
-          body: JSON.stringify({
-            targetUserId: uye.id,
-            tip: 'OZEL'
-          })
-        });
-        
-        const data = await response.json();
-        if (data.success) {
-          await fetchConversations();
-          const newConv: Konusma = {
-            id: data.data.id,
-            tip: data.data.tip,
-            ad: data.data.ad,
-            okunmamis: 0,
-            uyeler: data.data.uyeler,
-            sabitle: false,
-            seslesiz: false,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          };
-          setSeciliKonusma(newConv);
-          setShowMobileSidebar(false);
-        }
-      } catch (error) {
-        console.error('Konuşma oluşturulamadı:', error);
-      }
-    }
-  };
-
-  // Profil görüntüle
-  const handleProfilGoruntule = (uye: any) => {
-    setProfilUye(uye);
-    setShowProfilPanel(true);
-    setShowUyeMenu(false);
-    setShowGrupProfil(false); // Grup profil modalını kapat
-  };
+  // Renk sınıfları
+  const bgMain = isDark ? 'bg-[#0f1419]' : 'bg-gradient-to-br from-rose-50 via-white to-pink-50';
+  const bgCard = isDark ? 'bg-[#1a1f2e]' : 'bg-white';
+  const textPrimary = isDark ? 'text-white' : 'text-gray-900';
+  const textSecondary = isDark ? 'text-gray-400' : 'text-gray-600';
+  const borderColor = isDark ? 'border-gray-700/50' : 'border-gray-200';
+  const hoverBg = isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50';
+  const accentColor = 'text-rose-500';
+  const accentBg = 'bg-rose-500';
+  const accentHover = 'hover:bg-rose-600';
 
   return (
-    <div className="h-screen flex bg-[#FAFAFA]">
-      {/* Sol Panel - Konuşmalar Listesi (WhatsApp Style) */}
-      <div className={`${showMobileSidebar ? 'flex' : 'hidden'} md:flex flex-col w-full md:w-[360px] bg-white border-r border-[#EEEEEE]`}>
-        {/* Header */}
-        <div className="bg-white border-b border-[#EEEEEE]">
-          {/* Başlık */}
-          <div className="px-4 pt-4 pb-2">
-            <div className="flex items-center justify-between">
-              <h1 className="text-[23px] font-bold text-black tracking-tight">Messages</h1>
-              <button
-                onClick={() => setShowYeniMesajModal(true)}
-                className="w-10 h-10 rounded-full bg-[#27AE60] text-white flex items-center justify-center hover:bg-[#219653] transition-all shadow-lg shadow-[#27AE60]/25"
-              >
-                <Plus size={20} />
-              </button>
-            </div>
-          </div>
-
-          {/* Arama */}
-          <div className="px-4 py-2">
-            <div className="relative">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#676767]" />
-              <input
-                type="text"
-                placeholder="Search"
-                value={aramaText}
-                onChange={(e) => setAramaText(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-[#EEEEEE] rounded-xl text-sm text-black/85 placeholder:text-black/45 focus:outline-none focus:ring-2 focus:ring-[#27AE60]/30"
-              />
-            </div>
-          </div>
-
-          {/* Sıralama ve Filtreler */}
-          <div className="px-4 py-2 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-black/65">Sort by</span>
-              <button className="flex items-center gap-1 text-sm text-[#2D9CDB] font-medium">
-                Newest
-                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              </button>
-            </div>
-            {/* Mini Filtreler */}
-            <div className="flex gap-1">
-              <button
-                onClick={() => setFilterType('hepsi')}
-                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                  filterType === 'hepsi' ? 'bg-[#27AE60] text-white' : 'text-black/45 hover:bg-[#FAFAFA]'
-                }`}
-              >
-                All
-              </button>
-              <button
-                onClick={() => setFilterType('okunmamis')}
-                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                  filterType === 'okunmamis' ? 'bg-[#27AE60] text-white' : 'text-black/45 hover:bg-[#FAFAFA]'
-                }`}
-              >
-                Unread
-              </button>
-              <button
-                onClick={() => setFilterType('gruplar')}
-                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                  filterType === 'gruplar' ? 'bg-[#27AE60] text-white' : 'text-black/45 hover:bg-[#FAFAFA]'
-                }`}
-              >
-                Groups
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Konuşmalar Listesi */}
-        <div className="flex-1 overflow-y-auto">
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-[#27AE60]" />
-              <span className="ml-2 text-black/45">Konuşmalar yükleniyor...</span>
-            </div>
-          ) : filteredKonusmalar.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 px-4">
-              <div className="w-16 h-16 rounded-full bg-[#EEEEEE] flex items-center justify-center mb-4">
-                <Users className="w-8 h-8 text-black/30" />
+    <RoleGuard allowedRoles={['sekreter']}>
+      <div className={`min-h-screen ${bgMain}`}>
+        {/* Sidebar */}
+        <aside className={`fixed left-0 top-0 h-full ${sidebarCollapsed ? 'w-20' : 'w-64'} ${bgCard} border-r ${borderColor} z-40 transition-all duration-300 hidden lg:flex flex-col`}>
+          {/* Logo */}
+          <div className={`h-16 flex items-center ${sidebarCollapsed ? 'justify-center' : 'px-6'} border-b ${borderColor}`}>
+            {sidebarCollapsed ? (
+              <div className={`w-10 h-10 rounded-xl ${accentBg} flex items-center justify-center`}>
+                <span className="text-white font-bold text-lg">E</span>
               </div>
-              <p className="text-black/45 text-center">Henüz konuşma yok</p>
-              <button
-                onClick={() => setShowYeniMesajModal(true)}
-                className="mt-4 px-4 py-2 bg-[#27AE60] text-white rounded-lg text-sm font-medium hover:bg-[#219653] transition-colors"
-              >
-                Yeni Mesaj Başlat
-              </button>
-            </div>
-          ) : filteredKonusmalar.map((konusma) => (
-            <button
-              key={konusma.id}
-              onClick={() => {
-                setSeciliKonusma(konusma);
-                setShowMobileSidebar(false);
-              }}
-              className={`w-full px-4 py-3 flex items-center gap-3 transition-all ${
-                seciliKonusma?.id === konusma.id ? 'bg-[#FAFAFA]' : 'hover:bg-[#FAFAFA]'
-              }`}
-            >
-              {/* Avatar */}
-              <div className="relative flex-shrink-0">
-                {konusma.resimUrl ? (
-                  <img 
-                    src={konusma.resimUrl} 
-                    alt={konusma.ad}
-                    className="w-[44px] h-[44px] rounded-full object-cover"
-                  />
-                ) : (
-                  <div className={`w-[44px] h-[44px] rounded-full flex items-center justify-center text-white font-semibold text-lg ${
-                    konusma.tip === 'OGRETMEN' 
-                      ? 'bg-gradient-to-br from-[#9B59B6] to-[#8E44AD]'
-                      : konusma.tip === 'PERSONEL'
-                        ? 'bg-gradient-to-br from-[#3498DB] to-[#2980B9]'
-                        : 'bg-gradient-to-br from-[#27AE60] to-[#219653]'
-                  }`}>
-                    {getKonusmaIcon(konusma.tip) || konusma.ad.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                  </div>
-                )}
-                {konusma.tip === 'OZEL' && konusma.uyeler[0]?.online && (
-                  <div className="absolute bottom-0 right-0 w-3 h-3 bg-[#27AE60] rounded-full border-2 border-white"></div>
-                )}
-              </div>
-
-              {/* İçerik */}
-              <div className="flex-1 min-w-0 text-left">
-                <div className="flex items-center justify-between mb-0.5">
-                  <span className="font-medium text-sm text-black/85 truncate">{konusma.ad}</span>
-                  <span className="text-xs text-black/65 flex-shrink-0">
-                    {konusma.sonMesaj ? formatTarih(konusma.sonMesaj.tarih) : ''}
-                  </span>
+            ) : (
+              <Link href="/sekreter" className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl ${accentBg} flex items-center justify-center`}>
+                  <span className="text-white font-bold text-lg">E</span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <p className={`text-sm truncate pr-2 ${
-                    konusma.okunmamis > 0 ? 'text-black/85 font-medium' : 'text-black/45'
-                  }`}>
-                    {konusma.sonMesaj?.icerik || 'Yeni sohbet'}
-                  </p>
-                  {konusma.okunmamis > 0 ? (
-                    <span className="bg-[#27AE60] text-white text-[10px] font-medium rounded-full min-w-[18px] h-[18px] px-1.5 flex items-center justify-center flex-shrink-0">
-                      {konusma.okunmamis}
-                    </span>
-                  ) : (
-                    <svg className="w-4 h-4 text-[#27AE60] flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                      <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M15 6L4 17" strokeLinecap="round" strokeLinejoin="round" opacity={0.5}/>
-                    </svg>
+                <span className={`text-xl font-bold ${textPrimary}`}>Edura</span>
+              </Link>
+            )}
+          </div>
+
+          {/* Nav */}
+          <nav className="flex-1 py-4 overflow-y-auto">
+            {menuItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname?.includes(item.href) && (item.href !== '/sekreter' || pathname === '/tr/sekreter' || pathname === '/en/sekreter');
+              return (
+                <Link key={item.id} href={item.href}
+                  className={`flex items-center gap-3 mx-3 px-3 py-3 rounded-xl transition-all ${isActive ? `${accentBg} text-white shadow-lg shadow-rose-500/25` : `${textSecondary} ${hoverBg}`} ${sidebarCollapsed ? 'justify-center' : ''}`}
+                >
+                  <Icon size={20} />
+                  {!sidebarCollapsed && <span className="font-medium">{item.label}</span>}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Collapse button */}
+          <div className={`p-4 border-t ${borderColor}`}>
+            <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className={`w-full flex items-center justify-center gap-2 py-2 rounded-lg ${hoverBg} ${textSecondary}`}
+            >
+              <Menu size={20} />
+              {!sidebarCollapsed && <span className="text-sm">Daralt</span>}
+            </button>
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <div className={`${sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'} transition-all duration-300`}>
+          {/* Header */}
+          <header className={`sticky top-0 z-30 ${bgCard} border-b ${borderColor} backdrop-blur-xl bg-opacity-90`}>
+            <div className="h-16 px-4 lg:px-6 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <button onClick={() => setShowMobileMenu(true)} className={`lg:hidden p-2 rounded-lg ${hoverBg}`}>
+                  <Menu size={20} className={textSecondary} />
+                </button>
+                <h1 className={`text-xl font-bold ${textPrimary}`}>Mesajlar</h1>
+              </div>
+              <div className="flex items-center gap-3">
+                <ThemeToggle />
+                <button className={`p-2 rounded-lg ${hoverBg} relative`}>
+                  <Bell size={20} className={textSecondary} />
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-rose-500 rounded-full"></span>
+                </button>
+                <div className="relative">
+                  <button onClick={() => setShowProfileMenu(!showProfileMenu)}
+                    className={`flex items-center gap-2 p-2 rounded-lg ${hoverBg}`}
+                  >
+                    <div className={`w-8 h-8 rounded-lg ${accentBg} flex items-center justify-center text-white text-sm font-medium`}>
+                      {user?.ad?.[0]}{user?.soyad?.[0]}
+                    </div>
+                    <ChevronDown size={16} className={textSecondary} />
+                  </button>
+                  {showProfileMenu && (
+                    <div className={`absolute right-0 mt-2 w-48 ${bgCard} rounded-xl shadow-xl border ${borderColor} py-2`}>
+                      <div className={`px-4 py-2 border-b ${borderColor}`}>
+                        <p className={`font-medium ${textPrimary}`}>{user?.ad} {user?.soyad}</p>
+                        <p className={`text-sm ${textSecondary}`}>Sekreter</p>
+                      </div>
+                      <Link href="/sekreter/ayarlar" className={`flex items-center gap-2 px-4 py-2 ${hoverBg} ${textSecondary}`}>
+                        <Settings size={16} /> Ayarlar
+                      </Link>
+                      <button onClick={logout} className={`w-full flex items-center gap-2 px-4 py-2 ${hoverBg} text-rose-500`}>
+                        <LogOut size={16} /> Çıkış Yap
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
-            </button>
-          ))}
-        </div>
+            </div>
+          </header>
 
-        {/* Geri Butonu (Mobil) */}
-        <div className="p-3 border-t border-[#EEEEEE] md:hidden">
-          <Link
-            href="/sekreter"
-            className="flex items-center gap-2 text-sm text-black/65 hover:text-black/85 transition-colors"
-          >
-            <ArrowLeft size={16} />
-            Geri Dön
-          </Link>
-        </div>
-      </div>
-
-      {/* Sağ Panel - Mesaj Detay (WhatsApp Style) */}
-      <div className={`${!showMobileSidebar ? 'flex' : 'hidden'} md:flex flex-col flex-1 relative`}>
-        {seciliKonusma ? (
-          <>
-            {/* Konuşma Başlığı - WhatsApp Style */}
-            <div className="bg-white border-b border-[#EEEEEE] shadow-sm">
-              <div className="px-4 py-3 flex items-center justify-between">
-                <div className="flex items-center gap-3 flex-1">
-                  <button
-                    onClick={() => setShowMobileSidebar(true)}
-                    className="md:hidden p-2 -ml-2 rounded-lg hover:bg-[#FAFAFA] transition-colors"
+          {/* Mesajlaşma Alanı */}
+          <div className="h-[calc(100vh-64px)] flex">
+            {/* Sol Panel - Konuşmalar */}
+            <div className={`${showMobileSidebar ? 'flex' : 'hidden'} md:flex flex-col w-full md:w-80 lg:w-96 ${bgCard} border-r ${borderColor}`}>
+              {/* Arama ve Yeni Mesaj */}
+              <div className={`p-4 border-b ${borderColor}`}>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="relative flex-1">
+                    <Search size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${textSecondary}`} />
+                    <input type="text" placeholder="Konuşma ara..."
+                      value={aramaText} onChange={(e) => setAramaText(e.target.value)}
+                      className={`w-full pl-10 pr-4 py-2.5 ${isDark ? 'bg-white/5' : 'bg-gray-100'} rounded-xl text-sm ${textPrimary} placeholder:${textSecondary} focus:outline-none focus:ring-2 focus:ring-rose-500/30`}
+                    />
+                  </div>
+                  <button onClick={() => setShowYeniMesajModal(true)}
+                    className={`p-2.5 ${accentBg} text-white rounded-xl ${accentHover} transition-all shadow-lg shadow-rose-500/25`}
                   >
-                    <ArrowLeft size={20} className="text-black/65" />
+                    <Plus size={20} />
                   </button>
-                  <button
-                    onClick={() => seciliKonusma.tip !== 'OZEL' && setShowGrupProfil(true)}
-                    className={`flex items-center gap-3 ${seciliKonusma.tip !== 'OZEL' ? 'hover:bg-[#FAFAFA] rounded-lg p-2 -m-2 transition-colors cursor-pointer' : 'cursor-default'}`}
+                </div>
+                {/* Filtreler */}
+                <div className="flex gap-2">
+                  {[{ key: 'hepsi', label: 'Tümü' }, { key: 'okunmamis', label: 'Okunmamış' }, { key: 'gruplar', label: 'Gruplar' }].map((f) => (
+                    <button key={f.key} onClick={() => setFilterType(f.key as any)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${filterType === f.key ? `${accentBg} text-white` : `${isDark ? 'bg-white/5' : 'bg-gray-100'} ${textSecondary}`}`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Konuşma Listesi */}
+              <div className="flex-1 overflow-y-auto">
+                {loading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className={`w-6 h-6 animate-spin ${accentColor}`} />
+                    <span className={`ml-2 ${textSecondary}`}>Yükleniyor...</span>
+                  </div>
+                ) : filteredKonusmalar.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 px-4">
+                    <div className={`w-16 h-16 rounded-full ${isDark ? 'bg-white/5' : 'bg-gray-100'} flex items-center justify-center mb-4`}>
+                      <Users className={`w-8 h-8 ${textSecondary}`} />
+                    </div>
+                    <p className={textSecondary}>Henüz konuşma yok</p>
+                    <button onClick={() => setShowYeniMesajModal(true)}
+                      className={`mt-4 px-4 py-2 ${accentBg} text-white rounded-lg text-sm font-medium ${accentHover} transition-all`}
+                    >
+                      Yeni Mesaj Başlat
+                    </button>
+                  </div>
+                ) : filteredKonusmalar.map((konusma) => (
+                  <button key={konusma.id}
+                    onClick={() => { setSeciliKonusma(konusma); setShowMobileSidebar(false); }}
+                    className={`w-full px-4 py-3 flex items-center gap-3 transition-all ${seciliKonusma?.id === konusma.id ? (isDark ? 'bg-white/10' : 'bg-rose-50') : hoverBg}`}
                   >
-                    <div className="relative">
-                      {seciliKonusma.resimUrl ? (
-                        <img 
-                          src={seciliKonusma.resimUrl} 
-                          alt={seciliKonusma.ad}
-                          className="w-[42px] h-[42px] rounded-full object-cover"
-                        />
+                    <div className="relative flex-shrink-0">
+                      {konusma.resimUrl ? (
+                        <img src={konusma.resimUrl} alt={konusma.ad} className="w-12 h-12 rounded-full object-cover" />
                       ) : (
-                        <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center text-white font-semibold text-lg ${
-                          seciliKonusma.tip === 'OGRETMEN' 
-                            ? 'bg-gradient-to-br from-[#9B59B6] to-[#8E44AD]'
-                            : seciliKonusma.tip === 'PERSONEL'
-                              ? 'bg-gradient-to-br from-[#3498DB] to-[#2980B9]'
-                              : 'bg-gradient-to-br from-[#27AE60] to-[#219653]'
-                        }`}>
-                          {getKonusmaIcon(seciliKonusma.tip) || seciliKonusma.ad.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold ${konusma.tip === 'OGRETMEN' ? 'bg-gradient-to-br from-purple-500 to-purple-600' : konusma.tip === 'PERSONEL' ? 'bg-gradient-to-br from-blue-500 to-blue-600' : 'bg-gradient-to-br from-rose-500 to-rose-600'}`}>
+                          {getKonusmaIcon(konusma.tip) || konusma.ad.split(' ').map(n => n[0]).join('').slice(0, 2)}
                         </div>
                       )}
+                      {konusma.tip === 'OZEL' && konusma.uyeler[0]?.online && (
+                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                      )}
                     </div>
-                    <div>
-                      <h2 className="font-medium text-base text-black/85 text-left">{seciliKonusma.ad}</h2>
-                      <p className="text-sm text-left">
-                        {seciliKonusma.tip !== 'OZEL' ? (
-                          <span className="text-black/45">{seciliKonusma.uyeler.length} üye</span>
-                        ) : (
-                          <span className={seciliKonusma.uyeler[0]?.online ? 'text-[#27AE60]' : 'text-black/45'}>
-                            {seciliKonusma.uyeler[0]?.online ? 'Online' : 'Offline'}
+                    <div className="flex-1 min-w-0 text-left">
+                      <div className="flex items-center justify-between mb-0.5">
+                        <span className={`font-medium text-sm truncate ${textPrimary}`}>{konusma.ad}</span>
+                        <span className={`text-xs flex-shrink-0 ${textSecondary}`}>
+                          {konusma.sonMesaj ? formatTarih(konusma.sonMesaj.tarih) : ''}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <p className={`text-sm truncate pr-2 ${konusma.okunmamis > 0 ? textPrimary + ' font-medium' : textSecondary}`}>
+                          {konusma.sonMesaj?.icerik || 'Yeni sohbet'}
+                        </p>
+                        {konusma.okunmamis > 0 && (
+                          <span className={`${accentBg} text-white text-[10px] font-medium rounded-full min-w-[18px] h-[18px] px-1.5 flex items-center justify-center flex-shrink-0`}>
+                            {konusma.okunmamis}
                           </span>
                         )}
-                      </p>
+                      </div>
                     </div>
                   </button>
-                </div>
-                
-                {/* Header Aksiyonları */}
-                <div className="flex items-center gap-1">
-                  <button className="p-2 rounded-lg hover:bg-[#FAFAFA] transition-colors text-black/45">
-                    <Phone size={20} />
-                  </button>
-                  <button className="p-2 rounded-lg hover:bg-[#FAFAFA] transition-colors text-black/45">
-                    <MoreVertical size={20} />
-                  </button>
-                </div>
+                ))}
               </div>
             </div>
 
-            {/* Mesajlar - Arkaplan Resimli */}
-            <div 
-              ref={mesajListRef}
-              className="flex-1 overflow-y-auto relative bg-[#FAFAFA]"
-            >
-              {/* Arkaplan resmi */}
-              <div 
-                className="absolute inset-0"
-                style={{
-                  backgroundImage: 'url(/chat-backgrounds/speech-bubbles.jpg)',
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                  opacity: 0.12,
-                }}
-              ></div>
-              
-              {/* Mesaj içerikleri */}
-              <div className="relative z-10 p-4 space-y-2">
-                {getMesajlarWithDateSeparators().map((item, index) => {
-                  // Tarih Ayracı - WhatsApp Style
-                  if (item.type === 'date') {
-                    return (
-                      <div key={`date-${index}`} className="flex justify-center py-2">
-                        <span className="px-3 py-1 bg-white/80 backdrop-blur-sm rounded-lg text-xs font-medium text-black/60 shadow-sm">
-                          {item.content as string}
-                        </span>
-                      </div>
-                    );
-                  }
-
-                  // Mesaj
-                  const mesaj = item.content as Mesaj;
-                  const isBenimMesajim = currentUser?.id === mesaj.gonderenId;
-                  return (
-                    <div
-                      key={mesaj.id}
-                      className={`flex items-end gap-2 ${isBenimMesajim ? 'justify-end' : 'justify-start'}`}
-                    >
-                      {/* Avatar - Sadece gelen mesajlarda */}
-                      {!isBenimMesajim && (
-                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#3498DB] to-[#2980B9] flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0">
-                          {mesaj.gonderenAd.charAt(0)}
-                        </div>
-                      )}
-                      
-                      <div
-                        className={`max-w-[70%] px-3 py-2 ${
-                          isBenimMesajim
-                            ? 'bg-[#DCF8C6] rounded-[12px] rounded-br-[4px]'
-                            : 'bg-white rounded-[12px] rounded-bl-[4px] shadow-sm'
-                        }`}
-                      >
-                        {/* Grup mesajlarında gönderen adı */}
-                        {seciliKonusma.tip !== 'OZEL' && !isBenimMesajim && (
-                          <p className="text-xs font-semibold text-[#2D9CDB] mb-0.5">{mesaj.gonderenAd}</p>
-                        )}
-                        <div className="flex items-end gap-2">
-                          <p className="text-[15px] text-black/90 whitespace-pre-wrap leading-relaxed">{mesaj.icerik}</p>
-                          <div className="flex items-center gap-1 flex-shrink-0 -mb-0.5">
-                            <span className="text-[11px] text-black/40">{formatSaat(mesaj.tarih)}</span>
-                            {isBenimMesajim && (
-                              mesaj.okundu 
-                                ? <CheckCheck size={14} className="text-[#53BDEB]" /> // Mavi çift tık - tüm üyeler okudu
-                                : <CheckCheck size={14} className="text-black/30" /> // Gri çift tık - henüz herkese ulaşmadı
-                            )}
+            {/* Sağ Panel - Mesaj Detay */}
+            <div className={`${!showMobileSidebar ? 'flex' : 'hidden'} md:flex flex-col flex-1`}>
+              {seciliKonusma ? (
+                <>
+                  {/* Konuşma Header */}
+                  <div className={`${bgCard} border-b ${borderColor} px-4 py-3 flex items-center justify-between`}>
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => setShowMobileSidebar(true)} className={`md:hidden p-2 -ml-2 rounded-lg ${hoverBg}`}>
+                        <ArrowLeft size={20} className={textSecondary} />
+                      </button>
+                      <div className="relative">
+                        {seciliKonusma.resimUrl ? (
+                          <img src={seciliKonusma.resimUrl} alt={seciliKonusma.ad} className="w-10 h-10 rounded-full object-cover" />
+                        ) : (
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${seciliKonusma.tip === 'OGRETMEN' ? 'bg-gradient-to-br from-purple-500 to-purple-600' : 'bg-gradient-to-br from-rose-500 to-rose-600'}`}>
+                            {getKonusmaIcon(seciliKonusma.tip) || seciliKonusma.ad.split(' ').map(n => n[0]).join('').slice(0, 2)}
                           </div>
-                        </div>
+                        )}
+                      </div>
+                      <div>
+                        <h2 className={`font-medium ${textPrimary}`}>{seciliKonusma.ad}</h2>
+                        <p className={`text-sm ${textSecondary}`}>
+                          {seciliKonusma.tip !== 'OZEL' ? `${seciliKonusma.uyeler.length} üye` : (seciliKonusma.uyeler[0]?.online ? <span className="text-green-500">Çevrimiçi</span> : 'Çevrimdışı')}
+                        </p>
                       </div>
                     </div>
+                    <div className="flex items-center gap-1">
+                      <button className={`p-2 rounded-lg ${hoverBg} ${textSecondary}`}><Phone size={20} /></button>
+                      <button onClick={() => seciliKonusma.tip !== 'OZEL' && setShowGrupProfil(true)} className={`p-2 rounded-lg ${hoverBg} ${textSecondary}`}><MoreVertical size={20} /></button>
+                    </div>
+                  </div>
+
+                  {/* Mesajlar */}
+                  <div ref={mesajListRef} className={`flex-1 overflow-y-auto p-4 space-y-2 ${isDark ? 'bg-[#0f1419]' : 'bg-gradient-to-br from-rose-50/50 to-pink-50/50'}`}>
+                    {getMesajlarWithDateSeparators().map((item, index) => {
+                      if (item.type === 'date') {
+                        return (
+                          <div key={`date-${index}`} className="flex justify-center py-2">
+                            <span className={`px-3 py-1 ${isDark ? 'bg-white/10' : 'bg-white'} rounded-lg text-xs font-medium ${textSecondary} shadow-sm`}>
+                              {item.content as string}
+                            </span>
+                          </div>
+                        );
+                      }
+                      const mesaj = item.content as Mesaj;
+                      const isBenimMesajim = currentUser?.id === mesaj.gonderenId;
+                      return (
+                        <div key={mesaj.id} className={`flex items-end gap-2 ${isBenimMesajim ? 'justify-end' : 'justify-start'}`}>
+                          {!isBenimMesajim && (
+                            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0">
+                              {mesaj.gonderenAd.charAt(0)}
+                            </div>
+                          )}
+                          <div className={`max-w-[70%] px-3 py-2 ${isBenimMesajim ? `${accentBg} text-white rounded-2xl rounded-br-md` : `${bgCard} ${textPrimary} rounded-2xl rounded-bl-md shadow-sm`}`}>
+                            {seciliKonusma.tip !== 'OZEL' && !isBenimMesajim && (
+                              <p className="text-xs font-semibold text-blue-400 mb-0.5">{mesaj.gonderenAd}</p>
+                            )}
+                            <div className="flex items-end gap-2">
+                              <p className="text-[15px] whitespace-pre-wrap leading-relaxed">{mesaj.icerik}</p>
+                              <div className="flex items-center gap-1 flex-shrink-0 -mb-0.5">
+                                <span className={`text-[11px] ${isBenimMesajim ? 'text-white/70' : textSecondary}`}>{formatSaat(mesaj.tarih)}</span>
+                                {isBenimMesajim && <CheckCheck size={14} className={mesaj.okundu ? 'text-blue-300' : 'text-white/50'} />}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Mesaj Gönderme */}
+                  <div className={`${bgCard} border-t ${borderColor} p-4`}>
+                    <div className="flex items-center gap-3">
+                      <button className={`p-2 rounded-lg ${hoverBg} ${textSecondary}`}><Paperclip size={20} /></button>
+                      <input ref={inputRef} type="text" value={yeniMesaj}
+                        onChange={(e) => setYeniMesaj(e.target.value)} onKeyPress={handleKeyPress}
+                        placeholder="Mesajınızı yazın..."
+                        className={`flex-1 px-4 py-2.5 ${isDark ? 'bg-white/5' : 'bg-gray-100'} rounded-xl text-sm ${textPrimary} placeholder:${textSecondary} focus:outline-none focus:ring-2 focus:ring-rose-500/30`}
+                      />
+                      <button onClick={handleMesajGonder} disabled={!yeniMesaj.trim() || sendingMessage}
+                        className={`px-4 py-2.5 ${accentBg} text-white rounded-xl ${accentHover} transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2`}
+                      >
+                        {sendingMessage ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Gönder'}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className={`flex-1 flex items-center justify-center ${isDark ? 'bg-[#0f1419]' : 'bg-gradient-to-br from-rose-50/50 to-pink-50/50'}`}>
+                  <div className="text-center">
+                    <div className={`w-24 h-24 mx-auto mb-6 rounded-full ${isDark ? 'bg-white/5' : 'bg-rose-100'} flex items-center justify-center`}>
+                      <MessageSquare size={48} className={accentColor} />
+                    </div>
+                    <h3 className={`text-lg font-medium ${textPrimary} mb-2`}>Konuşma Seçin</h3>
+                    <p className={`text-sm ${textSecondary}`}>Mesajlaşmaya başlamak için<br/>sol taraftan bir kişi seçin</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile Menu Overlay */}
+        {showMobileMenu && (
+          <div className="fixed inset-0 z-50 lg:hidden">
+            <div className="absolute inset-0 bg-black/50" onClick={() => setShowMobileMenu(false)} />
+            <div className={`absolute left-0 top-0 h-full w-64 ${bgCard} shadow-xl`}>
+              <div className={`h-16 flex items-center justify-between px-4 border-b ${borderColor}`}>
+                <span className={`text-xl font-bold ${textPrimary}`}>Edura</span>
+                <button onClick={() => setShowMobileMenu(false)} className={`p-2 rounded-lg ${hoverBg}`}>
+                  <X size={20} className={textSecondary} />
+                </button>
+              </div>
+              <nav className="py-4">
+                {menuItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = pathname?.includes(item.href);
+                  return (
+                    <Link key={item.id} href={item.href} onClick={() => setShowMobileMenu(false)}
+                      className={`flex items-center gap-3 mx-3 px-3 py-3 rounded-xl transition-all ${isActive ? `${accentBg} text-white` : `${textSecondary} ${hoverBg}`}`}
+                    >
+                      <Icon size={20} />
+                      <span className="font-medium">{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
+          </div>
+        )}
+
+        {/* Yeni Mesaj Modal */}
+        {showYeniMesajModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className={`${bgCard} rounded-2xl shadow-2xl w-full max-w-md`}>
+              <div className={`p-4 border-b ${borderColor} flex justify-between items-center`}>
+                <h3 className={`text-lg font-bold ${textPrimary}`}>Yeni Mesaj</h3>
+                <button onClick={() => setShowYeniMesajModal(false)} className={`p-2 ${hoverBg} rounded-lg`}>
+                  <X size={20} className={textSecondary} />
+                </button>
+              </div>
+              
+              {/* Tabs */}
+              <div className={`flex border-b ${borderColor}`}>
+                {[{ key: 'personel', label: 'Personel', icon: User }, { key: 'ogrenci', label: 'Öğrenci', icon: GraduationCap }, { key: 'grup', label: 'Yeni Grup', icon: Users }].map((tab) => {
+                  const Icon = tab.icon;
+                  return (
+                    <button key={tab.key} onClick={() => setYeniMesajTip(tab.key as any)}
+                      className={`flex-1 py-3 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${yeniMesajTip === tab.key ? `${accentColor} border-b-2 border-rose-500` : `${textSecondary} ${hoverBg}`}`}
+                    >
+                      <Icon size={16} /> {tab.label}
+                    </button>
                   );
                 })}
               </div>
-            </div>
 
-            {/* Mesaj Gönderme - WhatsApp Style */}
-            <div className="bg-white border-t border-[#EEEEEE] shadow-[0_-1px_3px_rgba(0,0,0,0.05)]">
-              <div className="px-4 py-3 flex items-center gap-3">
-                <button className="p-2 rounded-lg hover:bg-[#FAFAFA] transition-colors text-black/45">
-                  <Paperclip size={20} />
-                </button>
-                <div className="flex-1 relative">
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={yeniMesaj}
-                    onChange={(e) => setYeniMesaj(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    placeholder="Type your message here.."
-                    className="w-full px-4 py-2.5 bg-[#FAFAFA] rounded-xl text-sm text-black/85 placeholder:text-black/45 focus:outline-none focus:ring-2 focus:ring-[#27AE60]/30 border border-[#EEEEEE]"
-                  />
-                </div>
-                <button
-                  onClick={handleMesajGonder}
-                  disabled={!yeniMesaj.trim() || sendingMessage}
-                  className="text-sm font-medium text-[#27AE60] hover:text-[#219653] transition-colors disabled:text-black/30 disabled:cursor-not-allowed whitespace-nowrap flex items-center gap-2"
-                >
-                  {sendingMessage ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Gönderiliyor...
-                    </>
-                  ) : (
-                    'Send message'
-                  )}
-                </button>
-              </div>
-            </div>
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center bg-[#FAFAFA]">
-            <div className="text-center">
-              <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-[#27AE60]/20 to-[#27AE60]/10 flex items-center justify-center">
-                <Users size={48} className="text-[#27AE60]" />
-              </div>
-              <h3 className="text-lg font-medium text-black/85 mb-2">Konuşma Seçin</h3>
-              <p className="text-sm text-black/45">Mesajlaşmaya başlamak için<br/>soldaki listeden bir kişi seçin</p>
-            </div>
-          </div>
-        )}
-
-        {/* Profil Görüntüleme Paneli (WhatsApp benzeri) */}
-        {showProfilPanel && profilUye && (
-          <div className="absolute top-0 right-0 w-full md:w-96 h-full bg-white shadow-2xl z-50 flex flex-col animate-slideIn">
-            {/* Header */}
-            <div className="p-4 bg-blue-600 text-white flex items-center justify-between">
-              <h3 className="text-lg font-bold">Kişi Bilgisi</h3>
-              <button
-                onClick={() => setShowProfilPanel(false)}
-                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Profil Bilgileri */}
-            <div className="flex-1 overflow-y-auto">
-              {/* Profil Resmi ve İsim */}
-              <div className="p-8 text-center bg-slate-50">
-                <div className={`w-32 h-32 mx-auto rounded-full flex items-center justify-center text-white text-2xl font-bold mb-4 ${
-                  profilUye.rol === 'Müdür'
-                    ? 'bg-gradient-to-br from-amber-400 to-amber-600'
-                    : profilUye.rol === 'Sekreter'
-                      ? 'bg-gradient-to-br from-pink-400 to-pink-600'
-                      : 'bg-gradient-to-br from-slate-400 to-slate-600'
-                }`}>
-                  {profilUye.ad.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
-                </div>
-                <h2 className="text-2xl font-bold text-slate-800 mb-1">{profilUye.ad}</h2>
-                <p className="text-slate-600 mb-2">{profilUye.rol}</p>
-                <div className="flex items-center justify-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${profilUye.online ? 'bg-green-500' : 'bg-slate-400'}`}></div>
-                  <span className="text-sm text-slate-500">{profilUye.online ? 'Çevrimiçi' : 'Çevrimdışı'}</span>
-                </div>
-              </div>
-
-              {/* Hakkında */}
-              <div className="p-4 border-b border-slate-200">
-                <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Hakkında</p>
-                <p className="text-sm text-slate-700">{profilUye.rol === 'Müdür' ? '🏢 Eğitim yönetimi' : profilUye.rol === 'Sekreter' ? '📋 İdari işlemler' : '📚 Eğitim'}</p>
-              </div>
-
-              {/* İletişim Seçenekleri */}
               <div className="p-4">
-                <h3 className="text-sm font-semibold text-slate-700 mb-3">İletişim</h3>
-                <div className="space-y-2">
-                  <button 
-                    onClick={() => {
-                      handleUyeyleMesajlasma(profilUye);
-                      setShowProfilPanel(false);
-                    }}
-                    className="w-full p-3 bg-blue-50 hover:bg-blue-100 rounded-lg flex items-center gap-3 transition-all"
-                  >
-                    <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
-                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                      </svg>
+                {yeniMesajTip === 'grup' ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className={`block text-sm font-medium ${textSecondary} mb-2`}>Grup Adı</label>
+                      <input type="text" value={yeniGrupAdi} onChange={(e) => setYeniGrupAdi(e.target.value)}
+                        placeholder="Örn: Proje Ekibi"
+                        className={`w-full px-4 py-2.5 ${isDark ? 'bg-white/5' : 'bg-gray-100'} rounded-lg text-sm ${textPrimary} placeholder:${textSecondary} focus:outline-none focus:ring-2 focus:ring-rose-500`}
+                      />
                     </div>
-                    <div className="flex-1 text-left">
-                      <p className="text-sm font-medium text-slate-800">Mesaj</p>
-                      <p className="text-xs text-slate-500">Mesaj gönder</p>
+                    <div>
+                      <label className={`block text-sm font-medium ${textSecondary} mb-2`}>Üyeler ({yeniGrupUyeler.length} seçildi)</label>
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {availableUsers.map((user) => (
+                          <label key={user.id} className={`flex items-center gap-3 p-3 ${hoverBg} rounded-lg cursor-pointer`}>
+                            <input type="checkbox" checked={yeniGrupUyeler.includes(user.id)}
+                              onChange={(e) => setYeniGrupUyeler(e.target.checked ? [...yeniGrupUyeler, user.id] : yeniGrupUyeler.filter(id => id !== user.id))}
+                              className="w-5 h-5 text-rose-500 rounded"
+                            />
+                            <div className={`w-10 h-10 rounded-full ${accentBg} flex items-center justify-center text-white font-semibold text-sm`}>
+                              {user.ad[0]}{user.soyad[0]}
+                            </div>
+                            <div className="flex-1 text-left">
+                              <p className={`font-medium ${textPrimary}`}>{user.ad} {user.soyad}</p>
+                              <p className={`text-xs ${textSecondary}`}>{user.rol === 'mudur' ? 'Müdür' : user.rol === 'sekreter' ? 'Sekreter' : user.rol === 'ogretmen' ? 'Öğretmen' : 'Öğrenci'}</p>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
                     </div>
-                  </button>
-
-                  <button disabled className="w-full p-3 bg-green-50 rounded-lg flex items-center gap-3 opacity-60 cursor-not-allowed">
-                    <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
-                      <Phone size={20} className="text-white" />
-                    </div>
-                    <div className="flex-1 text-left">
-                      <p className="text-sm font-medium text-slate-800">Sesli Ara</p>
-                      <p className="text-xs text-slate-400 italic">Çok yakında...</p>
-                    </div>
-                  </button>
-
-                  <button disabled className="w-full p-3 bg-purple-50 rounded-lg flex items-center gap-3 opacity-60 cursor-not-allowed">
-                    <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center">
-                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
-                    </div>
-                    <div className="flex-1 text-left">
-                      <p className="text-sm font-medium text-slate-800">Görüntülü Ara</p>
-                      <p className="text-xs text-slate-400 italic">Çok yakında...</p>
-                    </div>
-                  </button>
-                </div>
-              </div>
-
-              {/* Medya ve Dosyalar */}
-              <div className="p-4 border-t border-slate-200">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-slate-700">Medya ve Dosyalar</h3>
-                  <button 
-                    onClick={() => setShowMedyaModal(true)}
-                    className="text-xs text-blue-600 hover:text-blue-700"
-                  >
-                    Tümünü Gör
-                  </button>
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <button className="aspect-square bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center justify-center transition-colors">
-                    <span className="text-2xl">📸</span>
-                  </button>
-                  <button className="aspect-square bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center justify-center transition-colors">
-                    <span className="text-2xl">📄</span>
-                  </button>
-                  <button className="aspect-square bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center justify-center transition-colors">
-                    <span className="text-2xl">🎵</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Diğer İşlemler */}
-              <div className="p-4 border-t border-slate-200">
-                <h3 className="text-sm font-semibold text-slate-700 mb-3">Diğer İşlemler</h3>
-                <div className="space-y-2">
-                  <button className="w-full p-3 text-left hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-3">
-                    <span className="text-xl">🔔</span>
-                    <span className="text-sm font-medium text-slate-700">Bildirimleri Kapat</span>
-                  </button>
-                  <button 
-                    onClick={() => {
-                      if (profilUye) {
-                        const engelliMi = engellenenKullanicilar.includes(profilUye.ad);
-                        if (engelliMi) {
-                          setEngellenenKullanicilar(prev => prev.filter(ad => ad !== profilUye.ad));
-                          alert(`${profilUye.ad} engeli kaldırıldı`);
-                        } else {
-                          setEngellenenKullanicilar(prev => [...prev, profilUye.ad]);
-                          alert(`${profilUye.ad} engellendi`);
-                        }
-                      }
-                    }}
-                    className="w-full p-3 text-left hover:bg-red-50 rounded-lg transition-colors flex items-center gap-3 text-red-600"
-                  >
-                    <span className="text-xl">🚫</span>
-                    <span className="text-sm font-medium">
-                      {profilUye && engellenenKullanicilar.includes(profilUye.ad) ? 'Engeli Kaldır' : 'Engelle'}
-                    </span>
-                  </button>
-                  <button 
-                    onClick={() => setShowSikayetModal(true)}
-                    className="w-full p-3 text-left hover:bg-red-50 rounded-lg transition-colors flex items-center gap-3 text-red-600"
-                  >
-                    <span className="text-xl">⚠️</span>
-                    <span className="text-sm font-medium">Şikayet Et</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Yeni Mesaj Modal */}
-      {showYeniMesajModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-            <div className="p-4 border-b border-slate-200 flex justify-between items-center">
-              <h3 className="text-lg font-bold text-slate-800">Yeni Mesaj</h3>
-              <button
-                onClick={() => setShowYeniMesajModal(false)}
-                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            
-            {/* Tab Seçimi */}
-            <div className="flex border-b border-slate-200">
-              <button
-                onClick={() => setYeniMesajTip('personel')}
-                className={`flex-1 py-3 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
-                  yeniMesajTip === 'personel' 
-                    ? 'text-blue-600 border-b-2 border-blue-600' 
-                    : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                <User size={16} /> Personel
-              </button>
-              <button
-                onClick={() => setYeniMesajTip('ogrenci')}
-                className={`flex-1 py-3 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
-                  yeniMesajTip === 'ogrenci' 
-                    ? 'text-blue-600 border-b-2 border-blue-600' 
-                    : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                <GraduationCap size={16} /> Öğrenci
-              </button>
-              <button
-                onClick={() => setYeniMesajTip('grup')}
-                className={`flex-1 py-3 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
-                  yeniMesajTip === 'grup' 
-                    ? 'text-blue-600 border-b-2 border-blue-600' 
-                    : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                <Users size={16} /> Yeni Grup
-              </button>
-            </div>
-
-            <div className="p-4">
-              {yeniMesajTip === 'grup' ? (
-                // Yeni Grup Oluşturma
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Grup Adı</label>
-                    <input
-                      type="text"
-                      value={yeniGrupAdi}
-                      onChange={(e) => setYeniGrupAdi(e.target.value)}
-                      placeholder="Örn: Rehberlik Öğretmenleri"
-                      className="w-full px-4 py-2.5 bg-slate-100 rounded-lg text-sm text-slate-800 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    <button onClick={handleCreateGroup} disabled={!yeniGrupAdi.trim() || yeniGrupUyeler.length === 0}
+                      className={`w-full py-3 ${accentBg} text-white rounded-lg font-semibold ${accentHover} transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                      Grubu Oluştur
+                    </button>
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Üyeler Seç ({yeniGrupUyeler.length} seçildi)
-                    </label>
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                      {availableUsers.map((user) => (
-                        <label
-                          key={user.id}
-                          className="flex items-center gap-3 p-3 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors"
+                ) : (
+                  <>
+                    <div className="relative mb-4">
+                      <Search size={18} className={`absolute left-3 top-1/2 -translate-y-1/2 ${textSecondary}`} />
+                      <input type="text" placeholder={yeniMesajTip === 'personel' ? 'Personel ara...' : 'Öğrenci ara...'}
+                        value={userSearchQuery} onChange={(e) => setUserSearchQuery(e.target.value)}
+                        className={`w-full pl-10 pr-4 py-2.5 ${isDark ? 'bg-white/5' : 'bg-gray-100'} rounded-lg text-sm ${textPrimary} placeholder:${textSecondary} focus:outline-none focus:ring-2 focus:ring-rose-500`}
+                      />
+                    </div>
+                    <div className="space-y-2 max-h-80 overflow-y-auto">
+                      {searchingUsers ? (
+                        <div className="flex items-center justify-center py-8">
+                          <Loader2 className={`w-6 h-6 animate-spin ${accentColor}`} />
+                          <span className={`ml-2 ${textSecondary}`}>Yükleniyor...</span>
+                        </div>
+                      ) : availableUsers.length === 0 ? (
+                        <div className={`text-center py-8 ${textSecondary}`}>Kullanıcı bulunamadı</div>
+                      ) : availableUsers.map((user) => (
+                        <button key={user.id} onClick={() => handleStartConversation(user)}
+                          className={`w-full p-3 flex items-center gap-3 ${hoverBg} rounded-lg transition-colors`}
                         >
-                          <input
-                            type="checkbox"
-                            checked={yeniGrupUyeler.includes(user.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setYeniGrupUyeler([...yeniGrupUyeler, user.id]);
-                              } else {
-                                setYeniGrupUyeler(yeniGrupUyeler.filter(id => id !== user.id));
-                              }
-                            }}
-                            className="w-5 h-5 text-blue-600 rounded"
-                          />
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm ${
-                            user.rol === 'mudur' ? 'bg-gradient-to-br from-amber-400 to-amber-600' :
-                            user.rol === 'sekreter' ? 'bg-gradient-to-br from-pink-400 to-pink-600' :
-                            user.rol === 'ogretmen' ? 'bg-gradient-to-br from-slate-400 to-slate-600' :
-                            'bg-gradient-to-br from-green-400 to-green-600'
-                          }`}>
+                          <div className={`w-10 h-10 rounded-full ${accentBg} flex items-center justify-center text-white font-semibold text-sm`}>
                             {user.ad[0]}{user.soyad[0]}
                           </div>
                           <div className="flex-1 text-left">
-                            <p className="font-medium text-slate-800">{user.ad} {user.soyad}</p>
-                            <p className="text-xs text-slate-500">
-                              {user.rol === 'mudur' ? 'Müdür' :
-                               user.rol === 'sekreter' ? 'Sekreter' :
-                               user.rol === 'ogretmen' ? `${user.brans || ''} Öğretmeni` :
-                               `Öğrenci${user.sinif ? ` • ${user.sinif}` : ''}`}
-                            </p>
-                          </div>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={handleCreateGroup}
-                    disabled={!yeniGrupAdi.trim() || yeniGrupUyeler.length === 0}
-                    className="w-full py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    ✓ Grubu Oluştur
-                  </button>
-                </div>
-              ) : (
-                <>
-                  {/* Arama */}
-                  <div className="relative mb-4">
-                    <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      type="text"
-                      placeholder={yeniMesajTip === 'personel' ? 'Personel ara...' : 'Öğrenci ara...'}
-                      value={userSearchQuery}
-                      onChange={(e) => setUserSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 bg-slate-100 border-none rounded-lg text-sm text-slate-800 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  {/* Kişiler */}
-                  <div className="space-y-2 max-h-80 overflow-y-auto">
-                    {searchingUsers ? (
-                      <div className="flex items-center justify-center py-8">
-                        <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
-                        <span className="ml-2 text-slate-500">Yükleniyor...</span>
-                      </div>
-                    ) : availableUsers.length === 0 ? (
-                      <div className="text-center py-8 text-slate-500">
-                        <p>Kullanıcı bulunamadı</p>
-                      </div>
-                    ) : (
-                      availableUsers.map((user) => (
-                        <button
-                          key={user.id}
-                          onClick={() => handleStartConversation(user)}
-                          className="w-full p-3 flex items-center gap-3 hover:bg-slate-50 rounded-lg transition-colors"
-                        >
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm ${
-                            user.rol === 'mudur' ? 'bg-gradient-to-br from-amber-400 to-amber-600' :
-                            user.rol === 'sekreter' ? 'bg-gradient-to-br from-pink-400 to-pink-600' :
-                            user.rol === 'ogretmen' ? 'bg-gradient-to-br from-slate-400 to-slate-600' :
-                            'bg-gradient-to-br from-green-400 to-green-600'
-                          }`}>
-                            {user.ad[0]}{user.soyad[0]}
-                          </div>
-                          <div className="flex-1 text-left">
-                            <p className="font-medium text-slate-800">{user.ad} {user.soyad}</p>
-                            <p className="text-xs text-slate-500">
-                              {user.rol === 'mudur' ? 'Müdür' :
-                               user.rol === 'sekreter' ? 'Sekreter' :
-                               user.rol === 'ogretmen' ? `${user.brans || ''} Öğretmeni` :
-                               `Öğrenci${user.sinif ? ` • ${user.sinif}` : ''}`}
-                            </p>
+                            <p className={`font-medium ${textPrimary}`}>{user.ad} {user.soyad}</p>
+                            <p className={`text-xs ${textSecondary}`}>{user.rol === 'mudur' ? 'Müdür' : user.rol === 'sekreter' ? 'Sekreter' : user.rol === 'ogretmen' ? `${user.brans || ''} Öğretmeni` : `Öğrenci${user.sinif ? ` • ${user.sinif}` : ''}`}</p>
                           </div>
                         </button>
-                      ))
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Üye Menüsü Modal */}
-      {showUyeMenu && selectedUye && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden">
-            {/* Üye Bilgisi */}
-            <div className="p-6 text-center bg-gradient-to-br from-blue-50 to-indigo-50">
-              <div className={`w-20 h-20 mx-auto rounded-full flex items-center justify-center text-white text-lg font-bold mb-3 ${
-                selectedUye.rol === 'Müdür'
-                  ? 'bg-gradient-to-br from-amber-400 to-amber-600'
-                  : selectedUye.rol === 'Sekreter'
-                    ? 'bg-gradient-to-br from-pink-400 to-pink-600'
-                    : 'bg-gradient-to-br from-slate-400 to-slate-600'
-              }`}>
-                {selectedUye.ad.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
-              </div>
-              <h3 className="text-xl font-bold text-slate-800 flex items-center justify-center gap-2">
-                {selectedUye.ad}
-                {selectedUye.id === currentUser?.id && (
-                  <span className="text-sm text-slate-500 font-normal">~ Siz</span>
-                )}
-              </h3>
-              <p className="text-sm text-slate-600 mt-1">{selectedUye.rol || selectedUye.brans}</p>
-              {selectedUye.grupRol === 'admin' && (
-                <span className="inline-block mt-2 text-xs bg-green-100 text-green-700 px-3 py-1 rounded-full font-medium">
-                  👑 Grup Yöneticisi
-                </span>
-              )}
-            </div>
-
-            {/* İşlem Menüsü */}
-            <div className="p-4">
-              <div className="space-y-2">
-                <button 
-                  onClick={() => handleProfilGoruntule(selectedUye)}
-                  className="w-full p-3 text-left hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-3"
-                >
-                  <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center">
-                    <User size={20} className="text-blue-600" />
-                  </div>
-                  <span className="text-sm font-medium text-slate-700">Üyeyi Görüntüle</span>
-                </button>
-
-                {selectedUye.id !== currentUser?.id && (
-                  <button 
-                    onClick={() => handleUyeyleMesajlasma(selectedUye)}
-                    className="w-full p-3 text-left hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-3"
-                  >
-                    <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center">
-                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                      </svg>
+                      ))}
                     </div>
-                    <span className="text-sm font-medium text-slate-700">Mesaj Gönder</span>
-                  </button>
-                )}
-
-                {/* Yönetici Özellikleri - Sadece başkalarına uygulanabilir */}
-                {isGrupYoneticisi() && selectedUye.id !== currentUser?.id && (
-                  
-<>
-                    <div className="border-t border-slate-200 my-2"></div>
-                    
-                    {selectedUye.grupRol === 'admin' ? (
-                      <button 
-                        onClick={async () => {
-                          if (confirm(`${selectedUye.ad} yönetici rolünden düşürülsün mü?`)) {
-                            try {
-                              const token = localStorage.getItem('token');
-                              const response = await fetch(`${API_URL}/messages/conversations/${seciliKonusma?.id}/members/${selectedUye.id}/role`, {
-                                method: 'PUT',
-                                headers: {
-                                  'Content-Type': 'application/json',
-                                  Authorization: `Bearer ${token}`,
-                                },
-                                body: JSON.stringify({ role: 'uye' }),
-                              });
-                              const data = await response.json();
-                              if (data.success) {
-                                fetchConversations();
-                                setShowUyeMenu(false);
-                                alert(`${selectedUye.ad} artık yönetici değil`);
-                              } else {
-                                alert(data.error || 'İşlem başarısız');
-                              }
-                            } catch (err) {
-                              console.error('Update role error:', err);
-                              alert('Rol güncellenirken bir hata oluştu');
-                            }
-                          }
-                        }}
-                        className="w-full p-3 text-left hover:bg-orange-50 rounded-lg transition-colors flex items-center gap-3"
-                      >
-                        <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                          <User size={20} className="text-orange-600" />
-                        </div>
-                        <span className="text-sm font-medium text-orange-700">Yöneticilikten Düşür</span>
-                      </button>
-                    ) : (
-                      <button 
-                        onClick={async () => {
-                          if (confirm(`${selectedUye.ad} yönetici yapılsın mı?`)) {
-                            try {
-                              const token = localStorage.getItem('token');
-                              const response = await fetch(`${API_URL}/messages/conversations/${seciliKonusma?.id}/members/${selectedUye.id}/role`, {
-                                method: 'PUT',
-                                headers: {
-                                  'Content-Type': 'application/json',
-                                  Authorization: `Bearer ${token}`,
-                                },
-                                body: JSON.stringify({ role: 'admin' }),
-                              });
-                              const data = await response.json();
-                              if (data.success) {
-                                fetchConversations();
-                                setShowUyeMenu(false);
-                                alert(`${selectedUye.ad} artık yönetici!`);
-                              } else {
-                                alert(data.error || 'İşlem başarısız');
-                              }
-                            } catch (err) {
-                              console.error('Update role error:', err);
-                              alert('Rol güncellenirken bir hata oluştu');
-                            }
-                          }
-                        }}
-                        className="w-full p-3 text-left hover:bg-yellow-50 rounded-lg transition-colors flex items-center gap-3"
-                      >
-                        <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
-                          <span className="text-lg">👑</span>
-                        </div>
-                        <span className="text-sm font-medium text-yellow-700">Yönetici Yap</span>
-                      </button>
-                    )}
-
-                    <button 
-                      onClick={async () => {
-                        if (confirm(`${selectedUye.ad} gruptan çıkarılsın mı?`)) {
-                          try {
-                            const token = localStorage.getItem('token');
-                            const response = await fetch(`${API_URL}/messages/conversations/${seciliKonusma?.id}/members/${selectedUye.id}`, {
-                              method: 'DELETE',
-                              headers: {
-                                Authorization: `Bearer ${token}`,
-                              },
-                            });
-                            const data = await response.json();
-                            if (data.success) {
-                              fetchConversations();
-                              setShowUyeMenu(false);
-                              alert(`${selectedUye.ad} gruptan çıkarıldı`);
-                            } else {
-                              alert(data.error || 'İşlem başarısız');
-                            }
-                          } catch (err) {
-                            console.error('Remove member error:', err);
-                            alert('Üye çıkarılırken bir hata oluştu');
-                          }
-                        }
-                      }}
-                      className="w-full p-3 text-left hover:bg-red-50 rounded-lg transition-colors flex items-center gap-3"
-                    >
-                      <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                        <X size={20} className="text-red-600" />
-                      </div>
-                      <span className="text-sm font-medium text-red-600">Gruptan Çıkar</span>
-                    </button>
                   </>
                 )}
               </div>
-
-              <button
-                onClick={() => setShowUyeMenu(false)}
-                className="w-full mt-4 py-3 bg-slate-100 text-slate-700 rounded-lg font-semibold hover:bg-slate-200 transition-all"
-              >
-                İptal
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Yönetici Uyarı Modalı */}
-      {showAdminWarning && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-3xl">⚠️</span>
+        {/* Grup Profil Panel */}
+        {showGrupProfil && seciliKonusma && seciliKonusma.tip !== 'OZEL' && (
+          <>
+            <div className="fixed inset-0 bg-black/30 z-40" onClick={() => setShowGrupProfil(false)} />
+            <div className={`fixed inset-y-0 right-0 w-full sm:w-96 ${bgCard} shadow-2xl z-50`}>
+              <div className={`${accentBg} text-white px-4 py-3 flex items-center gap-4`}>
+                <button onClick={() => setShowGrupProfil(false)} className="p-2 hover:bg-white/10 rounded-full">
+                  <X size={24} />
+                </button>
+                <span className="text-lg font-medium">Grup Bilgisi</span>
               </div>
-              <h3 className="text-lg font-bold text-slate-800 mb-2">Yetki Gerekli</h3>
-              <p className="text-sm text-slate-600 mb-6">
-                Bu işlemi sadece grup yöneticileri yapabilir.
-              </p>
-              <button
-                onClick={() => setShowAdminWarning(false)}
-                className="w-full py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-all"
-              >
-                Tamam
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Grup Profil Panel - WhatsApp tarzı sağdan açılan */}
-      <div className={`fixed inset-y-0 right-0 w-full sm:w-[420px] bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out ${
-        showGrupProfil && seciliKonusma && seciliKonusma.tip !== 'ozel' ? 'translate-x-0' : 'translate-x-full'
-      }`}>
-        {seciliKonusma && seciliKonusma.tip !== 'ozel' && (
-          <div className="h-full flex flex-col">
-            {/* Header - WhatsApp tarzı */}
-            <div className="bg-[#008069] text-white px-4 py-3 flex items-center gap-4">
-              <button
-                onClick={() => setShowGrupProfil(false)}
-                className="p-2 hover:bg-white/10 rounded-full transition-colors"
-              >
-                <X size={24} />
-              </button>
-              <span className="text-lg font-medium">Grup bilgisi</span>
-            </div>
-
-            {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto bg-[#F0F2F5]">
-              {/* Grup Avatar ve İsim */}
-              <div className="bg-white p-6 text-center">
-                <div className="relative inline-block">
-                  {seciliKonusma.resimUrl ? (
-                    <img 
-                      src={seciliKonusma.resimUrl} 
-                      alt={seciliKonusma.ad}
-                      className="w-[200px] h-[200px] mx-auto rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className={`w-[200px] h-[200px] mx-auto rounded-full flex items-center justify-center text-white text-6xl font-bold ${
-                      seciliKonusma.tip === 'OGRETMEN' 
-                        ? 'bg-gradient-to-br from-purple-400 to-purple-600'
-                        : 'bg-gradient-to-br from-[#00A884] to-[#008069]'
-                    }`}>
-                      {getKonusmaIcon(seciliKonusma.tip) || '👥'}
-                    </div>
-                  )}
-                  {isGrupYoneticisi() && (
-                    <button 
-                      onClick={() => handleGrupAyarClick('resim')}
-                      className="absolute bottom-2 right-2 w-12 h-12 bg-[#00A884] rounded-full flex items-center justify-center text-white shadow-lg hover:bg-[#008069] transition-colors"
-                    >
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                    </button>
-                  )}
+              <div className="overflow-y-auto h-[calc(100%-60px)]">
+                <div className="p-6 text-center">
+                  <div className={`w-32 h-32 mx-auto rounded-full ${accentBg} flex items-center justify-center text-white text-4xl font-bold mb-4`}>
+                    {getKonusmaIcon(seciliKonusma.tip) || '👥'}
+                  </div>
+                  <h2 className={`text-xl font-semibold ${textPrimary}`}>{seciliKonusma.ad}</h2>
+                  <p className={`${textSecondary}`}>Grup · {seciliKonusma.uyeler.length} üye</p>
                 </div>
-                <h2 className="text-2xl font-normal text-[#111B21] mt-4">{seciliKonusma.ad}</h2>
-                <p className="text-sm text-[#667781] mt-1">Grup · {seciliKonusma.uyeler.length} üye</p>
-              </div>
-
-              {/* Boşluk */}
-              <div className="h-3"></div>
-
-              {/* Grup Açıklaması / Ayarlar */}
-              <div className="bg-white">
-                {isGrupYoneticisi() && (
-                  <button 
-                    onClick={() => handleGrupAyarClick('ad')}
-                    className="w-full px-6 py-4 text-left hover:bg-[#F5F6F6] transition-colors flex items-center gap-4"
-                  >
-                    <div className="w-10 h-10 bg-[#00A884] rounded-full flex items-center justify-center">
-                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                      </svg>
-                    </div>
-                    <div className="flex-1">
-                      <span className="text-[#008069] text-base">Grup adını düzenle</span>
-                    </div>
-                  </button>
-                )}
-              </div>
-
-              {/* Boşluk */}
-              <div className="h-3"></div>
-
-              {/* Üyeler Bölümü */}
-              <div className="bg-white">
-                <div className="px-6 py-4 flex items-center justify-between">
-                  <span className="text-sm text-[#008069] font-medium">{seciliKonusma.uyeler.length} üye</span>
-                  <button className="p-2 hover:bg-[#F5F6F6] rounded-full transition-colors">
-                    <Search size={20} className="text-[#54656F]" />
-                  </button>
-                </div>
-
-                {/* Üye Ekle Butonu */}
-                {isGrupYoneticisi() && (
-                  <button 
-                    onClick={async () => {
-                      setShowUyeEkleModal(true);
-                      setUyeEkleLoading(true);
-                      setUyeEkleSearchQuery('');
-                      setSecilenYeniUyeler([]);
-                      try {
-                        const response = await fetch(`${API_URL}/messages/users`, {
-                          headers: getAuthHeaders()
-                        });
-                        const data = await response.json();
-                        if (data.success) {
-                          setUyeEkleUsers(data.data);
-                        }
-                      } catch (err) {
-                        console.error('Kullanıcılar yüklenemedi:', err);
-                      } finally {
-                        setUyeEkleLoading(false);
-                      }
-                    }}
-                    className="w-full px-6 py-3 text-left hover:bg-[#F5F6F6] transition-colors flex items-center gap-4"
-                  >
-                    <div className="w-12 h-12 bg-[#00A884] rounded-full flex items-center justify-center">
-                      <Plus size={24} className="text-white" />
-                    </div>
-                    <span className="text-[#111B21] text-base">Üye ekle</span>
-                  </button>
-                )}
-
-                {/* Üye Listesi */}
-                <div>
+                <div className={`border-t ${borderColor}`}>
+                  <div className={`px-4 py-3 flex items-center justify-between ${textSecondary}`}>
+                    <span className="text-sm font-medium">{seciliKonusma.uyeler.length} üye</span>
+                  </div>
                   {seciliKonusma.uyeler.map((uye, index) => (
-                    <button
-                      key={index}
-                      onClick={() => {
-                        setSelectedUye(uye);
-                        setShowUyeMenu(true);
-                      }}
-                      className="w-full px-6 py-3 text-left hover:bg-[#F5F6F6] transition-colors flex items-center gap-4"
+                    <button key={index} onClick={() => { setSelectedUye(uye); setShowUyeMenu(true); }}
+                      className={`w-full px-4 py-3 text-left ${hoverBg} flex items-center gap-3`}
                     >
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-medium ${
-                        uye.rol === 'Müdür'
-                          ? 'bg-gradient-to-br from-amber-400 to-amber-600'
-                          : uye.rol === 'Sekreter'
-                            ? 'bg-gradient-to-br from-pink-400 to-pink-600'
-                            : 'bg-gradient-to-br from-[#00A884] to-[#008069]'
-                      }`}>
+                      <div className={`w-10 h-10 rounded-full ${accentBg} flex items-center justify-center text-white font-medium`}>
                         {uye.ad.split(' ').map(n => n[0]).join('').slice(0, 2)}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[#111B21] text-base font-normal truncate">
-                            {uye.id === currentUser?.id ? 'Siz' : uye.ad}
-                          </span>
-                        </div>
-                        <p className="text-sm text-[#667781] truncate">{uye.rol || uye.brans}</p>
+                      <div className="flex-1">
+                        <span className={textPrimary}>{uye.id === currentUser?.id ? 'Siz' : uye.ad}</span>
+                        <p className={`text-sm ${textSecondary}`}>{uye.rol || uye.brans}</p>
                       </div>
                       {uye.grupRol === 'admin' && (
-                        <span className="text-xs bg-[#E7FCE8] text-[#1FA855] px-2 py-1 rounded">Grup yöneticisi</span>
+                        <span className="text-xs bg-green-500/20 text-green-500 px-2 py-1 rounded">Yönetici</span>
                       )}
                     </button>
                   ))}
                 </div>
               </div>
+            </div>
+          </>
+        )}
 
-              {/* Boşluk */}
-              <div className="h-3"></div>
-
-              {/* Gruptan Çık */}
-              <div className="bg-white">
-                <button 
-                  onClick={() => handleGrupAyarClick('ayril')}
-                  className="w-full px-6 py-4 text-left hover:bg-[#F5F6F6] transition-colors flex items-center gap-4"
+        {/* Üye Menu Modal */}
+        {showUyeMenu && selectedUye && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+            <div className={`${bgCard} rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden`}>
+              <div className={`p-6 text-center ${isDark ? 'bg-white/5' : 'bg-rose-50'}`}>
+                <div className={`w-20 h-20 mx-auto rounded-full ${accentBg} flex items-center justify-center text-white text-lg font-bold mb-3`}>
+                  {selectedUye.ad.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+                </div>
+                <h3 className={`text-xl font-bold ${textPrimary}`}>{selectedUye.ad}</h3>
+                <p className={`text-sm ${textSecondary}`}>{selectedUye.rol || selectedUye.brans}</p>
+              </div>
+              <div className="p-4 space-y-2">
+                <button className={`w-full p-3 text-left ${hoverBg} rounded-lg flex items-center gap-3`}>
+                  <User size={20} className={accentColor} />
+                  <span className={textPrimary}>Profili Görüntüle</span>
+                </button>
+                {selectedUye.id !== currentUser?.id && (
+                  <button className={`w-full p-3 text-left ${hoverBg} rounded-lg flex items-center gap-3`}>
+                    <MessageSquare size={20} className={accentColor} />
+                    <span className={textPrimary}>Mesaj Gönder</span>
+                  </button>
+                )}
+              </div>
+              <div className={`p-4 border-t ${borderColor}`}>
+                <button onClick={() => setShowUyeMenu(false)}
+                  className={`w-full py-3 ${isDark ? 'bg-white/5' : 'bg-gray-100'} ${textSecondary} rounded-lg font-semibold ${hoverBg}`}
                 >
-                  <div className="w-10 h-10 flex items-center justify-center">
-                    <svg className="w-6 h-6 text-[#EA0038]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                    </svg>
-                  </div>
-                  <span className="text-[#EA0038] text-base">Gruptan çık</span>
+                  İptal
                 </button>
               </div>
-
-              {/* Alt Boşluk */}
-              <div className="h-6"></div>
             </div>
           </div>
         )}
       </div>
-
-      {/* Overlay - Panel açıkken arka planı karart */}
-      {showGrupProfil && seciliKonusma && seciliKonusma.tip !== 'ozel' && (
-        <div 
-          className="fixed inset-0 bg-black/30 z-40"
-          onClick={() => setShowGrupProfil(false)}
-        />
-      )}
-      {/* Medya Modal - Personel */}
-      {showMedyaModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
-            <div className="p-4 bg-blue-600 text-white flex items-center justify-between">
-              <h3 className="text-lg font-bold">Medya ve Dosyalar</h3>
-              <button onClick={() => setShowMedyaModal(false)} className="p-2 hover:bg-white/20 rounded-lg">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="p-6 space-y-6 max-h-[calc(90vh-80px)] overflow-y-auto">
-              <div>
-                <h4 className="text-sm font-semibold text-slate-700 mb-3">📸 Fotoğraflar</h4>
-                <div className="grid grid-cols-4 gap-2">
-                  {[1,2,3,4,5,6,7,8].map(i => (
-                    <div key={i} className="aspect-square bg-slate-100 rounded-lg flex items-center justify-center hover:bg-slate-200 transition-colors cursor-pointer">
-                      <span className="text-3xl">🖼️</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <h4 className="text-sm font-semibold text-slate-700 mb-3">📄 Belgeler</h4>
-                <div className="space-y-2">
-                  {['Toplantı Notları.pdf', 'Rapor.xlsx', 'Sunum.pptx'].map((dosya, i) => (
-                    <div key={i} className="p-3 bg-slate-50 rounded-lg flex items-center gap-3 hover:bg-slate-100 transition-colors cursor-pointer">
-                      <span className="text-2xl">📄</span>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-slate-900">{dosya}</p>
-                        <p className="text-xs text-slate-500">1.8 MB • 2 gün önce</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Şikayet Modal - Personel */}
-      {showSikayetModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
-            <div className="p-4 bg-red-600 text-white">
-              <h3 className="text-lg font-bold">Kullanıcıyı Şikayet Et</h3>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex gap-3">
-                <span className="text-xl">ℹ️</span>
-                <p className="text-sm text-yellow-800">Şikayetiniz yöneticiye iletilecektir.</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Şikayet Edilen: <span className="font-bold">{profilUye?.ad}</span>
-                </label>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Şikayet Nedeni</label>
-                <textarea
-                  value={sikayetMesaj}
-                  onChange={(e) => setSikayetMesaj(e.target.value)}
-                  placeholder="Şikayetinizi detaylı olarak yazın..."
-                  className="w-full h-32 px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
-                />
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    setShowSikayetModal(false);
-                    setSikayetMesaj('');
-                  }}
-                  className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50"
-                >
-                  İptal
-                </button>
-                <button
-                  onClick={() => {
-                    if (sikayetMesaj.trim()) {
-                      alert(`Şikayetiniz yöneticiye iletildi.\n\nŞikayet Edilen: ${profilUye?.ad}\nMesaj: ${sikayetMesaj}`);
-                      setShowSikayetModal(false);
-                      setSikayetMesaj('');
-                      setShowProfilPanel(false);
-                    }
-                  }}
-                  disabled={!sikayetMesaj.trim()}
-                  className={`flex-1 px-4 py-2 rounded-lg font-medium ${
-                    sikayetMesaj.trim() ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                  }`}
-                >
-                  Şikayet Et
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Üye Ekleme Modal - Personel */}
-      {showUyeEkleModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden flex flex-col">
-            {/* Header */}
-            <div className="p-4 bg-[#008069] text-white flex items-center justify-between flex-shrink-0">
-              <h3 className="text-lg font-medium">Üye ekle</h3>
-              <button onClick={() => { setShowUyeEkleModal(false); setSecilenYeniUyeler([]); setUyeEkleSearchQuery(''); }} className="p-2 hover:bg-white/20 rounded-lg">
-                <X size={20} />
-              </button>
-            </div>
-            
-            {/* Arama Alanı */}
-            <div className="p-3 bg-[#F0F2F5] flex-shrink-0">
-              <div className="relative">
-                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#54656F]" />
-                <input
-                  type="text"
-                  placeholder="Kişi ara..."
-                  value={uyeEkleSearchQuery}
-                  onChange={(e) => setUyeEkleSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-white rounded-lg text-sm border-0 focus:outline-none focus:ring-2 focus:ring-[#00A884]"
-                />
-              </div>
-            </div>
-
-            {/* Seçilen Üyeler */}
-            {secilenYeniUyeler.length > 0 && (
-              <div className="px-4 py-2 bg-[#F0F2F5] flex-shrink-0 border-b border-slate-200">
-                <div className="flex flex-wrap gap-2">
-                  {secilenYeniUyeler.map(userId => {
-                    const user = uyeEkleUsers.find(u => u.id === userId);
-                    if (!user) return null;
-                    return (
-                      <div key={userId} className="flex items-center gap-1 bg-[#00A884] text-white text-sm px-2 py-1 rounded-full">
-                        <span>{user.ad}</span>
-                        <button 
-                          onClick={() => setSecilenYeniUyeler(prev => prev.filter(id => id !== userId))}
-                          className="hover:bg-white/20 rounded-full p-0.5"
-                        >
-                          <X size={14} />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Kullanıcı Listesi */}
-            <div className="flex-1 overflow-y-auto">
-              {uyeEkleLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#00A884]"></div>
-                </div>
-              ) : (
-                <div className="divide-y divide-slate-100">
-                  {uyeEkleUsers
-                    .filter(user => {
-                      // Mevcut üyeleri filtrele
-                      const uyeAd = `${user.ad} ${user.soyad}`;
-                      const mevcutMu = seciliKonusma?.uyeler.some(u => u.ad === uyeAd || u.id === user.id);
-                      if (mevcutMu) return false;
-                      
-                      // Arama filtresi
-                      if (uyeEkleSearchQuery) {
-                        const searchLower = uyeEkleSearchQuery.toLowerCase();
-                        return uyeAd.toLowerCase().includes(searchLower) || 
-                               (user.brans && user.brans.toLowerCase().includes(searchLower));
-                      }
-                      return true;
-                    })
-                    .map((user) => {
-                      const uyeAd = `${user.ad} ${user.soyad}`;
-                      const seciliMi = secilenYeniUyeler.includes(user.id);
-                      
-                      return (
-                        <button
-                          key={user.id}
-                          onClick={() => {
-                            if (seciliMi) {
-                              setSecilenYeniUyeler(prev => prev.filter(id => id !== user.id));
-                            } else {
-                              setSecilenYeniUyeler(prev => [...prev, user.id]);
-                            }
-                          }}
-                          className={`w-full px-4 py-3 flex items-center gap-3 transition-all ${
-                            seciliMi ? 'bg-[#E7FCE8]' : 'hover:bg-[#F5F6F6]'
-                          }`}
-                        >
-                          <div className={`w-11 h-11 rounded-full flex items-center justify-center text-white font-medium ${
-                            user.rol === 'mudur' 
-                              ? 'bg-gradient-to-br from-amber-400 to-amber-600'
-                              : user.rol === 'sekreter'
-                                ? 'bg-gradient-to-br from-pink-400 to-pink-600'
-                                : 'bg-gradient-to-br from-[#00A884] to-[#008069]'
-                          }`}>
-                            {user.ad.charAt(0)}{user.soyad?.charAt(0) || ''}
-                          </div>
-                          <div className="flex-1 text-left min-w-0">
-                            <p className="font-medium text-[#111B21] truncate">{uyeAd}</p>
-                            <p className="text-xs text-[#667781] truncate">
-                              {user.rol === 'mudur' ? 'Müdür' : user.rol === 'sekreter' ? 'Sekreter' : user.rol === 'ogretmen' ? `${user.brans || ''} Öğretmeni` : 'Öğrenci'}
-                            </p>
-                          </div>
-                          {seciliMi && (
-                            <div className="w-6 h-6 bg-[#00A884] rounded-full flex items-center justify-center">
-                              <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                              </svg>
-                            </div>
-                          )}
-                        </button>
-                      );
-                    })}
-                  
-                  {/* Sonuç yok */}
-                  {uyeEkleUsers.filter(user => {
-                    const uyeAd = `${user.ad} ${user.soyad}`;
-                    const mevcutMu = seciliKonusma?.uyeler.some(u => u.ad === uyeAd || u.id === user.id);
-                    if (mevcutMu) return false;
-                    if (uyeEkleSearchQuery) {
-                      const searchLower = uyeEkleSearchQuery.toLowerCase();
-                      return uyeAd.toLowerCase().includes(searchLower);
-                    }
-                    return true;
-                  }).length === 0 && !uyeEkleLoading && (
-                    <div className="text-center py-12 text-[#667781]">
-                      <Users size={48} className="mx-auto mb-3 opacity-50" />
-                      <p className="text-sm">
-                        {uyeEkleSearchQuery ? 'Sonuç bulunamadı' : 'Eklenebilecek kişi yok'}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-            {/* Footer */}
-            <div className="p-4 bg-white border-t border-slate-200 flex-shrink-0">
-              <button
-                onClick={async () => {
-                  if (secilenYeniUyeler.length > 0 && seciliKonusma) {
-                    try {
-                      const token = localStorage.getItem('token');
-                      // Her bir üye için API çağrısı yap
-                      const results = await Promise.all(
-                        secilenYeniUyeler.map(userId => 
-                          fetch(`${API_URL}/messages/conversations/${seciliKonusma.id}/members`, {
-                            method: 'POST',
-                            headers: {
-                              'Content-Type': 'application/json',
-                              Authorization: `Bearer ${token}`,
-                            },
-                            body: JSON.stringify({ userId }),
-                          }).then(res => res.json())
-                        )
-                      );
-                      
-                      const basarili = results.filter(r => r.success).length;
-                      if (basarili > 0) {
-                        fetchConversations();
-                        alert(`${basarili} kişi gruba eklendi!`);
-                      } else {
-                        alert('Üyeler eklenirken bir hata oluştu');
-                      }
-                      setShowUyeEkleModal(false);
-                      setSecilenYeniUyeler([]);
-                      setUyeEkleSearchQuery('');
-                    } catch (err) {
-                      console.error('Add members error:', err);
-                      alert('Üyeler eklenirken bir hata oluştu');
-                    }
-                  }
-                }}
-                disabled={secilenYeniUyeler.length === 0}
-                className={`w-full py-3 rounded-full font-medium flex items-center justify-center gap-2 transition-all ${
-                  secilenYeniUyeler.length === 0 
-                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
-                    : 'bg-[#00A884] text-white hover:bg-[#008069]'
-                }`}
-              >
-                <Plus size={20} />
-                {secilenYeniUyeler.length > 0 
-                  ? `${secilenYeniUyeler.length} kişiyi ekle` 
-                  : 'Kişi seçin'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+    </RoleGuard>
   );
 }

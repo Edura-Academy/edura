@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { useRouter, usePathname } from '@/i18n/routing';
 
-export type UserRole = 'admin' | 'mudur' | 'ogretmen' | 'sekreter' | 'ogrenci' | 'veli';
+export type UserRole = 'admin' | 'kursSahibi' | 'mudur' | 'ogretmen' | 'sekreter' | 'ogrenci' | 'veli';
 
 export interface Sinif {
   id: string;
@@ -29,7 +29,9 @@ export interface User {
   kurs?: Kurs;
   ogrenciNo?: string;
   brans?: string;
+  telefon?: string;
   sifreDegistirildiMi?: boolean;
+  profilFoto?: string;
 }
 
 interface AuthContextType {
@@ -47,6 +49,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // Role'a göre izin verilen path'ler
 const rolePathMap: Record<UserRole, string[]> = {
   admin: ['/admin'],
+  kursSahibi: ['/kurs-sahibi'],
   mudur: ['/mudur', '/personel'],
   ogretmen: ['/ogretmen', '/personel'],
   sekreter: ['/sekreter', '/personel'],
@@ -57,6 +60,7 @@ const rolePathMap: Record<UserRole, string[]> = {
 // Role'a göre ana sayfa
 const roleHomeMap: Record<UserRole, string> = {
   admin: '/admin',
+  kursSahibi: '/kurs-sahibi',
   mudur: '/mudur',
   ogretmen: '/ogretmen',
   sekreter: '/sekreter',

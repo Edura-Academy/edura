@@ -6,7 +6,8 @@ import {
   ArrowLeft, Plus, Search, Filter, CreditCard, Wallet,
   CheckCircle, Clock, AlertCircle, XCircle, Users,
   Calendar, ChevronDown, ChevronUp, Download, RefreshCw,
-  Banknote, TrendingUp, Loader2
+  Banknote, TrendingUp, Loader2, Bell, Tag, FileText,
+  Send, CalendarClock, Ticket, Receipt, FileSpreadsheet
 } from 'lucide-react';
 
 interface Ogrenci {
@@ -71,8 +72,14 @@ export default function PersonelOdemeler() {
   // Modal states
   const [showNewPlanModal, setShowNewPlanModal] = useState(false);
   const [showManualPaymentModal, setShowManualPaymentModal] = useState(false);
+  const [showKuponModal, setShowKuponModal] = useState(false);
+  const [showHatirlatmaModal, setShowHatirlatmaModal] = useState(false);
+  const [showErtelemeModal, setShowErtelemeModal] = useState(false);
+  const [showTopluPlanModal, setShowTopluPlanModal] = useState(false);
   const [selectedOdeme, setSelectedOdeme] = useState<Odeme | null>(null);
   const [processing, setProcessing] = useState(false);
+  const [kuponlar, setKuponlar] = useState<any[]>([]);
+  const [siniflar, setSiniflar] = useState<any[]>([]);
 
   // Yeni plan form
   const [newPlan, setNewPlan] = useState({
@@ -85,6 +92,29 @@ export default function PersonelOdemeler() {
 
   // Öğrenci listesi
   const [ogrenciler, setOgrenciler] = useState<Ogrenci[]>([]);
+
+  // Kupon form
+  const [kuponForm, setKuponForm] = useState({
+    kod: '',
+    indirimOrani: '',
+    indirimTutari: '',
+    gecerlilikBaslangic: '',
+    gecerlilikBitis: '',
+    maxKullanim: '',
+    aciklama: ''
+  });
+
+  // Toplu plan form
+  const [topluPlanForm, setTopluPlanForm] = useState({
+    sinifId: '',
+    donemAd: '',
+    toplamTutar: '',
+    taksitSayisi: '1',
+    indirimOrani: '0'
+  });
+
+  // Erteleme form
+  const [erteleGun, setErteleGun] = useState(30);
 
   useEffect(() => {
     if (activeTab === 'planlar') {
@@ -212,6 +242,202 @@ export default function PersonelOdemeler() {
     }
   };
 
+  // Kupon oluştur
+  const handleCreateKupon = async () => {
+    if (!kuponForm.kod || (!kuponForm.indirimOrani && !kuponForm.indirimTutari)) return;
+    
+    setProcessing(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/odeme/kupon`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          kod: kuponForm.kod,
+          indirimOrani: kuponForm.indirimOrani ? parseFloat(kuponForm.indirimOrani) : null,
+          indirimTutari: kuponForm.indirimTutari ? parseFloat(kuponForm.indirimTutari) : null,
+          gecerlilikBaslangic: kuponForm.gecerlilikBaslangic || null,
+          gecerlilikBitis: kuponForm.gecerlilikBitis || null,
+          maxKullanim: kuponForm.maxKullanim ? parseInt(kuponForm.maxKullanim) : null,
+          aciklama: kuponForm.aciklama || null
+        })
+      });
+
+      if (response.ok) {
+        setShowKuponModal(false);
+        setKuponForm({ kod: '', indirimOrani: '', indirimTutari: '', gecerlilikBaslangic: '', gecerlilikBitis: '', maxKullanim: '', aciklama: '' });
+        fetchKuponlar();
+        alert('Kupon oluşturuldu!');
+      }
+    } catch (error) {
+      console.error('Kupon oluşturma hatası:', error);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Kuponları getir
+  const fetchKuponlar = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/odeme/kuponlar`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        setKuponlar(result.data || []);
+      }
+    } catch (error) {
+      console.error('Kuponlar yüklenemedi:', error);
+    }
+  };
+
+  // Sınıfları getir
+  const fetchSiniflar = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/duyurular/siniflar`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        setSiniflar(result.data || []);
+      }
+    } catch (error) {
+      console.error('Sınıflar yüklenemedi:', error);
+    }
+  };
+
+  // Hatırlatma gönder
+  const handleSendHatirlatma = async () => {
+    if (!selectedOdeme) return;
+    
+    setProcessing(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/odeme/hatirlatma`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          odemeId: selectedOdeme.id
+        })
+      });
+
+      if (response.ok) {
+        setShowHatirlatmaModal(false);
+        setSelectedOdeme(null);
+        alert('Hatırlatma gönderildi!');
+      }
+    } catch (error) {
+      console.error('Hatırlatma hatası:', error);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Taksit ertele
+  const handleErtele = async () => {
+    if (!selectedOdeme) return;
+    
+    setProcessing(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/odeme/taksit/${selectedOdeme.id}/ertele`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          gun: erteleGun
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok && data.success) {
+        setShowErtelemeModal(false);
+        setSelectedOdeme(null);
+        fetchPlanlar();
+        alert('Taksit ertelendi!');
+      } else {
+        alert(data.error || 'Erteleme başarısız');
+      }
+    } catch (error) {
+      console.error('Erteleme hatası:', error);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Toplu plan oluştur
+  const handleCreateTopluPlan = async () => {
+    if (!topluPlanForm.sinifId || !topluPlanForm.donemAd || !topluPlanForm.toplamTutar) return;
+    
+    setProcessing(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/odeme/plan/toplu`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          sinifId: topluPlanForm.sinifId,
+          donemAd: topluPlanForm.donemAd,
+          toplamTutar: parseFloat(topluPlanForm.toplamTutar),
+          taksitSayisi: parseInt(topluPlanForm.taksitSayisi),
+          indirimOrani: parseFloat(topluPlanForm.indirimOrani) || 0
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok && data.success) {
+        setShowTopluPlanModal(false);
+        setTopluPlanForm({ sinifId: '', donemAd: '', toplamTutar: '', taksitSayisi: '1', indirimOrani: '0' });
+        fetchPlanlar();
+        alert(`${data.data?.olusturulanPlanSayisi || 0} plan oluşturuldu!`);
+      } else {
+        alert(data.error || 'Toplu plan oluşturma başarısız');
+      }
+    } catch (error) {
+      console.error('Toplu plan hatası:', error);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Export
+  const handleExport = async (format: 'csv' | 'excel') => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/odeme/export?format=${format}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `odeme-raporu.${format === 'csv' ? 'csv' : 'xlsx'}`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+    } catch (error) {
+      console.error('Export hatası:', error);
+    }
+  };
+
   const formatCurrency = (amount: number) => {
     return amount.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' TL';
   };
@@ -278,24 +504,47 @@ export default function PersonelOdemeler() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Tabs */}
-        <div className="flex gap-2 mb-6 bg-slate-800/50 p-1 rounded-xl w-fit">
-          {[
-            { id: 'planlar', label: 'Ödeme Planları', icon: Wallet },
-            { id: 'rapor', label: 'Rapor', icon: TrendingUp }
-          ].map(tab => (
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+          <div className="flex gap-2 bg-slate-800/50 p-1 rounded-xl">
+            {[
+              { id: 'planlar', label: 'Ödeme Planları', icon: Wallet },
+              { id: 'rapor', label: 'Rapor', icon: TrendingUp },
+              { id: 'kuponlar', label: 'Kuponlar', icon: Ticket }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setActiveTab(tab.id as any);
+                  if (tab.id === 'kuponlar') fetchKuponlar();
+                }}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                  activeTab === tab.id
+                    ? 'bg-purple-500 text-white'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <tab.icon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          
+          <div className="flex gap-2">
             <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                activeTab === tab.id
-                  ? 'bg-purple-500 text-white'
-                  : 'text-slate-400 hover:text-white'
-              }`}
+              onClick={() => { setShowTopluPlanModal(true); fetchSiniflar(); }}
+              className="flex items-center gap-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl transition-colors text-sm"
             >
-              <tab.icon className="w-4 h-4" />
-              {tab.label}
+              <Users className="w-4 h-4" />
+              Toplu Plan
             </button>
-          ))}
+            <button
+              onClick={() => handleExport('csv')}
+              className="flex items-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-colors text-sm"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              CSV
+            </button>
+          </div>
         </div>
 
         {/* Arama ve Filtre */}
@@ -411,28 +660,43 @@ export default function PersonelOdemeler() {
                       return (
                         <div 
                           key={odeme.id}
-                          className="bg-slate-800/80 p-3 flex items-center justify-between"
+                          className="bg-slate-800/80 p-3"
                         >
-                          <div className="flex items-center gap-2">
-                            <config.icon className={`w-4 h-4 ${config.color}`} />
-                            <div>
-                              <p className="text-sm text-white">
-                                {odeme.taksitNo}. Taksit
-                              </p>
-                              <p className="text-xs text-slate-400">{formatDate(odeme.vadeTarihi)}</p>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <config.icon className={`w-4 h-4 ${config.color}`} />
+                              <div>
+                                <p className="text-sm text-white">
+                                  {odeme.taksitNo}. Taksit
+                                </p>
+                                <p className="text-xs text-slate-400">{formatDate(odeme.vadeTarihi)}</p>
+                              </div>
                             </div>
-                          </div>
-                          <div className="text-right">
                             <p className="text-sm font-medium text-white">{formatCurrency(odeme.tutar)}</p>
-                            {canProcess && (
+                          </div>
+                          {canProcess && (
+                            <div className="flex items-center gap-1 mt-2 pt-2 border-t border-slate-700/50">
                               <button
                                 onClick={() => { setSelectedOdeme(odeme); setShowManualPaymentModal(true); }}
-                                className="text-xs text-purple-400 hover:text-purple-300"
+                                className="flex-1 text-xs text-center py-1 bg-emerald-500/20 text-emerald-400 rounded hover:bg-emerald-500/30 transition-colors"
                               >
                                 Kaydet
                               </button>
-                            )}
-                          </div>
+                              <button
+                                onClick={() => { setSelectedOdeme(odeme); setShowErtelemeModal(true); }}
+                                className="flex-1 text-xs text-center py-1 bg-amber-500/20 text-amber-400 rounded hover:bg-amber-500/30 transition-colors"
+                              >
+                                Ertele
+                              </button>
+                              <button
+                                onClick={() => { setSelectedOdeme(odeme); setShowHatirlatmaModal(true); }}
+                                className="p-1 text-slate-400 hover:text-white transition-colors"
+                                title="Hatırlatma Gönder"
+                              >
+                                <Bell className="w-3 h-3" />
+                              </button>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -443,6 +707,61 @@ export default function PersonelOdemeler() {
               <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-12 text-center">
                 <Wallet className="w-12 h-12 text-slate-500 mx-auto mb-4" />
                 <p className="text-slate-400">Henüz ödeme planı bulunmuyor</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Kuponlar */}
+        {activeTab === 'kuponlar' && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-white">İndirim Kuponları</h3>
+              <button
+                onClick={() => setShowKuponModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-xl transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Yeni Kupon
+              </button>
+            </div>
+            
+            {kuponlar.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {kuponlar.map((kupon) => (
+                  <div 
+                    key={kupon.id}
+                    className="bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-4"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <code className="px-3 py-1 bg-purple-500/20 text-purple-400 rounded-lg font-mono">
+                        {kupon.kod}
+                      </code>
+                      <span className={`text-xs px-2 py-1 rounded ${kupon.aktif ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                        {kupon.aktif ? 'Aktif' : 'Pasif'}
+                      </span>
+                    </div>
+                    <div className="text-2xl font-bold text-white mb-2">
+                      {kupon.indirimOrani ? `%${kupon.indirimOrani}` : `${formatCurrency(kupon.indirimTutari)}`}
+                    </div>
+                    {kupon.aciklama && (
+                      <p className="text-sm text-slate-400 mb-2">{kupon.aciklama}</p>
+                    )}
+                    <div className="text-xs text-slate-500 space-y-1">
+                      {kupon.maxKullanim && (
+                        <p>Kullanım: {kupon.kullanimSayisi || 0}/{kupon.maxKullanim}</p>
+                      )}
+                      {kupon.gecerlilikBitis && (
+                        <p>Bitiş: {formatDate(kupon.gecerlilikBitis)}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-12 text-center">
+                <Ticket className="w-12 h-12 text-slate-500 mx-auto mb-4" />
+                <p className="text-slate-400">Henüz kupon bulunmuyor</p>
               </div>
             )}
           </div>
@@ -616,6 +935,321 @@ export default function PersonelOdemeler() {
                 >
                   <CreditCard className="w-5 h-5" />
                   Havale/EFT
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Kupon Modal */}
+      {showKuponModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-800 rounded-2xl border border-slate-700 w-full max-w-md">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-white">Yeni Kupon Oluştur</h2>
+                <button onClick={() => setShowKuponModal(false)} className="text-slate-400 hover:text-white">
+                  <XCircle className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Kupon Kodu *</label>
+                  <input
+                    type="text"
+                    value={kuponForm.kod}
+                    onChange={(e) => setKuponForm({...kuponForm, kod: e.target.value.toUpperCase()})}
+                    placeholder="YENI2025"
+                    className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1">İndirim (%)</label>
+                    <input
+                      type="number"
+                      value={kuponForm.indirimOrani}
+                      onChange={(e) => setKuponForm({...kuponForm, indirimOrani: e.target.value, indirimTutari: ''})}
+                      placeholder="10"
+                      min="0"
+                      max="100"
+                      className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1">veya Tutar (TL)</label>
+                    <input
+                      type="number"
+                      value={kuponForm.indirimTutari}
+                      onChange={(e) => setKuponForm({...kuponForm, indirimTutari: e.target.value, indirimOrani: ''})}
+                      placeholder="500"
+                      className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1">Geçerlilik Başlangıç</label>
+                    <input
+                      type="date"
+                      value={kuponForm.gecerlilikBaslangic}
+                      onChange={(e) => setKuponForm({...kuponForm, gecerlilikBaslangic: e.target.value})}
+                      className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1">Geçerlilik Bitiş</label>
+                    <input
+                      type="date"
+                      value={kuponForm.gecerlilikBitis}
+                      onChange={(e) => setKuponForm({...kuponForm, gecerlilikBitis: e.target.value})}
+                      className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Max Kullanım</label>
+                  <input
+                    type="number"
+                    value={kuponForm.maxKullanim}
+                    onChange={(e) => setKuponForm({...kuponForm, maxKullanim: e.target.value})}
+                    placeholder="Sınırsız"
+                    className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Açıklama</label>
+                  <input
+                    type="text"
+                    value={kuponForm.aciklama}
+                    onChange={(e) => setKuponForm({...kuponForm, aciklama: e.target.value})}
+                    placeholder="Yeni yıl kampanyası"
+                    className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <button
+                  onClick={handleCreateKupon}
+                  disabled={processing || !kuponForm.kod || (!kuponForm.indirimOrani && !kuponForm.indirimTutari)}
+                  className="w-full flex items-center justify-center gap-2 py-3 bg-purple-500 hover:bg-purple-600 disabled:bg-purple-500/50 text-white rounded-xl font-medium transition-colors"
+                >
+                  {processing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Tag className="w-5 h-5" />}
+                  Kupon Oluştur
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hatırlatma Modal */}
+      {showHatirlatmaModal && selectedOdeme && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-800 rounded-2xl border border-slate-700 w-full max-w-sm">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-white">Hatırlatma Gönder</h2>
+                <button onClick={() => setShowHatirlatmaModal(false)} className="text-slate-400 hover:text-white">
+                  <XCircle className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="text-center mb-6">
+                <Bell className="w-12 h-12 text-amber-400 mx-auto mb-3" />
+                <p className="text-white">
+                  <strong>{formatCurrency(selectedOdeme.tutar)}</strong> tutarındaki {selectedOdeme.taksitNo}. taksit için hatırlatma gönderilecek.
+                </p>
+                <p className="text-sm text-slate-400 mt-2">
+                  Veli ve öğrenciye bildirim gönderilecektir.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <button
+                  onClick={handleSendHatirlatma}
+                  disabled={processing}
+                  className="w-full flex items-center justify-center gap-2 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-medium transition-colors"
+                >
+                  {processing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                  Hatırlatma Gönder
+                </button>
+                <button
+                  onClick={() => setShowHatirlatmaModal(false)}
+                  className="w-full py-3 text-slate-400 hover:text-white rounded-xl font-medium transition-colors"
+                >
+                  İptal
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Erteleme Modal */}
+      {showErtelemeModal && selectedOdeme && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-800 rounded-2xl border border-slate-700 w-full max-w-sm">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-white">Taksit Ertele</h2>
+                <button onClick={() => setShowErtelemeModal(false)} className="text-slate-400 hover:text-white">
+                  <XCircle className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="text-center mb-6">
+                <CalendarClock className="w-12 h-12 text-amber-400 mx-auto mb-3" />
+                <p className="text-white">
+                  <strong>{formatCurrency(selectedOdeme.tutar)}</strong> tutarındaki {selectedOdeme.taksitNo}. taksit
+                </p>
+                <p className="text-sm text-slate-400 mt-1">
+                  Mevcut vade: {formatDate(selectedOdeme.vadeTarihi)}
+                </p>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm text-slate-400 mb-2">Kaç gün ertelensin?</label>
+                <div className="flex gap-2">
+                  {[15, 30, 45, 60].map(gun => (
+                    <button
+                      key={gun}
+                      onClick={() => setErteleGun(gun)}
+                      className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        erteleGun === gun
+                          ? 'bg-amber-500 text-white'
+                          : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                      }`}
+                    >
+                      {gun} gün
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl mb-4">
+                <p className="text-sm text-amber-300">
+                  Yeni vade tarihi: {new Date(new Date(selectedOdeme.vadeTarihi).getTime() + erteleGun * 24 * 60 * 60 * 1000).toLocaleDateString('tr-TR')}
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <button
+                  onClick={handleErtele}
+                  disabled={processing}
+                  className="w-full flex items-center justify-center gap-2 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-medium transition-colors"
+                >
+                  {processing ? <Loader2 className="w-5 h-5 animate-spin" /> : <CalendarClock className="w-5 h-5" />}
+                  Ertele
+                </button>
+                <button
+                  onClick={() => setShowErtelemeModal(false)}
+                  className="w-full py-3 text-slate-400 hover:text-white rounded-xl font-medium transition-colors"
+                >
+                  İptal
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toplu Plan Modal */}
+      {showTopluPlanModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-800 rounded-2xl border border-slate-700 w-full max-w-md">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-white">Toplu Ödeme Planı</h2>
+                <button onClick={() => setShowTopluPlanModal(false)} className="text-slate-400 hover:text-white">
+                  <XCircle className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Sınıf *</label>
+                  <select
+                    value={topluPlanForm.sinifId}
+                    onChange={(e) => setTopluPlanForm({...topluPlanForm, sinifId: e.target.value})}
+                    className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  >
+                    <option value="">Sınıf Seçin</option>
+                    {siniflar.map((sinif: any) => (
+                      <option key={sinif.id} value={sinif.id}>
+                        {sinif.ad} ({sinif._count?.ogrenciler || 0} öğrenci)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Dönem Adı *</label>
+                  <input
+                    type="text"
+                    value={topluPlanForm.donemAd}
+                    onChange={(e) => setTopluPlanForm({...topluPlanForm, donemAd: e.target.value})}
+                    placeholder="2024-2025 Güz Dönemi"
+                    className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm text-slate-400 mb-1">Toplam Tutar (TL) *</label>
+                  <input
+                    type="number"
+                    value={topluPlanForm.toplamTutar}
+                    onChange={(e) => setTopluPlanForm({...topluPlanForm, toplamTutar: e.target.value})}
+                    placeholder="10000"
+                    className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1">Taksit Sayısı</label>
+                    <select
+                      value={topluPlanForm.taksitSayisi}
+                      onChange={(e) => setTopluPlanForm({...topluPlanForm, taksitSayisi: e.target.value})}
+                      className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                      {[1, 2, 3, 4, 6, 8, 10, 12].map(n => (
+                        <option key={n} value={n}>{n} Taksit</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-slate-400 mb-1">İndirim (%)</label>
+                    <input
+                      type="number"
+                      value={topluPlanForm.indirimOrani}
+                      onChange={(e) => setTopluPlanForm({...topluPlanForm, indirimOrani: e.target.value})}
+                      placeholder="0"
+                      min="0"
+                      max="100"
+                      className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-xl">
+                  <p className="text-sm text-blue-300">
+                    Seçili sınıftaki tüm öğrenciler için aynı ödeme planı oluşturulacaktır.
+                  </p>
+                </div>
+
+                <button
+                  onClick={handleCreateTopluPlan}
+                  disabled={processing || !topluPlanForm.sinifId || !topluPlanForm.donemAd || !topluPlanForm.toplamTutar}
+                  className="w-full flex items-center justify-center gap-2 py-3 bg-purple-500 hover:bg-purple-600 disabled:bg-purple-500/50 text-white rounded-xl font-medium transition-colors"
+                >
+                  {processing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Users className="w-5 h-5" />}
+                  Toplu Plan Oluştur
                 </button>
               </div>
             </div>

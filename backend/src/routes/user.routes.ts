@@ -15,6 +15,17 @@ import {
   getStats,
   saveFcmToken,
   removeFcmToken,
+  validatePassword,
+  changePassword,
+  bulkImportUsers,
+  getImportTemplate,
+  getProfile,
+  updateProfile,
+  searchUsers,
+  getNotifications,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  deleteNotification
 } from '../controllers/user.controller';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.middleware';
 
@@ -26,6 +37,27 @@ router.use(authenticateToken);
 // Kullanıcılar - Genel
 router.get('/', getUsers);
 router.get('/stats', getStats);
+
+// Bildirimler
+router.get('/notifications', getNotifications);
+router.put('/notifications/read-all', markAllNotificationsAsRead);
+router.put('/notifications/:id/read', markNotificationAsRead);
+router.delete('/notifications/:id', deleteNotification);
+
+// Profil yönetimi
+router.get('/profile', getProfile);
+router.put('/profile', updateProfile);
+
+// Şifre yönetimi
+router.post('/sifre/kontrol', validatePassword);
+router.post('/sifre/degistir', changePassword);
+
+// Kullanıcı arama
+router.get('/ara', searchUsers);
+
+// Toplu import
+router.get('/import/sablon', authorizeRoles('admin', 'mudur', 'sekreter'), getImportTemplate);
+router.post('/import', authorizeRoles('admin', 'mudur', 'sekreter'), bulkImportUsers);
 
 // Kurslar (spesifik route'lar /:id'den ÖNCE gelmeli)
 router.get('/kurslar', getKurslar);

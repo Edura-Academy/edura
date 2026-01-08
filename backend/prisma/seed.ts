@@ -157,7 +157,7 @@ async function main() {
   
   const adminler = [
     { email: 'hasan.vural@edura.com', ad: 'Hasan', soyad: 'Vural', telefon: '0555 000 0001' },
-    { email: 'abdurrahman.onavic@edura.com', ad: 'Abdurrahman', soyad: 'Onavic', telefon: '0555 000 0002' },
+    { email: 'abdurrahman.onavci@edura.com', ad: 'Abdurrahman', soyad: 'Onavci', telefon: '0555 000 0002' },
     { email: 'ferhat.kara@edura.com', ad: 'Ferhat', soyad: 'Kara', telefon: '0555 000 0003' },
   ];
 
@@ -583,7 +583,7 @@ async function main() {
   console.log('   ───────────────────────────────────────');
   console.log('   Adminler:');
   console.log('     • hasan.vural@edura.com       (Hasan Vural)');
-  console.log('     • abdurrahman.onavic@edura.com (Abdurrahman Onavic)');
+  console.log('     • abdurrahman.onavci@edura.com (Abdurrahman Onavci)');
   console.log('     • ferhat.kara@edura.com       (Ferhat Kara)');
   console.log('   ');
   console.log('   Müdürler:');

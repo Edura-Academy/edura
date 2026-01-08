@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import {
   User,
@@ -14,7 +14,9 @@ import {
   Eye,
   EyeOff,
   Camera,
-  Check
+  Check,
+  Trash2,
+  Loader2
 } from 'lucide-react';
 import { RoleGuard } from '@/components/RoleGuard';
 import { useAuth } from '@/contexts/AuthContext';
@@ -25,6 +27,11 @@ function OgretmenAyarlarContent() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  
+  // Profil fotoğrafı state
+  const [profilFoto, setProfilFoto] = useState<string | null>(null);
+  const [fotoLoading, setFotoLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Profil form state
   const [profilData, setProfilData] = useState({
@@ -63,8 +70,95 @@ function OgretmenAyarlarContent() {
         telefon: user.telefon || '',
         brans: user.brans || ''
       });
+      // Profil fotoğrafını getir
+      fetchProfilFoto();
     }
   }, [user]);
+
+  // Profil fotoğrafını getir
+  const fetchProfilFoto = async () => {
+    if (!user?.id) return;
+    try {
+      const res = await fetch(`${API_URL}/upload/profile/user/${user.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success && data.data?.url) {
+        setProfilFoto(data.data.url);
+      }
+    } catch (error) {
+      console.log('Profil fotoğrafı bulunamadı');
+    }
+  };
+
+  // Profil fotoğrafı yükle
+  const handleFotoYukle = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user?.id) return;
+
+    // Dosya validasyonu
+    if (!file.type.match(/^image\/(jpeg|jpg|png|webp)$/)) {
+      setMessage({ type: 'error', text: 'Sadece JPG, PNG ve WebP dosyaları yüklenebilir' });
+      return;
+    }
+
+    if (file.size > 8 * 1024 * 1024) {
+      setMessage({ type: 'error', text: 'Dosya boyutu 8MB\'dan küçük olmalı' });
+      return;
+    }
+
+    setFotoLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('photo', file);
+
+      const res = await fetch(`${API_URL}/upload/profile/user/${user.id}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setProfilFoto(data.data.url);
+        setMessage({ type: 'success', text: 'Profil fotoğrafı güncellendi!' });
+      } else {
+        setMessage({ type: 'error', text: data.error || 'Fotoğraf yüklenemedi' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Fotoğraf yüklenirken hata oluştu' });
+    } finally {
+      setFotoLoading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      setTimeout(() => setMessage(null), 3000);
+    }
+  };
+
+  // Profil fotoğrafını sil
+  const handleFotoSil = async () => {
+    if (!user?.id || !profilFoto) return;
+
+    setFotoLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/upload/profile/user/${user.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setProfilFoto(null);
+        setMessage({ type: 'success', text: 'Profil fotoğrafı silindi!' });
+      } else {
+        setMessage({ type: 'error', text: data.error || 'Fotoğraf silinemedi' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Fotoğraf silinirken hata oluştu' });
+    } finally {
+      setFotoLoading(false);
+      setTimeout(() => setMessage(null), 3000);
+    }
+  };
 
   const handleProfilGuncelle = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -212,18 +306,74 @@ function OgretmenAyarlarContent() {
             <h2 className="text-lg font-semibold text-slate-800 mb-6">Profil Bilgileri</h2>
             
             <form onSubmit={handleProfilGuncelle} className="space-y-4">
-              <div className="flex justify-center mb-6">
-                <div className="relative">
-                  <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center text-white text-3xl font-bold">
-                    {profilData.ad?.[0]}{profilData.soyad?.[0]}
-                  </div>
+              {/* Profil Fotoğrafı */}
+              <div className="flex flex-col items-center mb-6">
+                <div className="relative group">
+                  {profilFoto ? (
+                    <img
+                      src={profilFoto}
+                      alt="Profil"
+                      className="w-28 h-28 rounded-full object-cover border-4 border-blue-100"
+                    />
+                  ) : (
+                    <div className="w-28 h-28 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center text-white text-3xl font-bold border-4 border-blue-100">
+                      {profilData.ad?.[0]}{profilData.soyad?.[0]}
+                    </div>
+                  )}
+                  
+                  {/* Loading overlay */}
+                  {fotoLoading && (
+                    <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center">
+                      <Loader2 className="w-8 h-8 text-white animate-spin" />
+                    </div>
+                  )}
+                  
+                  {/* Kamera butonu */}
                   <button
                     type="button"
-                    className="absolute bottom-0 right-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center hover:bg-blue-700 transition-colors"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={fotoLoading}
+                    className="absolute bottom-0 right-0 w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center hover:bg-blue-700 transition-colors shadow-lg disabled:opacity-50"
                   >
-                    <Camera className="w-4 h-4" />
+                    <Camera className="w-5 h-5" />
                   </button>
                 </div>
+                
+                {/* Gizli file input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  onChange={handleFotoYukle}
+                  className="hidden"
+                />
+                
+                {/* Fotoğraf butonları */}
+                <div className="flex gap-2 mt-4">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={fotoLoading}
+                    className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center gap-2"
+                  >
+                    <Camera className="w-4 h-4" />
+                    {profilFoto ? 'Değiştir' : 'Fotoğraf Ekle'}
+                  </button>
+                  
+                  {profilFoto && (
+                    <button
+                      type="button"
+                      onClick={handleFotoSil}
+                      disabled={fotoLoading}
+                      className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center gap-2"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Sil
+                    </button>
+                  )}
+                </div>
+                
+                <p className="text-xs text-slate-500 mt-2">JPG, PNG veya WebP • Maks 8MB</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

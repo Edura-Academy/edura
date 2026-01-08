@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { RoleGuard } from '@/components/RoleGuard';
+import { useTheme } from '@/contexts/ThemeContext';
 
 // API URL - fallback to localhost if not defined
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
@@ -76,6 +77,8 @@ const TÜMBRANSLAR: Course[] = [
 
 function OgretmenSinavlarContent() {
   const router = useRouter();
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
   const [sinavlar, setSinavlar] = useState<Sinav[]>([]);
   const [dersler, setDersler] = useState<Course[]>([]);
   const [siniflar, setSiniflar] = useState<Sinif[]>([]);
@@ -238,7 +241,7 @@ function OgretmenSinavlarContent() {
     }
   };
 
-  // Soru resmi yükleme
+  // Soru resmi yükleme - Firebase'e yükler ve URL döner
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -256,16 +259,59 @@ function OgretmenSinavlarContent() {
       return;
     }
 
-    // Preview oluştur
+    // Preview oluştur (yükleme sırasında göstermek için)
     const reader = new FileReader();
     reader.onloadend = () => {
       setCurrentSoru({
         ...currentSoru,
-        resimFile: file,
         resimPreview: reader.result as string
       });
     };
     reader.readAsDataURL(file);
+
+    // Firebase'e yükle
+    setUploadingImage(true);
+    try {
+      const token = localStorage.getItem('token');
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const response = await fetch(`${API_URL}/upload/sinav/soru-resmi`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setCurrentSoru(prev => ({
+          ...prev,
+          resimUrl: data.data.url,
+          resimFile: file
+        }));
+      } else {
+        showAlert(data.error || 'Resim yüklenirken bir hata oluştu.');
+        // Preview'u temizle
+        setCurrentSoru(prev => ({
+          ...prev,
+          resimPreview: '',
+          resimFile: undefined
+        }));
+      }
+    } catch (error) {
+      console.error('Resim yükleme hatası:', error);
+      showAlert('Resim yüklenirken bir bağlantı hatası oluştu.');
+      setCurrentSoru(prev => ({
+        ...prev,
+        resimPreview: '',
+        resimFile: undefined
+      }));
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   // Soru resmini kaldır
@@ -335,7 +381,7 @@ function OgretmenSinavlarContent() {
           puan: s.puan,
           secenekler: s.secenekler,
           dogruCevap: s.dogruCevap,
-          resimUrl: s.resimPreview || s.resimUrl || null, // Base64 veya URL
+          resimUrl: s.resimUrl || null, // Firebase URL
           sira: index + 1
         }))
       };
@@ -459,7 +505,12 @@ function OgretmenSinavlarContent() {
   };
 
   const getDurumConfig = (durum: string) => {
-    const configs: Record<string, { label: string; color: string; bg: string }> = {
+    const configs: Record<string, { label: string; color: string; bg: string }> = isDark ? {
+      TASLAK: { label: 'Taslak', color: 'text-slate-300', bg: 'bg-slate-500/20' },
+      AKTIF: { label: 'Aktif', color: 'text-green-400', bg: 'bg-green-500/20' },
+      SONA_ERDI: { label: 'Sona Erdi', color: 'text-amber-400', bg: 'bg-amber-500/20' },
+      IPTAL: { label: 'İptal', color: 'text-red-400', bg: 'bg-red-500/20' }
+    } : {
       TASLAK: { label: 'Taslak', color: 'text-slate-600', bg: 'bg-slate-100' },
       AKTIF: { label: 'Aktif', color: 'text-green-600', bg: 'bg-green-100' },
       SONA_ERDI: { label: 'Sona Erdi', color: 'text-amber-600', bg: 'bg-amber-100' },
@@ -495,16 +546,16 @@ function OgretmenSinavlarContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className={`min-h-screen ${isDark ? 'bg-[#0f1419]' : 'bg-slate-50'} flex items-center justify-center`}>
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className={`min-h-screen ${isDark ? 'bg-[#0f1419]' : 'bg-slate-50'}`}>
       {/* Header */}
-      <header className="bg-gradient-to-r from-purple-600 to-purple-700 text-white sticky top-0 z-40">
+      <header className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
@@ -532,19 +583,19 @@ function OgretmenSinavlarContent() {
         {/* Filtreler */}
         <div className="flex gap-4 mb-6">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Sınav ara..."
-              className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className={`w-full pl-10 pr-4 py-2.5 ${isDark ? 'bg-[#1a1f2e] border-slate-700/50 text-white placeholder-slate-500' : 'bg-white border-slate-200 text-slate-800 placeholder-slate-400'} border rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500`}
             />
           </div>
           <select
             value={durumFilter}
             onChange={(e) => setDurumFilter(e.target.value)}
-            className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className={`px-4 py-2.5 ${isDark ? 'bg-[#1a1f2e] border-slate-700/50 text-white' : 'bg-white border-slate-200 text-slate-800'} border rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500`}
           >
             <option value="">Tüm Durumlar</option>
             <option value="TASLAK">Taslak</option>
@@ -555,33 +606,33 @@ function OgretmenSinavlarContent() {
 
         {/* İstatistikler */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-xl border border-slate-200 p-4">
+          <div className={`${isDark ? 'bg-[#1a1f2e] border-slate-700/50' : 'bg-white border-slate-200'} rounded-xl border p-4`}>
             <div className="flex items-center gap-2 mb-2">
-              <FileQuestion className="w-4 h-4 text-purple-600" />
-              <span className="text-xs text-slate-500">Toplam</span>
+              <FileQuestion className={`w-4 h-4 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
+              <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Toplam</span>
             </div>
-            <p className="text-2xl font-bold text-slate-800">{sinavlar.length}</p>
+            <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>{sinavlar.length}</p>
           </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-4">
+          <div className={`${isDark ? 'bg-[#1a1f2e] border-slate-700/50' : 'bg-white border-slate-200'} rounded-xl border p-4`}>
             <div className="flex items-center gap-2 mb-2">
-              <Play className="w-4 h-4 text-green-600" />
-              <span className="text-xs text-slate-500">Aktif</span>
+              <Play className={`w-4 h-4 ${isDark ? 'text-green-400' : 'text-green-600'}`} />
+              <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Aktif</span>
             </div>
-            <p className="text-2xl font-bold text-green-600">{sinavlar.filter(s => s.durum === 'AKTIF').length}</p>
+            <p className={`text-2xl font-bold ${isDark ? 'text-green-400' : 'text-green-600'}`}>{sinavlar.filter(s => s.durum === 'AKTIF').length}</p>
           </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-4">
+          <div className={`${isDark ? 'bg-[#1a1f2e] border-slate-700/50' : 'bg-white border-slate-200'} rounded-xl border p-4`}>
             <div className="flex items-center gap-2 mb-2">
-              <Edit className="w-4 h-4 text-amber-600" />
-              <span className="text-xs text-slate-500">Taslak</span>
+              <Edit className={`w-4 h-4 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
+              <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Taslak</span>
             </div>
-            <p className="text-2xl font-bold text-amber-600">{sinavlar.filter(s => s.durum === 'TASLAK').length}</p>
+            <p className={`text-2xl font-bold ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>{sinavlar.filter(s => s.durum === 'TASLAK').length}</p>
           </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-4">
+          <div className={`${isDark ? 'bg-[#1a1f2e] border-slate-700/50' : 'bg-white border-slate-200'} rounded-xl border p-4`}>
             <div className="flex items-center gap-2 mb-2">
-              <Users className="w-4 h-4 text-blue-600" />
-              <span className="text-xs text-slate-500">Katılımcı</span>
+              <Users className={`w-4 h-4 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+              <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Katılımcı</span>
             </div>
-            <p className="text-2xl font-bold text-blue-600">{sinavlar.reduce((sum, s) => sum + s.katilimciSayisi, 0)}</p>
+            <p className={`text-2xl font-bold ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>{sinavlar.reduce((sum, s) => sum + s.katilimciSayisi, 0)}</p>
           </div>
         </div>
 
@@ -594,17 +645,17 @@ function OgretmenSinavlarContent() {
               return (
                 <div 
                   key={sinav.id}
-                  className="bg-white rounded-xl border border-slate-200 p-4 hover:shadow-md transition-shadow"
+                  className={`${isDark ? 'bg-[#1a1f2e] border-slate-700/50 hover:border-purple-500/50' : 'bg-white border-slate-200 hover:shadow-md'} rounded-xl border p-4 transition-all`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                        <FileQuestion className="w-6 h-6 text-purple-600" />
+                      <div className={`w-12 h-12 ${isDark ? 'bg-purple-500/20' : 'bg-purple-100'} rounded-xl flex items-center justify-center`}>
+                        <FileQuestion className={`w-6 h-6 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
                       </div>
                       <div>
-                        <h3 className="text-slate-800 font-medium">{sinav.baslik}</h3>
-                        <p className="text-sm text-purple-600">{sinav.course.ad}</p>
-                        <div className="flex items-center gap-4 mt-2 text-xs text-slate-500">
+                        <h3 className={`${isDark ? 'text-white' : 'text-slate-800'} font-medium`}>{sinav.baslik}</h3>
+                        <p className={`text-sm ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>{sinav.course.ad}</p>
+                        <div className={`flex items-center gap-4 mt-2 text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                           <span className="flex items-center gap-1">
                             <FileQuestion className="w-3 h-3" />
                             {sinav.soruSayisi} soru
@@ -618,7 +669,7 @@ function OgretmenSinavlarContent() {
                             {sinav.tamamlayanSayisi}/{sinav.katilimciSayisi}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2 mt-2 text-xs text-slate-400">
+                        <div className={`flex items-center gap-2 mt-2 text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
                           <Calendar className="w-3 h-3" />
                           {formatDate(sinav.baslangicTarihi)} - {formatDate(sinav.bitisTarihi)}
                         </div>
@@ -626,7 +677,7 @@ function OgretmenSinavlarContent() {
                     </div>
                     
                     <div className="flex items-center gap-3">
-                      <span className={`px-3 py-1 rounded-full text-xs ${config.bg} ${config.color}`}>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${config.bg} ${config.color}`}>
                         {config.label}
                       </span>
                       
@@ -634,30 +685,32 @@ function OgretmenSinavlarContent() {
                         {sinav.durum === 'TASLAK' && (
                           <button
                             onClick={() => handlePublishSinav(sinav.id)}
-                            className="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-colors"
+                            className={`p-2 ${isDark ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' : 'bg-green-100 text-green-600 hover:bg-green-200'} rounded-lg transition-colors`}
                             title="Yayınla"
                           >
                             <Play className="w-4 h-4" />
                           </button>
                         )}
                         
+                        {/* Önizleme */}
+                        <button
+                          onClick={() => router.push(`/ogretmen/online-sinav/${sinav.id}/onizleme`)}
+                          className={`p-2 ${isDark ? 'bg-purple-500/20 text-purple-400 hover:bg-purple-500/30' : 'bg-purple-100 text-purple-600 hover:bg-purple-200'} rounded-lg transition-colors`}
+                          title="Önizleme"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        
+                        {/* Analiz Raporu */}
                         {sinav.katilimciSayisi > 0 && (
                           <button
-                            onClick={() => router.push(`/ogretmen/sinavlar/${sinav.id}/sonuclar`)}
-                            className="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors"
-                            title="Sonuçlar"
+                            onClick={() => router.push(`/ogretmen/online-sinav/${sinav.id}/analiz`)}
+                            className={`p-2 ${isDark ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30' : 'bg-blue-100 text-blue-600 hover:bg-blue-200'} rounded-lg transition-colors`}
+                            title="Analiz Raporu"
                           >
                             <BarChart2 className="w-4 h-4" />
                           </button>
                         )}
-                        
-                        <button
-                          onClick={() => router.push(`/ogretmen/sinavlar/${sinav.id}`)}
-                          className="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"
-                          title="Detay"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
                       </div>
                     </div>
                   </div>
@@ -666,9 +719,9 @@ function OgretmenSinavlarContent() {
             })}
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
-            <FileQuestion className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-            <p className="text-slate-500">Henüz sınav bulunmuyor</p>
+          <div className={`${isDark ? 'bg-[#1a1f2e] border-slate-700/50' : 'bg-white border-slate-200'} rounded-xl border p-12 text-center`}>
+            <FileQuestion className={`w-12 h-12 ${isDark ? 'text-slate-600' : 'text-slate-400'} mx-auto mb-4`} />
+            <p className={isDark ? 'text-slate-400' : 'text-slate-500'}>Henüz sınav bulunmuyor</p>
             <button
               onClick={() => setShowCreateModal(true)}
               className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
@@ -911,13 +964,23 @@ function OgretmenSinavlarContent() {
                       className="hidden"
                     />
                     
-                    {currentSoru.resimPreview ? (
+                    {uploadingImage ? (
+                      <div className="flex items-center gap-2 px-4 py-2 bg-purple-50 border border-purple-200 rounded-lg text-purple-600">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span className="text-sm">Resim yükleniyor...</span>
+                      </div>
+                    ) : currentSoru.resimPreview ? (
                       <div className="relative">
                         <img 
                           src={currentSoru.resimPreview} 
                           alt="Soru resmi" 
                           className="w-24 h-24 object-cover rounded-lg border border-slate-200"
                         />
+                        {currentSoru.resimUrl && (
+                          <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                            <CheckCircle className="w-3 h-3 text-white" />
+                          </div>
+                        )}
                         <button
                           type="button"
                           onClick={removeImage}

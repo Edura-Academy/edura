@@ -7,7 +7,10 @@ import {
   getAttendanceHistory,
   getStudentAttendance,
   generateQRToken,
-  submitQRAttendance
+  submitQRAttendance,
+  getPersonelYoklamaListesi,
+  getPersonelYoklamaDetay,
+  personelYoklamaGuncelle
 } from '../controllers/yoklama.controller';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.middleware';
 
@@ -29,6 +32,11 @@ router.post('/qr/katil', authorizeRoles('ogrenci'), submitQRAttendance);
 
 // Öğrenci route'ları
 router.get('/ogrenci', authorizeRoles('ogrenci'), getStudentAttendance);
+
+// ==================== PERSONEL (SEKRETER) ROUTE'LARI ====================
+router.get('/personel/dersler', authorizeRoles('sekreter', 'mudur'), getPersonelYoklamaListesi);
+router.get('/personel/ders/:courseId', authorizeRoles('sekreter', 'mudur'), getPersonelYoklamaDetay);
+router.put('/personel/ders/:courseId/ogrenci/:ogrenciId', authorizeRoles('sekreter', 'mudur'), personelYoklamaGuncelle);
 
 export default router;
 

@@ -12,13 +12,19 @@ import {
   deleteSoru,
   publishSinav,
   getSinavSonuclari,
+  getOturumDetay,
+  getSinavOnizleme,
+  getSinavAnalizRaporu,
   // Öğrenci
   getAktifSinavlar,
   startSinav,
   saveCevap,
   finishSinav,
   getOgrenciSonuc,
-  getOgrenciSinavGecmisi
+  getOgrenciSinavGecmisi,
+  // Personel (Sekreter)
+  getPersonelSinavListesi,
+  getPersonelSinavSonuclari
 } from '../controllers/onlineSinav.controller';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.middleware';
 
@@ -35,6 +41,16 @@ router.delete('/ogretmen/:sinavId', authenticateToken, authorizeRoles('ogretmen'
 router.post('/ogretmen/:sinavId/yayinla', authenticateToken, authorizeRoles('ogretmen', 'mudur'), publishSinav);
 router.post('/ogretmen/:sinavId/taslak', authenticateToken, authorizeRoles('ogretmen', 'mudur'), unpublishSinav);
 router.get('/ogretmen/:sinavId/sonuclar', authenticateToken, authorizeRoles('ogretmen', 'mudur'), getSinavSonuclari);
+router.get('/oturum/:oturumId/detay', authenticateToken, authorizeRoles('ogretmen', 'mudur'), getOturumDetay);
+
+// Önizleme ve Analiz (Öğretmen)
+router.get('/ogretmen/:sinavId/onizleme', authenticateToken, authorizeRoles('ogretmen', 'mudur'), getSinavOnizleme);
+router.get('/ogretmen/:sinavId/analiz', authenticateToken, authorizeRoles('ogretmen', 'mudur'), getSinavAnalizRaporu);
+
+// ==================== PERSONEL (SEKRETER) ====================
+
+router.get('/personel/liste', authenticateToken, authorizeRoles('sekreter', 'mudur'), getPersonelSinavListesi);
+router.get('/personel/:sinavId/sonuclar', authenticateToken, authorizeRoles('sekreter', 'mudur'), getPersonelSinavSonuclari);
 
 // Soru yönetimi
 router.post('/ogretmen/:sinavId/soru', authenticateToken, authorizeRoles('ogretmen', 'mudur'), addSoru);

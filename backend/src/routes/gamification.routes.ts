@@ -8,7 +8,12 @@ import {
   getGununSorusu,
   answerGununSorusu,
   getLeaderboard,
-  getUserRozetler
+  getUserRozetler,
+  getSinifYarismasi,
+  getSeviyeler,
+  getXpKazanimLog,
+  getKurumIciSiralama,
+  getOgrenciProfil
 } from '../controllers/gamification.controller';
 
 const router = Router();
@@ -32,6 +37,21 @@ router.post('/gunun-sorusu/cevapla', answerGununSorusu);
 
 // Leaderboard
 router.get('/leaderboard', getLeaderboard);
+
+// Kurum İçi Sıralama (Detaylı - yeni)
+router.get('/kurum-siralama', getKurumIciSiralama);
+
+// Öğrenci Profil (sıralama sayfasından erişim)
+router.get('/ogrenci/:ogrenciId', getOgrenciProfil);
+
+// Sınıf Yarışması
+router.get('/sinif-yarismasi', getSinifYarismasi);
+
+// Seviyeler
+router.get('/seviyeler', getSeviyeler);
+
+// XP Kazanım Logları
+router.get('/xp-log', getXpKazanimLog);
 
 // Rozetler
 router.get('/rozetler', getUserRozetler);

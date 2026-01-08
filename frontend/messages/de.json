@@ -1,0 +1,906 @@
+{
+  "common": {
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "add": "Hinzufügen",
+    "search": "Suchen",
+    "loading": "Wird geladen...",
+    "error": "Fehler",
+    "success": "Erfolgreich",
+    "close": "Schließen",
+    "back": "Zurück",
+    "next": "Weiter",
+    "yes": "Ja",
+    "no": "Nein",
+    "active": "Aktiv",
+    "passive": "Inaktiv",
+    "all": "Alle",
+    "view": "Ansehen",
+    "details": "Details"
+  },
+  "auth": {
+    "login": "Anmelden",
+    "logout": "Abmelden",
+    "username": "Benutzername",
+    "password": "Passwort",
+    "email": "E-Mail",
+    "forgotPassword": "Passwort vergessen",
+    "changePassword": "Passwort ändern",
+    "currentPassword": "Aktuelles Passwort",
+    "newPassword": "Neues Passwort",
+    "confirmPassword": "Passwort bestätigen",
+    "rememberMe": "Angemeldet bleiben",
+    "courseTrackingSystem": "Kursverfolgungssystem",
+    "userType": "Benutzertyp",
+    "staff": "Personal",
+    "student": "Schüler",
+    "staffLoginDesc": "Kurs, Manager, Lehrer, Sekretär Anmeldung",
+    "studentLoginDesc": "Schüler Anmeldung",
+    "enterUsername": "Benutzername eingeben",
+    "enterPassword": "Passwort eingeben",
+    "logging": "Anmeldung läuft...",
+    "invalidCredentials": "Ungültiger Benutzername oder Passwort",
+    "connectionError": "Verbindungsfehler. Läuft das Backend?",
+    "copyright": "© 2025 Edura Academy. Alle Rechte vorbehalten.",
+    "testLogin": "Test-Anmeldung",
+    "selectUser": "Mit welchem Benutzer möchten Sie sich anmelden?",
+    "cancel": "Abbrechen"
+  },
+  "admin": {
+    "title": "Admin-Bereich",
+    "welcome": "Willkommen",
+    "systemAdmin": "Systemadministrator",
+    "dashboard": "Dashboard",
+    "courses": "Kurse",
+    "users": "Benutzer",
+    "reports": "Berichte",
+    "settings": "Einstellungen",
+    "newCourse": "Neuen Kurs hinzufügen",
+    "addUser": "Benutzer hinzufügen",
+    "registeredCourses": "Registrierte Kurse",
+    "totalStudents": "Gesamtzahl Schüler",
+    "totalTeachers": "Gesamtzahl Lehrer",
+    "totalManagers": "Gesamtzahl Manager",
+    "systemDescription": "Als Systemadministrator haben Sie Zugriff auf alle Kurse."
+  },
+  "profile": {
+    "editProfile": "Profil bearbeiten",
+    "accountSettings": "Kontoeinstellungen",
+    "profilePhoto": "Profilfoto",
+    "firstName": "Vorname",
+    "lastName": "Nachname",
+    "removePhoto": "Foto entfernen",
+    "photoHint": "JPG oder PNG. Max 2MB"
+  },
+  "notifications": {
+    "title": "Benachrichtigungen",
+    "markAllRead": "Alle als gelesen markieren",
+    "viewAll": "Alle Benachrichtigungen anzeigen",
+    "newCourseRegistration": "Neue Kursanmeldung",
+    "passwordChanged": "hat Passwort geändert",
+    "systemUpdate": "Systemaktualisierung abgeschlossen",
+    "newManager": "Neuer Manager hinzugefügt"
+  },
+  "messages": {
+    "title": "Nachrichten",
+    "newMessage": "Neue Nachricht",
+    "viewAll": "Alle Nachrichten anzeigen"
+  },
+  "language": {
+    "title": "Sprache",
+    "turkish": "Türkçe",
+    "english": "English",
+    "german": "Deutsch",
+    "arabic": "العربية",
+    "french": "Français",
+    "spanish": "Español"
+  },
+  "courses": {
+    "courseName": "Kursname",
+    "address": "Adresse",
+    "phone": "Telefon",
+    "status": "Status",
+    "actions": "Aktionen",
+    "createCourse": "Kurs erstellen",
+    "updateCourse": "Kurs aktualisieren",
+    "courseDetails": "Kursdetails",
+    "statistics": "Statistiken",
+    "students": "Schüler",
+    "teachers": "Lehrer",
+    "classes": "Klassen",
+    "managers": "Manager",
+    "secretaries": "Sekretäre"
+  },
+  "users": {
+    "userType": "Benutzertyp",
+    "manager": "Manager",
+    "teacher": "Lehrer",
+    "secretary": "Sekretär",
+    "student": "Schüler",
+    "branch": "Fachbereich",
+    "educationCoach": "Bildungscoach",
+    "createUser": "Benutzer erstellen",
+    "selectCourse": "Kurs auswählen",
+    "selectBranch": "Fachbereich auswählen"
+  },
+  "settings": {
+    "changeEmail": "E-Mail ändern",
+    "changePassword": "Passwort ändern",
+    "deleteAccount": "Konto löschen",
+    "currentEmail": "Aktuelle E-Mail",
+    "newEmail": "Neue E-Mail",
+    "verifyPassword": "Passwort bestätigen",
+    "updateEmail": "E-Mail aktualisieren",
+    "updatePassword": "Passwort aktualisieren",
+    "deleteWarning": "Wenn Sie Ihr Konto löschen, werden alle Ihre Daten dauerhaft gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.",
+    "deleteConfirmText": "Um Ihr Konto dauerhaft zu löschen, geben Sie unten KONTO LÖSCHEN ein:",
+    "deleteConfirmPlaceholder": "KONTO LÖSCHEN"
+  },
+  "time": {
+    "minutesAgo": "Minuten her",
+    "hoursAgo": "Stunden her",
+    "yesterday": "Gestern",
+    "daysAgo": "Tage her"
+  },
+  "chatbot": {
+    "title": "Edura Assistent",
+    "placeholder": "Schreiben Sie eine Nachricht...",
+    "voiceMode": "Sprachmodus",
+    "chatMode": "Chat-Modus",
+    "listening": "Höre zu...",
+    "speaking": "Spricht...",
+    "stop": "Stopp",
+    "send": "Senden",
+    "welcome": "Hallo! Ich bin Ihr Edura-Assistent. Wie kann ich Ihnen helfen?",
+    "error": "Es ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.",
+    "connectionError": "Verbindungsfehler. Bitte überprüfen Sie Ihre Internetverbindung."
+  },
+  "accessibility": {
+    "ttsEnabled": "Sprachausgabe aktiviert",
+    "ttsDisabled": "Sprachausgabe deaktiviert",
+    "voiceAssistant": "Sprachassistent",
+    "microphoneButton": "Mikrofon-Taste. Klicken oder Enter drücken zum Sprechen.",
+    "assistantOpened": "Assistent geöffnet",
+    "assistantClosed": "Assistent geschlossen",
+    "voiceModeActivated": "Sprachmodus aktiviert. Klicken Sie auf die Mikrofon-Taste zum Sprechen.",
+    "chatModeActivated": "Chat-Modus aktiviert.",
+    "noSpeechDetected": "Keine Sprache erkannt. Bitte versuchen Sie es erneut.",
+    "microphoneAccessDenied": "Mikrofonzugriff verweigert.",
+    "browserNotSupported": "Ihr Browser unterstützt keine Spracherkennung.",
+    "networkError": "Netzwerkfehler. Bitte überprüfen Sie Ihre Internetverbindung."
+  },
+  "manager": {
+    "panel": "Manager-Bereich",
+    "institutionManager": "Institutionsleiter",
+    "menu": {
+      "homePage": "Startseite",
+      "userManagement": "Benutzerverwaltung",
+      "classManagement": "Klassenverwaltung",
+      "mockExams": "Probeprüfungen",
+      "reports": "Berichte",
+      "announcements": "Ankündigungen",
+      "messages": "Nachrichten",
+      "systemAnnouncements": "Systemankündigungen",
+      "support": "Supportanfrage",
+      "helpCenter": "Hilfezentrum",
+      "new": "Neu"
+    },
+    "welcome": {
+      "title": "Willkommen, Manager {name}!",
+      "subtitle": "Sie können den allgemeinen Status Ihrer Institution hier verfolgen."
+    },
+    "stats": {
+      "student": "Schüler",
+      "teacher": "Lehrer",
+      "secretary": "Sekretär",
+      "class": "Klasse",
+      "totalStudents": "Gesamtzahl Schüler",
+      "totalTeachers": "Gesamtzahl Lehrer",
+      "totalSecretaries": "Gesamtzahl Sekretäre",
+      "totalClasses": "Gesamtzahl Klassen",
+      "activeStudents": "Aktive Schüler in Ihrer Institution",
+      "activeTeachers": "Aktive Lehrer in Ihrer Institution",
+      "activeSecretaries": "Aktive Sekretäre in Ihrer Institution",
+      "activeClasses": "Aktive Klassen in Ihrer Institution"
+    },
+    "quickActions": {
+      "addTeacher": "Lehrer hinzufügen",
+      "newTeacher": "Neuer Lehrer",
+      "addTeacherDesc": "Klicken Sie, um einen neuen Lehrer hinzuzufügen",
+      "createClass": "Klasse erstellen",
+      "newClass": "Neue Klasse öffnen",
+      "createClassDesc": "Klicken Sie, um eine neue Klasse zu erstellen",
+      "mockExam": "Probeprüfung",
+      "createTytAyt": "TYT/AYT erstellen",
+      "mockExamDesc": "Klicken Sie, um eine TYT oder AYT Probeprüfung zu erstellen",
+      "publishAnnouncement": "Ankündigung veröffentlichen",
+      "toAllStaff": "An alle Mitarbeiter",
+      "publishAnnouncementDesc": "Klicken Sie, um eine Ankündigung an alle Mitarbeiter zu senden",
+      "reports": "Berichte",
+      "performanceAnalysis": "Leistungsanalyse",
+      "reportsDesc": "Klicken Sie, um Leistungsanalysen und Berichte anzuzeigen"
+    },
+    "recentUsers": {
+      "title": "Kürzlich hinzugefügte Benutzer",
+      "viewAll": "Alle anzeigen",
+      "noUsers": "Noch keine Benutzer hinzugefügt",
+      "description": "Liste der kürzlich hinzugefügten Benutzer. Klicken Sie, um alle anzuzeigen."
+    },
+    "quickActionsPanel": {
+      "title": "Schnellaktionen",
+      "description": "Schnellaktionen-Bereich. Greifen Sie hier auf häufig verwendete Aktionen zu.",
+      "createMockExam": "Probeprüfung erstellen",
+      "createMockExamDesc": "TYT, AYT oder LGS Prüfung hinzufügen",
+      "addNewTeacher": "Neuen Lehrer hinzufügen",
+      "addNewTeacherDesc": "Fügen Sie einen neuen Lehrer zu Ihrem Personal hinzu",
+      "performanceReports": "Leistungsberichte",
+      "performanceReportsDesc": "Detaillierte Analysen und Statistiken",
+      "publishAnnouncementDesc": "Ankündigung an alle Mitarbeiter senden"
+    },
+    "roles": {
+      "teacher": "Lehrer",
+      "secretary": "Sekretär",
+      "student": "Schüler",
+      "parent": "Elternteil"
+    },
+    "header": {
+      "search": "Suchen...",
+      "mockExams": "Probeprüfungen",
+      "accountSettings": "Kontoeinstellungen",
+      "logout": "Abmelden"
+    },
+    "tts": {
+      "currentPage": "Sie sind auf dieser Seite",
+      "goToPage": "zur Seite gehen",
+      "welcomeMessage": "Willkommen Manager {name}! Sie können den allgemeinen Status Ihrer Institution von diesem Dashboard aus verfolgen. Es gibt {students} Schüler, {teachers} Lehrer, {secretaries} Sekretäre und {classes} Klassen.",
+      "userInfo": "Benutzer {index}: {name}, Rolle: {role}",
+      "addUserHint": "Gehen Sie zur Benutzerverwaltung, um Benutzer hinzuzufügen."
+    }
+  },
+  "student": {
+    "panel": "Schüler-Dashboard",
+    "welcome": {
+      "title": "Hallo, {name}!",
+      "subtitle": "Wie fühlst du dich heute? Neue Erfolge warten auf dich!"
+    },
+    "stats": {
+      "lessonCount": "Unterrichtsanzahl",
+      "absences": "Abwesenheiten",
+      "average": "Durchschnitt",
+      "examCount": "Prüfungsanzahl"
+    },
+    "menu": {
+      "homePage": "Startseite",
+      "homework": "Hausaufgaben",
+      "exams": "Prüfungen",
+      "liveClass": "Live-Unterricht",
+      "materials": "Materialien",
+      "achievements": "Erfolge",
+      "schedule": "Stundenplan",
+      "progress": "Fortschritt",
+      "attendance": "Anwesenheit",
+      "messages": "Nachrichten",
+      "announcements": "Ankündigungen",
+      "mockExams": "Probeprüfungen"
+    },
+    "academicProgress": {
+      "title": "Akademischer Fortschritt",
+      "lastWeeks": "Letzte 4 Wochen",
+      "generalAverage": "Gesamtdurchschnitt",
+      "solvedExams": "Gelöste Prüfungen",
+      "submittedHomework": "Eingereicht",
+      "attendanceRate": "Anwesenheitsrate",
+      "examTrend": "Prüfungsleistungstrend",
+      "subjectSuccess": "Fachbezogener Erfolg",
+      "weeklyActivity": "Wöchentliche Aktivität",
+      "week": "Woche",
+      "exam": "Prüfung",
+      "homework": "Hausaufgabe"
+    },
+    "mockExams": {
+      "title": "Probeprüfungen",
+      "count": "{count} Prüfungen",
+      "correct": "R",
+      "wrong": "F",
+      "empty": "L",
+      "noResults": "Noch keine Probeprüfungsergebnisse",
+      "noResultsDesc": "Ergebnisse erscheinen hier nach deiner ersten Prüfung!"
+    },
+    "weeklySchedule": {
+      "title": "Wöchentlicher Stundenplan",
+      "yourSchedule": "Dein Stundenplan",
+      "empty": "Leer",
+      "days": {
+        "monday": "Montag",
+        "tuesday": "Dienstag",
+        "wednesday": "Mittwoch",
+        "thursday": "Donnerstag",
+        "friday": "Freitag",
+        "saturday": "Samstag",
+        "sunday": "Sonntag"
+      }
+    },
+    "teachers": {
+      "title": "Meine Lehrer",
+      "count": "{count} Lehrer",
+      "sendMessage": "Nachricht senden",
+      "noTeachers": "Noch keine Lehrer zugewiesen"
+    },
+    "dailyQuestion": {
+      "title": "Frage des Tages",
+      "dailyChallenge": "Tägliche Herausforderung",
+      "preparing": "Frage wird für heute vorbereitet...",
+      "newQuestionsDaily": "Jeden Tag neue Fragen!",
+      "correct": "Richtig",
+      "wrong": "Falsch",
+      "submitAnswer": "Antwort absenden",
+      "showHint": "Hinweis zeigen",
+      "hintWarning": "(XP wird halbiert)",
+      "congratulations": "Glückwunsch!",
+      "earnedXP": "+{xp} XP verdient!",
+      "wrongAnswer": "Falsche Antwort!",
+      "explanation": "Erklärung"
+    },
+    "gamification": {
+      "level": "Stufe",
+      "totalXP": "Gesamt XP",
+      "streak": "Serie",
+      "days": "Tage",
+      "highestStreak": "Höchste Serie",
+      "levels": {
+        "beginner": "Anfänger",
+        "apprentice": "Lehrling",
+        "master": "Meister",
+        "expert": "Experte",
+        "legend": "Legende"
+      }
+    },
+    "profile": {
+      "editProfile": "Profil bearbeiten",
+      "updateInfo": "Deine Informationen aktualisieren",
+      "profilePhoto": "Profilbild",
+      "photoFormats": "JPG, PNG oder GIF (max 5MB)",
+      "changePhoto": "Ändern",
+      "firstName": "Vorname",
+      "lastName": "Nachname",
+      "email": "E-Mail",
+      "emailCantChange": "E-Mail-Adresse kann nicht geändert werden",
+      "phone": "Telefon",
+      "class": "Klasse",
+      "studentNo": "Schülernummer",
+      "saving": "Speichern...",
+      "profileUpdated": "Dein Profil wurde erfolgreich aktualisiert!",
+      "updateFailed": "Profil konnte nicht aktualisiert werden."
+    },
+    "notifications": {
+      "title": "Benachrichtigungen",
+      "noNotifications": "Keine Benachrichtigungen"
+    },
+    "header": {
+      "accountSettings": "Kontoeinstellungen",
+      "logout": "Abmelden"
+    },
+    "activeExams": {
+      "title": "Aktive Online-Prüfungen",
+      "waiting": "{count} Prüfungen warten auf dich!",
+      "viewAll": "Alle anzeigen",
+      "duration": "Min",
+      "questions": "Fragen"
+    }
+  },
+  "parent": {
+    "panel": "Eltern-Dashboard",
+    "role": "Elternteil",
+    "welcome": {
+      "title": "Willkommen, {name}!",
+      "subtitle": "Sie können den Bildungsfortschritt Ihres Kindes hier verfolgen."
+    },
+    "childInfo": {
+      "title": "Mein Kind",
+      "myChildren": "Meine Kinder",
+      "class": "Klasse",
+      "studentNo": "Schülernummer",
+      "school": "Schule",
+      "viewDetails": "Details anzeigen",
+      "noChildren": "Noch keine Kinder registriert"
+    },
+    "stats": {
+      "average": "Durchschnitt",
+      "absences": "Abwesenheiten",
+      "pendingHomework": "Ausstehende Hausaufgaben",
+      "completedExams": "Abgeschlossene Prüfungen",
+      "xp": "XP-Punkte",
+      "badges": "Abzeichen"
+    },
+    "menu": {
+      "homePage": "Startseite",
+      "childProgress": "Fortschritt meines Kindes",
+      "examResults": "Prüfungsergebnisse",
+      "homeworkStatus": "Hausaufgabenstatus",
+      "attendance": "Anwesenheit",
+      "payments": "Zahlungen",
+      "messages": "Nachrichten",
+      "announcements": "Ankündigungen",
+      "schedule": "Stundenplan",
+      "teachers": "Lehrer",
+      "settings": "Einstellungen",
+      "compare": "Vergleichen"
+    },
+    "childProgress": {
+      "title": "Fortschritt meines Kindes",
+      "lastMonth": "Letzter Monat",
+      "generalAverage": "Gesamtdurchschnitt",
+      "examCount": "Prüfungsanzahl",
+      "homeworkCompletion": "Hausaufgaben-Abschluss",
+      "attendanceRate": "Anwesenheitsrate"
+    },
+    "recentExams": {
+      "title": "Aktuelle Prüfungsergebnisse",
+      "viewAll": "Alle anzeigen",
+      "noExams": "Noch keine Prüfungsergebnisse"
+    },
+    "pendingHomework": {
+      "title": "Ausstehende Hausaufgaben",
+      "viewAll": "Alle anzeigen",
+      "noHomework": "Keine ausstehenden Hausaufgaben",
+      "deadline": "Frist"
+    },
+    "payments": {
+      "title": "Zahlungen",
+      "totalDebt": "Gesamtschuld",
+      "paidAmount": "Bezahlt",
+      "pendingAmount": "Ausstehend",
+      "overdueAmount": "Überfällig",
+      "pending": "Ausstehende Zahlung",
+      "paid": "Bezahlt",
+      "overdue": "Überfällig",
+      "makePayment": "Zahlung leisten",
+      "payNow": "Jetzt bezahlen",
+      "paymentHistory": "Zahlungsverlauf",
+      "nextPayment": "Nächste Zahlung",
+      "upcoming": "Anstehend",
+      "paymentPlans": "Zahlungspläne",
+      "history": "Verlauf",
+      "noPayments": "Keine Zahlungsaufzeichnungen",
+      "progress": "Zahlungsfortschritt",
+      "cardNumber": "Kartennummer",
+      "cardHolder": "Karteninhaber",
+      "expiryDate": "Ablaufdatum",
+      "cvv": "CVV",
+      "secure3d": "Mit 3D Secure bezahlen",
+      "securityInfo": "Ihre Zahlungsdaten werden mit 256-Bit-SSL verschlüsselt",
+      "processing": "Verarbeitung..."
+    },
+    "teachers": {
+      "title": "Lehrer",
+      "sendMessage": "Nachricht senden",
+      "viewProfile": "Profil anzeigen",
+      "branch": "Fach"
+    },
+    "notifications": {
+      "title": "Benachrichtigungen",
+      "newExamResult": "Neues Prüfungsergebnis",
+      "homeworkDeadline": "Hausaufgaben-Frist naht",
+      "paymentReminder": "Zahlungserinnerung",
+      "absenceAlert": "Abwesenheitswarnung",
+      "noNotifications": "Keine Benachrichtigungen",
+      "markAllRead": "Alle als gelesen markieren"
+    },
+    "messages": {
+      "title": "Nachrichten",
+      "newMessage": "Neue Nachricht",
+      "conversations": "Gespräche",
+      "searchConversations": "Gespräche durchsuchen...",
+      "typeMessage": "Nachricht eingeben...",
+      "send": "Senden",
+      "noMessages": "Noch keine Nachrichten",
+      "selectConversation": "Wählen Sie ein Gespräch",
+      "startConversation": "Wählen Sie einen Lehrer, um ein Gespräch zu beginnen",
+      "selectTeacher": "Lehrer auswählen",
+      "online": "Online",
+      "offline": "Offline",
+      "typing": "tippt...",
+      "today": "Heute",
+      "yesterday": "Gestern"
+    },
+    "announcements": {
+      "title": "Ankündigungen",
+      "search": "Ankündigungen durchsuchen...",
+      "filter": "Filtern",
+      "category": "Kategorie",
+      "priority": "Priorität",
+      "allCategories": "Alle Kategorien",
+      "allPriorities": "Alle Prioritäten",
+      "clearFilters": "Filter löschen",
+      "pinned": "Angepinnt",
+      "noAnnouncements": "Noch keine Ankündigungen",
+      "noResults": "Keine Ergebnisse gefunden",
+      "categories": {
+        "general": "Allgemein",
+        "education": "Bildung",
+        "payment": "Zahlung",
+        "event": "Veranstaltung",
+        "meeting": "Treffen",
+        "other": "Sonstiges"
+      },
+      "priorities": {
+        "low": "Niedrig",
+        "normal": "Normal",
+        "high": "Hoch",
+        "urgent": "Dringend"
+      }
+    },
+    "examResults": {
+      "title": "Prüfungsergebnisse",
+      "selectChild": "Kind auswählen",
+      "examType": "Prüfungstyp",
+      "allTypes": "Alle Typen",
+      "totalExams": "Gesamtprüfungen",
+      "averageNet": "Durchschnittsnote",
+      "highestNet": "Höchste Note",
+      "lastChange": "Letzte Änderung",
+      "weakSubjects": "Schwache Fächer",
+      "weakSubjectsWarning": "Braucht mehr Übung in diesen Fächern",
+      "detailedResults": "Detaillierte Ergebnisse",
+      "subjectPerformance": "Fachleistung",
+      "developmentTrend": "Entwicklungstrend",
+      "noResults": "Noch keine Prüfungsergebnisse",
+      "correct": "Richtig",
+      "wrong": "Falsch",
+      "empty": "Leer",
+      "net": "Netto",
+      "date": "Datum",
+      "examName": "Prüfungsname"
+    },
+    "compare": {
+      "title": "Kindervergleich",
+      "performance": "Leistung",
+      "generalPerformance": "Gesamtleistung",
+      "ranking": "Rangfolge",
+      "detailedComparison": "Detaillierter Vergleich",
+      "selectMetric": "Metrik auswählen",
+      "metrics": {
+        "examAverage": "Prüfungsdurchschnitt",
+        "homeworkRate": "Hausaufgaben-Abgaberate",
+        "homeworkScore": "Hausaufgabennote",
+        "classParticipation": "Unterrichtsbeteiligung",
+        "absences": "Abwesenheiten"
+      },
+      "bestPerformance": "Beste Leistung",
+      "comparisonTable": "Vergleichstabelle",
+      "evaluations": {
+        "excellent": "Ausgezeichnet",
+        "veryGood": "Sehr gut",
+        "good": "Gut",
+        "medium": "Mittel",
+        "needsImprovement": "Verbesserungsbedürftig",
+        "attention": "Achtung!"
+      },
+      "singleChildView": "Vergleich mit nur einem Kind nicht möglich",
+      "viewDetails": "Details anzeigen"
+    },
+    "settings": {
+      "title": "Kontoeinstellungen",
+      "subtitle": "Verwalten Sie Ihre Profil-, Sicherheits- und Barrierefreiheitseinstellungen",
+      "tabs": {
+        "profile": "Profil",
+        "security": "Sicherheit",
+        "notifications": "Benachrichtigungen",
+        "accessibility": "Barrierefreiheit"
+      },
+      "profile": {
+        "title": "Profilinformationen",
+        "photo": "Profilfoto",
+        "uploadPhoto": "Neues Foto hochladen",
+        "deletePhoto": "Foto löschen",
+        "photoFormats": "Unterstützte Formate: JPG, PNG, WebP (max 8MB)",
+        "firstName": "Vorname",
+        "lastName": "Nachname",
+        "email": "E-Mail",
+        "emailReadonly": "Kontaktieren Sie Ihren Administrator, um die E-Mail zu ändern",
+        "phone": "Telefon",
+        "saveChanges": "Änderungen speichern",
+        "saving": "Speichern...",
+        "updateSuccess": "Profil erfolgreich aktualisiert!",
+        "photoUploadSuccess": "Profilfoto erfolgreich hochgeladen!",
+        "photoDeleteSuccess": "Profilfoto gelöscht!"
+      },
+      "security": {
+        "title": "Passwort ändern",
+        "currentPassword": "Aktuelles Passwort",
+        "newPassword": "Neues Passwort",
+        "confirmPassword": "Neues Passwort bestätigen",
+        "passwordHint": "Mindestens 6 Zeichen, Groß-/Kleinbuchstaben und Zahlen erforderlich",
+        "passwordStrength": {
+          "veryWeak": "Sehr schwach",
+          "weak": "Schwach",
+          "medium": "Mittel",
+          "strong": "Stark"
+        },
+        "passwordsMatch": "Passwörter stimmen überein",
+        "passwordsDontMatch": "Passwörter stimmen nicht überein",
+        "changePassword": "Passwort ändern",
+        "changing": "Ändern...",
+        "changeSuccess": "Passwort erfolgreich geändert!"
+      },
+      "notifications": {
+        "title": "Benachrichtigungseinstellungen",
+        "emailNotifications": "E-Mail-Benachrichtigungen",
+        "emailDesc": "E-Mails für wichtige Updates erhalten",
+        "pushNotifications": "Push-Benachrichtigungen",
+        "pushDesc": "Browser-Benachrichtigungen",
+        "permissionGranted": "Berechtigung erteilt",
+        "permissionDenied": "Berechtigung verweigert",
+        "grantPermission": "Berechtigung erteilen",
+        "categories": "Benachrichtigungskategorien",
+        "homeworkNotif": "Hausaufgabenbenachrichtigungen",
+        "homeworkNotifDesc": "Über die Hausaufgaben Ihres Kindes",
+        "absenceNotif": "Abwesenheitsbenachrichtigungen",
+        "absenceNotifDesc": "Abwesenheitsaufzeichnungen",
+        "examNotif": "Prüfungsergebnisse",
+        "examNotifDesc": "Prüfungs- und Testergebnisse",
+        "messageNotif": "Nachrichtenbenachrichtigungen",
+        "messageNotifDesc": "Nachrichten von Lehrern",
+        "announcementNotif": "Ankündigungsbenachrichtigungen",
+        "announcementNotifDesc": "Institutionsankündigungen",
+        "saveSettings": "Einstellungen speichern",
+        "updateSuccess": "Benachrichtigungseinstellungen aktualisiert!"
+      },
+      "accessibility": {
+        "title": "Barrierefreiheit",
+        "resetSettings": "Auf Standard zurücksetzen",
+        "resetSuccess": "Einstellungen auf Standard zurückgesetzt"
+      }
+    },
+    "childDetails": {
+      "grades": "Noten",
+      "attendance": "Anwesenheit",
+      "homework": "Hausaufgaben",
+      "teachers": "Lehrer",
+      "schedule": "Stundenplan",
+      "noData": "Keine Daten gefunden"
+    },
+    "quickAccess": {
+      "title": "Schnellzugriffsmenü"
+    },
+    "header": {
+      "accountSettings": "Kontoeinstellungen",
+      "logout": "Abmelden"
+    },
+    "tts": {
+      "currentPage": "Sie sind derzeit auf dieser Seite",
+      "goToPage": "Klicken Sie, um zur Seite zu gehen",
+      "welcomeMessage": "Willkommen, {name}. Sie können den akademischen Status Ihrer Kinder hier verfolgen.",
+      "childCard": "{name}. Klasse: {class}. Abwesenheiten: {absences} Tage. Durchschnitt: {average}. Ausstehende Hausaufgaben: {homework}.",
+      "viewGrades": "Noten anzeigen für",
+      "viewAttendance": "Anwesenheit und Abwesenheitsinformationen anzeigen für",
+      "viewHomework": "Hausaufgaben anzeigen für",
+      "notification": "Benachrichtigung: {title}. {message}",
+      "announcement": "Ankündigung: {title}. {priority}",
+      "profileMenu": "Profilmenü. Klicken Sie, um das Menü zu öffnen",
+      "logoutButton": "Abmelden. Klicken Sie, um sich abzumelden",
+      "settingsLink": "Kontoeinstellungen. Klicken Sie für Kontoeinstellungen",
+      "notificationsButton": "Benachrichtigungen",
+      "messagesButton": "Nachrichten. Klicken Sie, um Ihre Nachrichten anzuzeigen",
+      "newMessageButton": "Neue Nachricht. Klicken Sie, um Nachricht an Lehrer zu senden",
+      "payNowButton": "Jetzt bezahlen. Klicken Sie, um zu bezahlen",
+      "examResult": "Prüfung: {name}. Netto: {net}. Richtig: {correct}. Falsch: {wrong}",
+      "compareChild": "{name}. Gesamtleistung: {performance} Punkte",
+      "userInfo": "Angemeldeter Benutzer: {name}. Elternteil."
+    }
+  },
+  "teacher": {
+    "panel": "Lehrer-Dashboard",
+    "welcome": {
+      "title": "Willkommen, Lehrer {name}!",
+      "subtitle": "Sie können Ihre Klassen und Schüler hier verwalten."
+    },
+    "stats": {
+      "totalStudents": "Gesamtzahl Schüler",
+      "activeClasses": "Aktive Klassen",
+      "pendingHomework": "Ausstehende Hausaufgaben",
+      "upcomingExams": "Bevorstehende Prüfungen"
+    },
+    "menu": {
+      "homePage": "Startseite",
+      "myClasses": "Meine Klassen",
+      "students": "Meine Schüler",
+      "homework": "Hausaufgaben",
+      "exams": "Prüfungen",
+      "liveClass": "Live-Unterricht",
+      "materials": "Materialien",
+      "attendance": "Anwesenheit",
+      "grades": "Noten",
+      "messages": "Nachrichten",
+      "announcements": "Ankündigungen",
+      "questionBank": "Fragenbank",
+      "reports": "Berichte"
+    },
+    "classes": {
+      "title": "Meine Klassen",
+      "studentCount": "{count} Schüler",
+      "viewClass": "Klasse anzeigen",
+      "noClasses": "Noch keine Klassen zugewiesen"
+    },
+    "homework": {
+      "title": "Hausaufgaben",
+      "createHomework": "Hausaufgabe erstellen",
+      "pending": "Ausstehende Bewertung",
+      "graded": "Bewertet",
+      "deadline": "Frist",
+      "submissions": "Einreichungen"
+    },
+    "exams": {
+      "title": "Prüfungen",
+      "createExam": "Prüfung erstellen",
+      "activeExams": "Aktive Prüfungen",
+      "completedExams": "Abgeschlossene Prüfungen",
+      "duration": "Dauer",
+      "questions": "Fragen"
+    },
+    "liveClass": {
+      "title": "Live-Unterricht",
+      "startClass": "Unterricht starten",
+      "scheduleClass": "Unterricht planen",
+      "upcomingClasses": "Bevorstehende Unterrichte",
+      "pastClasses": "Vergangene Unterrichte"
+    },
+    "attendance": {
+      "title": "Anwesenheit",
+      "takeAttendance": "Anwesenheit aufnehmen",
+      "present": "Anwesend",
+      "absent": "Abwesend",
+      "late": "Verspätet",
+      "excused": "Entschuldigt"
+    },
+    "grades": {
+      "title": "Noten",
+      "enterGrades": "Noten eingeben",
+      "classAverage": "Klassendurchschnitt",
+      "highestGrade": "Höchste",
+      "lowestGrade": "Niedrigste"
+    },
+    "todaySchedule": {
+      "title": "Heutiger Stundenplan",
+      "noClass": "Heute kein Unterricht",
+      "nextClass": "Nächster Unterricht"
+    }
+  },
+  "secretary": {
+    "panel": "Sekretär-Dashboard",
+    "welcome": {
+      "title": "Willkommen, {name}!",
+      "subtitle": "Sie können Institutionsoperationen hier verwalten."
+    },
+    "stats": {
+      "totalStudents": "Gesamtzahl Schüler",
+      "pendingRegistrations": "Ausstehende Anmeldungen",
+      "pendingPayments": "Ausstehende Zahlungen",
+      "todayAbsences": "Heutige Abwesenheiten"
+    },
+    "menu": {
+      "homePage": "Startseite",
+      "studentRegistration": "Schüleranmeldung",
+      "payments": "Zahlungen",
+      "attendance": "Anwesenheit",
+      "documents": "Dokumente",
+      "reports": "Berichte",
+      "messages": "Nachrichten",
+      "announcements": "Ankündigungen"
+    },
+    "registration": {
+      "title": "Schüleranmeldung",
+      "newRegistration": "Neue Anmeldung",
+      "pendingRegistrations": "Ausstehende Anmeldungen",
+      "completedRegistrations": "Abgeschlossene Anmeldungen"
+    },
+    "payments": {
+      "title": "Zahlungen",
+      "receivePayment": "Zahlung empfangen",
+      "pendingPayments": "Ausstehende Zahlungen",
+      "paymentHistory": "Zahlungsverlauf",
+      "generateReceipt": "Quittung erstellen"
+    },
+    "attendance": {
+      "title": "Anwesenheit",
+      "enterAbsence": "Abwesenheit eintragen",
+      "todayAbsences": "Heutige Abwesenheiten",
+      "monthlyReport": "Monatlicher Bericht"
+    },
+    "documents": {
+      "title": "Dokumente",
+      "studentDocument": "Schülerdokument",
+      "transcript": "Zeugnis",
+      "certificate": "Zertifikat"
+    }
+  },
+  "courseOwner": {
+    "panel": "Kursinhaber-Dashboard",
+    "title": "Kursinhaber",
+    "menu": {
+      "homePage": "Startseite",
+      "courseOverview": "Kursübersicht",
+      "financialReports": "Finanzberichte",
+      "managers": "Direktoren verwalten",
+      "announcements": "Ankündigungen",
+      "messages": "Nachrichten",
+      "settings": "Einstellungen"
+    },
+    "welcome": {
+      "title": "Willkommen, Inhaber von {courseName}, {name}!",
+      "subtitle": "Sie können hier den allgemeinen Status und die Finanzberichte Ihres Kurses verfolgen."
+    },
+    "stats": {
+      "totalRevenue": "Gesamtumsatz",
+      "totalStudents": "Gesamtzahl Schüler",
+      "totalTeachers": "Gesamtzahl Lehrer",
+      "totalClasses": "Gesamtzahl Klassen",
+      "totalManagers": "Anzahl Direktoren",
+      "monthlyRevenue": "Monatlicher Umsatz",
+      "pendingPayments": "Ausstehende Zahlungen",
+      "student": "Schüler",
+      "teacher": "Lehrer",
+      "class": "Klasse",
+      "manager": "Direktor"
+    },
+    "quickActions": {
+      "viewFinancials": "Finanzberichte anzeigen",
+      "assignManager": "Direktor zuweisen",
+      "courseSettings": "Kurseinstellungen",
+      "viewReports": "Detaillierte Berichte",
+      "newManager": "Neuen Direktor zuweisen",
+      "incomeExpense": "Einnahmen/Ausgaben",
+      "analysis": "Analyse",
+      "settings": "Einstellungen"
+    },
+    "courseInfo": {
+      "title": "Kursinformationen",
+      "name": "Kursname",
+      "address": "Adresse",
+      "phone": "Telefon",
+      "manager": "Zugewiesener Direktor"
+    },
+    "header": {
+      "search": "Suchen...",
+      "accountSettings": "Kontoeinstellungen",
+      "logout": "Abmelden"
+    },
+    "managers": {
+      "title": "Zugewiesene Direktoren",
+      "viewAll": "Alle anzeigen",
+      "active": "Aktiv",
+      "passive": "Inaktiv",
+      "noManagers": "Noch keine Direktoren zugewiesen",
+      "assignManager": "Direktor zuweisen",
+      "managerList": "Liste der dem Kurs zugewiesenen Direktoren"
+    },
+    "ownerActions": {
+      "title": "Kursinhaber-Aktionen",
+      "managerManagement": "Direktorenverwaltung",
+      "managerManagementDesc": "Direktoren zuweisen, bearbeiten oder entfernen",
+      "financialReports": "Finanzberichte",
+      "financialReportsDesc": "Einnahmen-Ausgaben und Zahlungsverfolgung",
+      "courseSettings": "Kurseinstellungen",
+      "courseSettingsDesc": "Informationen aktualisieren"
+    },
+    "tts": {
+      "currentPage": "Sie befinden sich auf dieser Seite",
+      "goToPage": "Zur Seite gehen",
+      "welcomeMessage": "Willkommen {name}! Sie können den Status Ihres Kurses {courseName} von diesem Dashboard aus verfolgen.",
+      "totalStudentsDesc": "Gesamtzahl der Schüler in unserem Kurs",
+      "totalTeachersDesc": "Gesamtzahl der Lehrer in unserem Kurs",
+      "totalClassesDesc": "Gesamtzahl der Klassen in unserem Kurs",
+      "totalManagersDesc": "Anzahl der zugewiesenen Direktoren",
+      "assignManagerDesc": "Klicken Sie, um dem Kurs einen Direktor zuzuweisen",
+      "viewFinancialsDesc": "Finanzberichte anzeigen",
+      "viewReportsDesc": "Detaillierte Berichte anzeigen",
+      "courseSettingsDesc": "Kurseinstellungen bearbeiten",
+      "ownerActionsDesc": "Schnellaktionen-Panel für Kursinhaber",
+      "managerManagerDesc": "Direktorenzuweisung und Verwaltungsoperationen",
+      "noManagersDesc": "Noch keine Direktoren zugewiesen. Gehen Sie zur Verwaltungsseite, um einen Direktor zuzuweisen."
+    }
+  }
+}
+

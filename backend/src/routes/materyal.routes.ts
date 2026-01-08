@@ -8,12 +8,22 @@ import {
   getOgrenciMateryalleri,
   downloadMateryal,
   getMateryalById,
-  getMateryalIstatistikleri
+  getMateryalIstatistikleri,
+  createShareLink,
+  downloadSharedMateryal,
+  getMateryallerByDers,
+  getOgrenciMateryalIlerleme,
+  getMateryallerByTip
 } from '../controllers/materyal.controller';
 
 const router = Router();
 
-// Tüm route'lar authentication gerektirir
+// ==================== PAYLAŞIM LİNKİ (AUTH GEREKMİYOR) ====================
+
+// Paylaşım linki ile indirme (public)
+router.get('/paylas/:token', downloadSharedMateryal);
+
+// Tüm diğer route'lar authentication gerektirir
 router.use(authenticateToken);
 
 // ==================== ÖĞRETMEN ROUTE'LARI ====================
@@ -53,6 +63,20 @@ router.get(
   getMateryalIstatistikleri
 );
 
+// Paylaşım linki oluştur
+router.post(
+  '/:id/paylas',
+  authorizeRoles('ogretmen', 'mudur', 'admin'),
+  createShareLink
+);
+
+// Öğrenci ilerleme takibi (ders bazlı)
+router.get(
+  '/ilerleme/:courseId',
+  authorizeRoles('ogretmen', 'mudur', 'admin'),
+  getOgrenciMateryalIlerleme
+);
+
 // ==================== ÖĞRENCİ ROUTE'LARI ====================
 
 // Öğrencinin materyalleri
@@ -63,6 +87,12 @@ router.get(
 );
 
 // ==================== GENEL ROUTE'LAR ====================
+
+// Ders bazlı gruplama (klasör görünümü)
+router.get('/ders-bazli', getMateryallerByDers);
+
+// Tip bazlı filtreleme
+router.get('/tip/:tip', getMateryallerByTip);
 
 // Materyal detayı
 router.get('/:id', getMateryalById);

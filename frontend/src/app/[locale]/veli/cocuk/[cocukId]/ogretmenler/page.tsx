@@ -6,6 +6,7 @@ import {
   ArrowLeft, MessageSquare, User, BookOpen, 
   Send, Loader2
 } from 'lucide-react';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface Ogretmen {
   id: string;
@@ -28,6 +29,8 @@ export default function CocukOgretmenler() {
   const router = useRouter();
   const params = useParams();
   const cocukId = params.cocukId as string;
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   
   const [data, setData] = useState<OgretmenlerData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -40,7 +43,7 @@ export default function CocukOgretmenler() {
   const fetchOgretmenler = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/veli/cocuk/${cocukId}/ogretmenler`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/veli/cocuk/${cocukId}/ogretmenler`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -61,7 +64,7 @@ export default function CocukOgretmenler() {
     setStartingChat(ogretmenId);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/veli/mesaj/baslat`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/veli/mesaj/baslat`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -87,27 +90,27 @@ export default function CocukOgretmenler() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+      <div className={`min-h-screen ${isDark ? 'bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900' : 'bg-gradient-to-br from-slate-100 via-purple-50 to-slate-100'} flex items-center justify-center`}>
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className={`min-h-screen ${isDark ? 'bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900' : 'bg-gradient-to-br from-slate-100 via-purple-50 to-slate-100'}`}>
       {/* Header */}
-      <header className="bg-slate-800/50 backdrop-blur-xl border-b border-slate-700/50 sticky top-0 z-50">
+      <header className={`${isDark ? 'bg-slate-800/50 border-slate-700/50' : 'bg-white/80 border-slate-200'} backdrop-blur-xl border-b sticky top-0 z-50`}>
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center h-16 gap-4">
             <button 
               onClick={() => router.push(`/veli/cocuk/${cocukId}`)}
-              className="p-2 text-slate-400 hover:text-white transition-colors"
+              className={`p-2 ${isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'} transition-colors`}
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div>
-              <h1 className="text-lg font-semibold text-white">Öğretmenlerle İletişim</h1>
-              <p className="text-xs text-slate-400">{data?.cocuk.ad} {data?.cocuk.soyad}</p>
+              <h1 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>Öğretmenlerle İletişim</h1>
+              <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{data?.cocuk.ad} {data?.cocuk.soyad}</p>
             </div>
           </div>
         </div>
@@ -115,8 +118,8 @@ export default function CocukOgretmenler() {
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Bilgi Notu */}
-        <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4 mb-6">
-          <p className="text-sm text-purple-300">
+        <div className={`${isDark ? 'bg-purple-500/10 border-purple-500/30' : 'bg-purple-50 border-purple-200'} border rounded-xl p-4 mb-6`}>
+          <p className={`text-sm ${isDark ? 'text-purple-300' : 'text-purple-700'}`}>
             <strong>Bilgi:</strong> Aşağıdaki öğretmenlerle {data?.cocuk.ad}&apos;in dersleri hakkında mesajlaşabilirsiniz.
           </p>
         </div>
@@ -127,7 +130,7 @@ export default function CocukOgretmenler() {
             {data.ogretmenler.map((ogretmen) => (
               <div 
                 key={ogretmen.id}
-                className="bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-4"
+                className={`${isDark ? 'bg-slate-800/50 border-slate-700/50' : 'bg-white/80 border-slate-200'} backdrop-blur-xl rounded-2xl border p-4 shadow-sm`}
               >
                 <div className="flex items-center gap-4">
                   {/* Avatar */}
@@ -137,15 +140,15 @@ export default function CocukOgretmenler() {
 
                   {/* Bilgiler */}
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-white font-medium">{ogretmen.ad} {ogretmen.soyad}</h3>
+                    <h3 className={`${isDark ? 'text-white' : 'text-slate-900'} font-medium`}>{ogretmen.ad} {ogretmen.soyad}</h3>
                     {ogretmen.brans && (
-                      <p className="text-sm text-purple-400">{ogretmen.brans}</p>
+                      <p className="text-sm text-purple-500">{ogretmen.brans}</p>
                     )}
                     <div className="flex flex-wrap gap-2 mt-2">
                       {ogretmen.dersler.map((ders, index) => (
                         <span 
                           key={index}
-                          className="text-xs px-2 py-1 bg-slate-700/50 text-slate-300 rounded-lg flex items-center gap-1"
+                          className={`text-xs px-2 py-1 ${isDark ? 'bg-slate-700/50 text-slate-300' : 'bg-slate-100 text-slate-600'} rounded-lg flex items-center gap-1`}
                         >
                           <BookOpen className="w-3 h-3" />
                           {ders}
@@ -172,9 +175,9 @@ export default function CocukOgretmenler() {
             ))}
           </div>
         ) : (
-          <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-12 text-center">
-            <User className="w-12 h-12 text-slate-500 mx-auto mb-4" />
-            <p className="text-slate-400">Henüz kayıtlı öğretmen bulunmuyor</p>
+          <div className={`${isDark ? 'bg-slate-800/50 border-slate-700/50' : 'bg-white/80 border-slate-200'} backdrop-blur-xl rounded-2xl border p-12 text-center`}>
+            <User className={`w-12 h-12 ${isDark ? 'text-slate-500' : 'text-slate-400'} mx-auto mb-4`} />
+            <p className={isDark ? 'text-slate-400' : 'text-slate-600'}>Henüz kayıtlı öğretmen bulunmuyor</p>
           </div>
         )}
       </main>

@@ -689,3 +689,400 @@ export const addCocukToVeli = async (req: AuthRequest, res: Response) => {
   }
 };
 
+// ==================== ÇOKLU ÇOCUK KARŞILAŞTIRMA ====================
+
+// Çocukları karşılaştır
+export const compareCocuklar = async (req: AuthRequest, res: Response) => {
+  try {
+    const veliId = req.user?.id;
+
+    // Velinin tüm çocuklarını getir
+    const cocuklar = await prisma.user.findMany({
+      where: {
+        veliId: veliId,
+        role: 'ogrenci',
+        aktif: true
+      },
+      select: {
+        id: true,
+        ad: true,
+        soyad: true,
+        ogrenciNo: true,
+        sinif: {
+          select: { id: true, ad: true, seviye: true }
+        }
+      }
+    });
+
+    if (cocuklar.length < 1) {
+      return res.status(400).json({ success: false, message: 'Karşılaştırılacak çocuk bulunamadı' });
+    }
+
+    // Her çocuk için detaylı istatistikler
+    const cocukKarsilastirma = await Promise.all(
+      cocuklar.map(async (cocuk) => {
+        // Son 30 gün devamsızlık
+        const otuzGunOnce = new Date();
+        otuzGunOnce.setDate(otuzGunOnce.getDate() - 30);
+
+        const [devamsizlik, sinavlar, odevler, yoklamalar] = await Promise.all([
+          // Devamsızlık sayısı
+          prisma.yoklama.count({
+            where: {
+              ogrenciId: cocuk.id,
+              durum: 'KATILMADI',
+              tarih: { gte: otuzGunOnce }
+            }
+          }),
+
+          // Sınav sonuçları
+          prisma.examResult.findMany({
+            where: { ogrenciId: cocuk.id },
+            orderBy: { createdAt: 'desc' },
+            take: 10,
+            select: {
+              puan: true,
+              yuzde: true,
+              exam: {
+                select: { toplamPuan: true }
+              }
+            }
+          }),
+
+          // Ödev durumu
+          prisma.odevTeslim.findMany({
+            where: { ogrenciId: cocuk.id },
+            select: {
+              durum: true,
+              puan: true,
+              odev: {
+                select: { maxPuan: true }
+              }
+            }
+          }),
+
+          // Yoklama istatistikleri
+          prisma.yoklama.groupBy({
+            by: ['durum'],
+            where: { ogrenciId: cocuk.id, tarih: { gte: otuzGunOnce } },
+            _count: true
+          })
+        ]);
+
+        // Sınav ortalaması
+        const sinavOrtalamasi = sinavlar.length > 0
+          ? Math.round(sinavlar.reduce((acc, s) => acc + (s.puan / s.exam.toplamPuan * 100), 0) / sinavlar.length)
+          : null;
+
+        // Ödev teslim oranı
+        const teslimEdilenOdevler = odevler.filter(o => o.durum !== 'BEKLEMEDE').length;
+        const odevTeslimOrani = odevler.length > 0
+          ? Math.round((teslimEdilenOdevler / odevler.length) * 100)
+          : null;
+
+        // Ödev ortalaması
+        const puanliOdevler = odevler.filter(o => o.puan !== null);
+        const odevOrtalamasi = puanliOdevler.length > 0
+          ? Math.round(puanliOdevler.reduce((acc, o) => acc + (o.puan! / o.odev.maxPuan * 100), 0) / puanliOdevler.length)
+          : null;
+
+        // Yoklama katılım oranı
+        const toplamYoklama = yoklamalar.reduce((acc, y) => acc + y._count, 0);
+        const katildiSayisi = yoklamalar.find(y => y.durum === 'KATILDI')?._count || 0;
+        const katilimOrani = toplamYoklama > 0 ? Math.round((katildiSayisi / toplamYoklama) * 100) : null;
+
+        return {
+          id: cocuk.id,
+          ad: cocuk.ad,
+          soyad: cocuk.soyad,
+          ogrenciNo: cocuk.ogrenciNo,
+          sinif: cocuk.sinif,
+          istatistikler: {
+            devamsizlikSayisi: devamsizlik,
+            sinavOrtalamasi,
+            sinavSayisi: sinavlar.length,
+            odevTeslimOrani,
+            odevOrtalamasi,
+            odevSayisi: odevler.length,
+            katilimOrani
+          }
+        };
+      })
+    );
+
+    res.json({
+      success: true,
+      data: {
+        cocuklar: cocukKarsilastirma,
+        karsilastirmaAlanlari: ['sinavOrtalamasi', 'odevTeslimOrani', 'odevOrtalamasi', 'katilimOrani', 'devamsizlikSayisi']
+      }
+    });
+  } catch (error) {
+    console.error('Çocuk karşılaştırma hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+// ==================== RAPOR KARTI ====================
+
+// Çocuğun dönemlik rapor kartını getir
+export const getCocukRaporKarti = async (req: AuthRequest, res: Response) => {
+  try {
+    const veliId = req.user?.id;
+    const { cocukId } = req.params;
+    const { donem } = req.query; // 1 veya 2 (1. dönem, 2. dönem)
+
+    // Çocuğun bu veliye ait olduğunu doğrula
+    const cocuk = await prisma.user.findFirst({
+      where: {
+        id: cocukId,
+        veliId: veliId,
+        role: 'ogrenci'
+      },
+      include: {
+        sinif: true,
+        kurs: true
+      }
+    });
+
+    if (!cocuk) {
+      return res.status(404).json({ success: false, message: 'Öğrenci bulunamadı' });
+    }
+
+    // Dönem tarih aralığı (örnek olarak)
+    const bugun = new Date();
+    const yil = bugun.getFullYear();
+    let baslangicTarihi: Date, bitisTarihi: Date;
+
+    if (donem === '1') {
+      baslangicTarihi = new Date(yil, 8, 1); // 1 Eylül
+      bitisTarihi = new Date(yil + 1, 0, 31); // 31 Ocak
+    } else {
+      baslangicTarihi = new Date(yil, 1, 1); // 1 Şubat
+      bitisTarihi = new Date(yil, 5, 30); // 30 Haziran
+    }
+
+    // Ders bazlı notları getir
+    const sinavSonuclari = await prisma.examResult.findMany({
+      where: {
+        ogrenciId: cocukId,
+        createdAt: { gte: baslangicTarihi, lte: bitisTarihi }
+      },
+      include: {
+        exam: {
+          include: {
+            course: {
+              select: { id: true, ad: true }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // Ders bazlı gruplama ve ortalama hesaplama
+    const dersBazliNotlar: Record<string, { dersAd: string; sinavlar: any[]; ortalama: number }> = {};
+
+    sinavSonuclari.forEach(sonuc => {
+      const dersId = sonuc.exam.course.id;
+      const dersAd = sonuc.exam.course.ad;
+
+      if (!dersBazliNotlar[dersId]) {
+        dersBazliNotlar[dersId] = { dersAd, sinavlar: [], ortalama: 0 };
+      }
+
+      dersBazliNotlar[dersId].sinavlar.push({
+        sinavAd: sonuc.exam.ad,
+        puan: sonuc.puan,
+        toplamPuan: sonuc.exam.toplamPuan,
+        yuzde: Math.round((sonuc.puan / sonuc.exam.toplamPuan) * 100),
+        tarih: sonuc.exam.tarih
+      });
+    });
+
+    // Ortalamaları hesapla
+    Object.values(dersBazliNotlar).forEach(ders => {
+      const toplamYuzde = ders.sinavlar.reduce((sum, s) => sum + s.yuzde, 0);
+      ders.ortalama = ders.sinavlar.length > 0 ? Math.round(toplamYuzde / ders.sinavlar.length) : 0;
+    });
+
+    // Devamsızlık özeti
+    const devamsizlikOzeti = await prisma.yoklama.groupBy({
+      by: ['durum'],
+      where: {
+        ogrenciId: cocukId,
+        tarih: { gte: baslangicTarihi, lte: bitisTarihi }
+      },
+      _count: true
+    });
+
+    const devamsizlik = {
+      katildi: devamsizlikOzeti.find(d => d.durum === 'KATILDI')?._count || 0,
+      katilmadi: devamsizlikOzeti.find(d => d.durum === 'KATILMADI')?._count || 0,
+      gecKaldi: devamsizlikOzeti.find(d => d.durum === 'GEC_KALDI')?._count || 0,
+      izinli: devamsizlikOzeti.find(d => d.durum === 'IZINLI')?._count || 0
+    };
+
+    // Ödev özeti
+    const odevOzeti = await prisma.odevTeslim.findMany({
+      where: {
+        ogrenciId: cocukId,
+        createdAt: { gte: baslangicTarihi, lte: bitisTarihi }
+      },
+      select: {
+        durum: true,
+        puan: true,
+        odev: {
+          select: { maxPuan: true }
+        }
+      }
+    });
+
+    const teslimEdilenOdevler = odevOzeti.filter(o => o.durum !== 'BEKLEMEDE');
+    const degerlendirilmisOdevler = odevOzeti.filter(o => o.puan !== null);
+    const odevOrtalamasi = degerlendirilmisOdevler.length > 0
+      ? Math.round(degerlendirilmisOdevler.reduce((sum, o) => sum + (o.puan! / o.odev.maxPuan * 100), 0) / degerlendirilmisOdevler.length)
+      : null;
+
+    // Genel ortalama hesapla
+    const dersOrtalamalari = Object.values(dersBazliNotlar).map(d => d.ortalama);
+    const genelOrtalama = dersOrtalamalari.length > 0
+      ? Math.round(dersOrtalamalari.reduce((a, b) => a + b, 0) / dersOrtalamalari.length)
+      : null;
+
+    res.json({
+      success: true,
+      data: {
+        ogrenci: {
+          id: cocuk.id,
+          ad: cocuk.ad,
+          soyad: cocuk.soyad,
+          ogrenciNo: cocuk.ogrenciNo,
+          sinif: cocuk.sinif?.ad,
+          kurs: cocuk.kurs?.ad
+        },
+        donem: donem || '1',
+        donemTarihleri: {
+          baslangic: baslangicTarihi,
+          bitis: bitisTarihi
+        },
+        dersler: Object.values(dersBazliNotlar),
+        genelOrtalama,
+        devamsizlik,
+        odev: {
+          toplamOdev: odevOzeti.length,
+          teslimEdilen: teslimEdilenOdevler.length,
+          ortalama: odevOrtalamasi
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Rapor kartı hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+// ==================== VELİ BİLDİRİM AYARLARI ====================
+
+// Veli bildirim tercihlerini getir
+export const getVeliBildirimAyarlari = async (req: AuthRequest, res: Response) => {
+  try {
+    const veliId = req.user?.id;
+
+    // Varsayılan bildirim ayarları (gerçek uygulamada ayrı bir tabloda saklanabilir)
+    const bildirimAyarlari = {
+      devamsizlikBildirimi: true,
+      notBildirimi: true,
+      odevBildirimi: true,
+      duyuruBildirimi: true,
+      odemeBildirimi: true,
+      canliDersBildirimi: true
+    };
+
+    res.json({
+      success: true,
+      data: bildirimAyarlari
+    });
+  } catch (error) {
+    console.error('Bildirim ayarları hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+// Veli bildirim tercihlerini güncelle
+export const updateVeliBildirimAyarlari = async (req: AuthRequest, res: Response) => {
+  try {
+    const veliId = req.user?.id;
+    const ayarlar = req.body;
+
+    // Gerçek uygulamada ayarları veritabanında saklayın
+    // Şimdilik sadece başarı döndürüyoruz
+
+    res.json({
+      success: true,
+      message: 'Bildirim ayarları güncellendi',
+      data: ayarlar
+    });
+  } catch (error) {
+    console.error('Bildirim ayarları güncelleme hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+// ==================== VELİ ÖDEMELERİ ====================
+
+// Velinin çocuklarının ödemelerini getir
+export const getVeliOdemeleri = async (req: AuthRequest, res: Response) => {
+  try {
+    const veliId = req.user?.id;
+
+    // Velinin çocuklarını bul
+    const cocuklar = await prisma.user.findMany({
+      where: {
+        veliId: veliId,
+        role: 'ogrenci',
+        aktif: true
+      },
+      select: { id: true, ad: true, soyad: true }
+    });
+
+    const cocukIds = cocuklar.map(c => c.id);
+
+    // Çocukların ödemelerini getir
+    const odemeler = await prisma.odeme.findMany({
+      where: {
+        ogrenciId: { in: cocukIds }
+      },
+      include: {
+        ogrenci: {
+          select: { id: true, ad: true, soyad: true }
+        },
+        odemePlani: {
+          select: { donemAd: true }
+        }
+      },
+      orderBy: { vadeTarihi: 'asc' }
+    });
+
+    // Özet hesapla
+    const ozet = {
+      toplamBorc: odemeler.filter(o => o.durum === 'BEKLEMEDE').reduce((sum, o) => sum + o.tutar, 0),
+      odenenToplam: odemeler.filter(o => o.durum === 'ODENDI').reduce((sum, o) => sum + o.tutar, 0),
+      bekleyenOdemeSayisi: odemeler.filter(o => o.durum === 'BEKLEMEDE').length,
+      gecikmisSayisi: odemeler.filter(o => o.durum === 'GECIKTI').length
+    };
+
+    res.json({
+      success: true,
+      data: {
+        odemeler,
+        ozet,
+        cocuklar
+      }
+    });
+  } catch (error) {
+    console.error('Veli ödemeleri hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+

@@ -11,7 +11,9 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "prisma:seed": "ts-node prisma/seed.ts"
+    "prisma:seed": "ts-node prisma/seed.ts",
+    "prisma:seed-veli": "ts-node prisma/seed-veli.ts",
+    "prisma:seed-mock": "ts-node prisma/seed-mock-data.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
@@ -21,6 +23,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@google/generative-ai": "^0.21.0",
     "@prisma/client": "^5.22.0",
     "@types/pdfkit": "^0.17.4",
     "bcryptjs": "^3.0.3",

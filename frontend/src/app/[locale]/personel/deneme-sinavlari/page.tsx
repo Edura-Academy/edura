@@ -6,7 +6,8 @@ import {
   FaPlus, FaSearch, FaFilter, FaFileExcel, FaFileImport,
   FaChartBar, FaUsers, FaCalendarAlt, FaTrash, FaEdit,
   FaEye, FaTimes, FaDownload, FaUpload, FaCheck,
-  FaGraduationCap, FaBook, FaSchool
+  FaGraduationCap, FaBook, FaSchool, FaBullseye, FaExchangeAlt,
+  FaChartLine, FaArrowUp, FaArrowDown, FaMinus
 } from 'react-icons/fa';
 
 interface DenemeSinavi {
@@ -67,7 +68,20 @@ export default function DenemeSinavlariPage() {
   const [showSonucModal, setShowSonucModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showHedefModal, setShowHedefModal] = useState(false);
+  const [showKarsilastirmaModal, setShowKarsilastirmaModal] = useState(false);
   const [selectedSinav, setSelectedSinav] = useState<DenemeSinavi | null>(null);
+  const [processing, setProcessing] = useState(false);
+  
+  // Hedef form
+  const [hedefOgrenciId, setHedefOgrenciId] = useState('');
+  const [hedefNet, setHedefNet] = useState('');
+  const [hedefSiralama, setHedefSiralama] = useState('');
+  
+  // Karşılaştırma
+  const [karsilastirmaOgrenci1, setKarsilastirmaOgrenci1] = useState('');
+  const [karsilastirmaOgrenci2, setKarsilastirmaOgrenci2] = useState('');
+  const [karsilastirmaSonuc, setKarsilastirmaSonuc] = useState<any>(null);
   
   // Form states
   const [formData, setFormData] = useState({
@@ -323,6 +337,99 @@ export default function DenemeSinavlariPage() {
     return (dogru - yanlis / 4).toFixed(2);
   };
 
+  // Hedef belirle
+  const handleSetHedef = async () => {
+    if (!selectedSinav || !hedefOgrenciId) {
+      alert('Lütfen öğrenci seçiniz');
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/deneme/hedef`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          sinavId: selectedSinav.id,
+          ogrenciId: hedefOgrenciId,
+          hedefNet: hedefNet ? parseFloat(hedefNet) : null,
+          hedefSiralama: hedefSiralama ? parseInt(hedefSiralama) : null
+        })
+      });
+      const data = await response.json();
+      if (data.success) {
+        alert('Hedef kaydedildi!');
+        setShowHedefModal(false);
+        setHedefOgrenciId('');
+        setHedefNet('');
+        setHedefSiralama('');
+      } else {
+        alert(data.message || 'Hedef kaydedilemedi');
+      }
+    } catch (err) {
+      alert('Bir hata oluştu');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Karşılaştırma yap
+  const handleKarsilastir = async () => {
+    if (!selectedSinav || !karsilastirmaOgrenci1 || !karsilastirmaOgrenci2) {
+      alert('Lütfen iki öğrenci seçiniz');
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/deneme/karsilastirma?sinavId=${selectedSinav.id}&ogrenci1Id=${karsilastirmaOgrenci1}&ogrenci2Id=${karsilastirmaOgrenci2}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setKarsilastirmaSonuc(data.data);
+      } else {
+        alert(data.message || 'Karşılaştırma yapılamadı');
+      }
+    } catch (err) {
+      alert('Bir hata oluştu');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Excel export
+  const handleExcelExport = async () => {
+    if (!selectedSinav) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/deneme/${selectedSinav.id}/export/excel`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${selectedSinav.ad}-sonuclar.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      } else {
+        alert('Export başarısız');
+      }
+    } catch (err) {
+      alert('Bir hata oluştu');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center">
@@ -431,12 +538,28 @@ export default function DenemeSinavlariPage() {
                     <button
                       onClick={() => openSonucModal(sinav)}
                       className="px-3 py-1.5 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-lg text-sm font-medium hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors"
+                      title="Sonuç Gir"
                     >
-                      Sonuç Gir
+                      <FaPlus />
+                    </button>
+                    <button
+                      onClick={() => { setSelectedSinav(sinav); setShowHedefModal(true); }}
+                      className="px-3 py-1.5 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded-lg text-sm font-medium hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors"
+                      title="Hedef Belirle"
+                    >
+                      <FaBullseye />
+                    </button>
+                    <button
+                      onClick={() => { setSelectedSinav(sinav); setKarsilastirmaSonuc(null); setShowKarsilastirmaModal(true); }}
+                      className="px-3 py-1.5 bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 rounded-lg text-sm font-medium hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors"
+                      title="Karşılaştır"
+                    >
+                      <FaExchangeAlt />
                     </button>
                     <button
                       onClick={() => { setSelectedSinav(sinav); setShowImportModal(true); }}
                       className="px-3 py-1.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-lg text-sm font-medium hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
+                      title="İçe Aktar"
                     >
                       <FaFileImport />
                     </button>
@@ -775,6 +898,213 @@ export default function DenemeSinavlariPage() {
           </div>
         )}
 
+        {/* Hedef Modal */}
+        {showHedefModal && selectedSinav && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md">
+              <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                    <FaBullseye className="text-amber-500" /> Hedef Belirle
+                  </h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{selectedSinav.ad}</p>
+                </div>
+                <button
+                  onClick={() => setShowHedefModal(false)}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                >
+                  <FaTimes />
+                </button>
+              </div>
+              <div className="p-5 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Öğrenci
+                  </label>
+                  <select
+                    value={hedefOgrenciId}
+                    onChange={(e) => setHedefOgrenciId(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-white"
+                  >
+                    <option value="">Öğrenci Seçiniz</option>
+                    {ogrenciler.map(ogr => (
+                      <option key={ogr.id} value={ogr.id}>
+                        {ogr.ogrenciNo} - {ogr.ad} {ogr.soyad}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Hedef Net
+                    </label>
+                    <input
+                      type="number"
+                      value={hedefNet}
+                      onChange={(e) => setHedefNet(e.target.value)}
+                      step="0.25"
+                      placeholder="Örn: 85.5"
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Hedef Sıralama
+                    </label>
+                    <input
+                      type="number"
+                      value={hedefSiralama}
+                      onChange={(e) => setHedefSiralama(e.target.value)}
+                      placeholder="Örn: 50000"
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4">
+                  <p className="text-sm text-amber-700 dark:text-amber-400">
+                    Öğrenci için net ve/veya sıralama hedefi belirleyebilirsiniz. Sonuçlar hedeflerle karşılaştırılarak gösterilecektir.
+                  </p>
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 p-5 border-t border-gray-200 dark:border-gray-700">
+                <button
+                  onClick={() => setShowHedefModal(false)}
+                  className="px-5 py-2.5 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
+                  İptal
+                </button>
+                <button
+                  onClick={handleSetHedef}
+                  disabled={processing || !hedefOgrenciId}
+                  className="px-5 py-2.5 bg-amber-500 text-white rounded-xl hover:bg-amber-600 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {processing ? '...' : <><FaBullseye /> Kaydet</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Karşılaştırma Modal */}
+        {showKarsilastirmaModal && selectedSinav && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-3xl my-8">
+              <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                    <FaExchangeAlt className="text-purple-500" /> Öğrenci Karşılaştırması
+                  </h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{selectedSinav.ad}</p>
+                </div>
+                <button
+                  onClick={() => setShowKarsilastirmaModal(false)}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                >
+                  <FaTimes />
+                </button>
+              </div>
+              <div className="p-5 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      1. Öğrenci
+                    </label>
+                    <select
+                      value={karsilastirmaOgrenci1}
+                      onChange={(e) => setKarsilastirmaOgrenci1(e.target.value)}
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-white"
+                    >
+                      <option value="">Öğrenci Seçiniz</option>
+                      {ogrenciler.map(ogr => (
+                        <option key={ogr.id} value={ogr.id}>
+                          {ogr.ogrenciNo} - {ogr.ad} {ogr.soyad}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      2. Öğrenci
+                    </label>
+                    <select
+                      value={karsilastirmaOgrenci2}
+                      onChange={(e) => setKarsilastirmaOgrenci2(e.target.value)}
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-white"
+                    >
+                      <option value="">Öğrenci Seçiniz</option>
+                      {ogrenciler.map(ogr => (
+                        <option key={ogr.id} value={ogr.id}>
+                          {ogr.ogrenciNo} - {ogr.ad} {ogr.soyad}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleKarsilastir}
+                  disabled={processing || !karsilastirmaOgrenci1 || !karsilastirmaOgrenci2}
+                  className="w-full px-5 py-2.5 bg-purple-500 text-white rounded-xl hover:bg-purple-600 disabled:opacity-50 font-medium"
+                >
+                  {processing ? 'Karşılaştırılıyor...' : 'Karşılaştır'}
+                </button>
+
+                {/* Sonuçlar */}
+                {karsilastirmaSonuc && (
+                  <div className="mt-6 space-y-4">
+                    {/* Özet Kartları */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 text-center">
+                        <h4 className="font-semibold text-blue-800 dark:text-blue-400">
+                          {karsilastirmaSonuc.ogrenci1?.ad} {karsilastirmaSonuc.ogrenci1?.soyad}
+                        </h4>
+                        <p className="text-3xl font-bold text-blue-600 mt-2">
+                          {karsilastirmaSonuc.ogrenci1?.toplamNet?.toFixed(2) || '0'}
+                        </p>
+                        <p className="text-sm text-blue-600/70">Toplam Net</p>
+                      </div>
+                      <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-4 text-center">
+                        <h4 className="font-semibold text-purple-800 dark:text-purple-400">
+                          {karsilastirmaSonuc.ogrenci2?.ad} {karsilastirmaSonuc.ogrenci2?.soyad}
+                        </h4>
+                        <p className="text-3xl font-bold text-purple-600 mt-2">
+                          {karsilastirmaSonuc.ogrenci2?.toplamNet?.toFixed(2) || '0'}
+                        </p>
+                        <p className="text-sm text-purple-600/70">Toplam Net</p>
+                      </div>
+                    </div>
+
+                    {/* Branş Karşılaştırması */}
+                    {karsilastirmaSonuc.bransKarsilastirmasi && (
+                      <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
+                        <h4 className="font-semibold text-gray-800 dark:text-white mb-3">Branş Karşılaştırması</h4>
+                        <div className="space-y-2">
+                          {Object.entries(karsilastirmaSonuc.bransKarsilastirmasi).map(([brans, data]: [string, any]) => (
+                            <div key={brans} className="flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded-lg">
+                              <span className="font-medium text-gray-700 dark:text-gray-300">{brans}</span>
+                              <div className="flex items-center gap-4">
+                                <span className="text-blue-600 font-semibold">{data.ogrenci1?.toFixed(2) || '0'}</span>
+                                <span className={`text-sm ${data.fark > 0 ? 'text-green-500' : data.fark < 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                                  {data.fark > 0 ? <FaArrowUp className="inline" /> : data.fark < 0 ? <FaArrowDown className="inline" /> : <FaMinus className="inline" />}
+                                  {' '}{Math.abs(data.fark || 0).toFixed(2)}
+                                </span>
+                                <span className="text-purple-600 font-semibold">{data.ogrenci2?.toFixed(2) || '0'}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Detail Modal */}
         {showDetailModal && selectedSinav && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
@@ -806,12 +1136,30 @@ export default function DenemeSinavlariPage() {
                   <h3 className="font-semibold text-gray-800 dark:text-white">
                     Katılımcılar ({selectedSinav.katilimciSayisi})
                   </h3>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <button
                       onClick={() => openSonucModal(selectedSinav)}
                       className="px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 text-sm"
                     >
                       <FaPlus className="inline mr-1" /> Sonuç Ekle
+                    </button>
+                    <button
+                      onClick={() => { setShowHedefModal(true); setShowDetailModal(false); }}
+                      className="px-4 py-2 bg-amber-500 text-white rounded-xl hover:bg-amber-600 text-sm"
+                    >
+                      <FaBullseye className="inline mr-1" /> Hedef Belirle
+                    </button>
+                    <button
+                      onClick={() => { setKarsilastirmaSonuc(null); setShowKarsilastirmaModal(true); setShowDetailModal(false); }}
+                      className="px-4 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 text-sm"
+                    >
+                      <FaExchangeAlt className="inline mr-1" /> Karşılaştır
+                    </button>
+                    <button
+                      onClick={handleExcelExport}
+                      className="px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 text-sm"
+                    >
+                      <FaFileExcel className="inline mr-1" /> Excel Export
                     </button>
                     <button
                       onClick={() => router.push(`/personel/deneme-sinavlari/${selectedSinav.id}/analiz`)}

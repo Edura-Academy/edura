@@ -322,3 +322,440 @@ function getDersColor(dersAd: string): string {
   return `hsl(${hue}, 70%, 50%)`;
 }
 
+// ==================== iCAL EXPORT ====================
+
+// iCal formatında ders programı export
+export const exportToICal = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
+
+    let dersler: any[] = [];
+
+    if (userRole === 'ogretmen') {
+      dersler = await prisma.course.findMany({
+        where: { ogretmenId: userId, aktif: true },
+        include: {
+          sinif: { select: { ad: true } }
+        }
+      });
+    } else if (userRole === 'ogrenci') {
+      const kayitlar = await prisma.courseEnrollment.findMany({
+        where: { ogrenciId: userId, aktif: true },
+        include: {
+          course: {
+            include: {
+              sinif: { select: { ad: true } },
+              ogretmen: { select: { ad: true, soyad: true } }
+            }
+          }
+        }
+      });
+      dersler = kayitlar.map(k => ({
+        ...k.course,
+        ogretmenAd: `${k.course.ogretmen.ad} ${k.course.ogretmen.soyad}`
+      }));
+    }
+
+    // iCal oluştur
+    const icalContent = generateICalContent(dersler, userRole || 'ogrenci');
+
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="ders-programi.ics"');
+    res.send(icalContent);
+  } catch (error) {
+    console.error('iCal export hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+// iCal içeriği oluştur
+function generateICalContent(dersler: any[], userRole: string): string {
+  const lines: string[] = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Edura//Ders Programi//TR',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'X-WR-CALNAME:Edura Ders Programı'
+  ];
+
+  // Günleri ISO formatına çevir
+  const gunMap: Record<string, string> = {
+    'Pazartesi': 'MO',
+    'Salı': 'TU',
+    'Çarşamba': 'WE',
+    'Perşembe': 'TH',
+    'Cuma': 'FR',
+    'Cumartesi': 'SA',
+    'Pazar': 'SU'
+  };
+
+  // Başlangıç tarihi (bu haftanın pazartesisi)
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + mondayOffset);
+
+  dersler.forEach((ders, index) => {
+    const gunOffset = gunToNumber(ders.gun) - 1; // Pazartesi = 0
+    const eventDate = new Date(monday);
+    eventDate.setDate(monday.getDate() + gunOffset);
+
+    const [startHour, startMin] = ders.baslangicSaati.split(':').map(Number);
+    const [endHour, endMin] = ders.bitisSaati.split(':').map(Number);
+
+    const dtStart = formatICalDate(eventDate, startHour, startMin);
+    const dtEnd = formatICalDate(eventDate, endHour, endMin);
+
+    const summary = userRole === 'ogretmen' 
+      ? `${ders.ad} - ${ders.sinif?.ad || ''}`
+      : `${ders.ad}`;
+    
+    const description = userRole === 'ogrenci' && ders.ogretmenAd
+      ? `Öğretmen: ${ders.ogretmenAd}`
+      : ders.aciklama || '';
+
+    lines.push(
+      'BEGIN:VEVENT',
+      `UID:edura-ders-${ders.id}@edura.com`,
+      `DTSTAMP:${formatICalDate(now, now.getHours(), now.getMinutes())}`,
+      `DTSTART:${dtStart}`,
+      `DTEND:${dtEnd}`,
+      `RRULE:FREQ=WEEKLY;BYDAY=${gunMap[ders.gun] || 'MO'}`,
+      `SUMMARY:${escapeICalText(summary)}`,
+      `DESCRIPTION:${escapeICalText(description)}`,
+      `CATEGORIES:DERS`,
+      'END:VEVENT'
+    );
+  });
+
+  lines.push('END:VCALENDAR');
+  return lines.join('\r\n');
+}
+
+function formatICalDate(date: Date, hour: number, minute: number): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const h = String(hour).padStart(2, '0');
+  const m = String(minute).padStart(2, '0');
+  return `${year}${month}${day}T${h}${m}00`;
+}
+
+function escapeICalText(text: string): string {
+  return text.replace(/[,;\\]/g, '\\$&').replace(/\n/g, '\\n');
+}
+
+// ==================== DERS DEĞİŞİKLİĞİ BİLDİRİMİ ====================
+
+// Ders güncelleme (bildirimli)
+export const updateDersWithNotification = async (req: AuthRequest, res: Response) => {
+  try {
+    const { dersId } = req.params;
+    const { ad, aciklama, gun, baslangicSaati, bitisSaati, ogretmenId, bildirimGonder = true } = req.body;
+
+    // Mevcut ders bilgilerini al
+    const mevcutDers = await prisma.course.findUnique({
+      where: { id: dersId },
+      include: {
+        sinif: { select: { id: true, ad: true } },
+        ogretmen: { select: { id: true, ad: true, soyad: true } },
+        kayitlar: {
+          where: { aktif: true },
+          select: { ogrenciId: true }
+        }
+      }
+    });
+
+    if (!mevcutDers) {
+      return res.status(404).json({ success: false, message: 'Ders bulunamadı' });
+    }
+
+    // Değişiklikleri tespit et
+    const degisiklikler: string[] = [];
+    if (gun && gun !== mevcutDers.gun) degisiklikler.push(`Gün: ${mevcutDers.gun} → ${gun}`);
+    if (baslangicSaati && baslangicSaati !== mevcutDers.baslangicSaati) degisiklikler.push(`Başlangıç: ${mevcutDers.baslangicSaati} → ${baslangicSaati}`);
+    if (bitisSaati && bitisSaati !== mevcutDers.bitisSaati) degisiklikler.push(`Bitiş: ${mevcutDers.bitisSaati} → ${bitisSaati}`);
+
+    // Dersi güncelle
+    const ders = await prisma.course.update({
+      where: { id: dersId },
+      data: {
+        ...(ad && { ad }),
+        ...(aciklama !== undefined && { aciklama }),
+        ...(gun && { gun }),
+        ...(baslangicSaati && { baslangicSaati }),
+        ...(bitisSaati && { bitisSaati }),
+        ...(ogretmenId && { ogretmenId })
+      },
+      include: {
+        sinif: { select: { id: true, ad: true } },
+        ogretmen: { select: { id: true, ad: true, soyad: true } }
+      }
+    });
+
+    // Bildirim gönder
+    if (bildirimGonder && degisiklikler.length > 0) {
+      const ogrenciIds = mevcutDers.kayitlar.map(k => k.ogrenciId);
+      
+      const bildirimler = ogrenciIds.map(ogrenciId => ({
+        userId: ogrenciId,
+        tip: 'BILDIRIM' as const,
+        baslik: '📅 Ders Programı Değişikliği',
+        mesaj: `${ders.ad} dersinde değişiklik yapıldı:\n${degisiklikler.join('\n')}`
+      }));
+
+      if (bildirimler.length > 0) {
+        await prisma.notification.createMany({ data: bildirimler });
+      }
+
+      // Öğretmene de bildirim
+      if (mevcutDers.ogretmen.id !== req.user?.id) {
+        await prisma.notification.create({
+          data: {
+            userId: mevcutDers.ogretmen.id,
+            tip: 'BILDIRIM',
+            baslik: '📅 Ders Programı Değişikliği',
+            mesaj: `${ders.ad} dersinde değişiklik yapıldı:\n${degisiklikler.join('\n')}`
+          }
+        });
+      }
+    }
+
+    res.json({ 
+      success: true, 
+      data: ders,
+      degisiklikler,
+      bildirimGonderildi: bildirimGonder && degisiklikler.length > 0
+    });
+  } catch (error) {
+    console.error('Ders güncelleme hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+// ==================== DERS İPTALİ / TELAFİ ====================
+
+// Ders iptali
+export const cancelDers = async (req: AuthRequest, res: Response) => {
+  try {
+    const { dersId } = req.params;
+    const { iptalTarihi, sebep, telafiTarihi, telafiGun, telafiBaslangic, telafiBitis } = req.body;
+
+    const ders = await prisma.course.findUnique({
+      where: { id: dersId },
+      include: {
+        kayitlar: {
+          where: { aktif: true },
+          select: { ogrenciId: true }
+        },
+        ogretmen: { select: { id: true, ad: true, soyad: true } }
+      }
+    });
+
+    if (!ders) {
+      return res.status(404).json({ success: false, message: 'Ders bulunamadı' });
+    }
+
+    // Öğrencilere bildirim gönder
+    const ogrenciIds = ders.kayitlar.map(k => k.ogrenciId);
+    
+    let bildirimMesaji = `${ders.ad} dersi ${new Date(iptalTarihi).toLocaleDateString('tr-TR')} tarihinde iptal edilmiştir.`;
+    if (sebep) bildirimMesaji += `\nSebep: ${sebep}`;
+    if (telafiTarihi) {
+      bildirimMesaji += `\n\nTelafi: ${new Date(telafiTarihi).toLocaleDateString('tr-TR')} ${telafiGun || ders.gun} ${telafiBaslangic || ders.baslangicSaati} - ${telafiBitis || ders.bitisSaati}`;
+    }
+
+    const bildirimler = ogrenciIds.map(ogrenciId => ({
+      userId: ogrenciId,
+      tip: 'BILDIRIM' as const,
+      baslik: '⚠️ Ders İptali',
+      mesaj: bildirimMesaji
+    }));
+
+    // Öğretmene de bildirim
+    bildirimler.push({
+      userId: ders.ogretmen.id,
+      tip: 'BILDIRIM' as const,
+      baslik: '⚠️ Ders İptali',
+      mesaj: bildirimMesaji
+    });
+
+    await prisma.notification.createMany({ data: bildirimler });
+
+    res.json({
+      success: true,
+      message: 'Ders iptali bildirimi gönderildi',
+      iptalBilgisi: {
+        dersId: ders.id,
+        dersAd: ders.ad,
+        iptalTarihi,
+        sebep,
+        telafiTarihi,
+        bildirimGonderilenSayisi: bildirimler.length
+      }
+    });
+  } catch (error) {
+    console.error('Ders iptali hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+// ==================== AYLIK TAKVİM GÖRÜNÜMÜ ====================
+
+// Aylık takvim verileri (tüm etkinlikler)
+export const getAylikTakvim = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
+    const { yil, ay } = req.query;
+
+    const year = parseInt(yil as string) || new Date().getFullYear();
+    const month = parseInt(ay as string) || new Date().getMonth() + 1;
+
+    const baslangic = new Date(year, month - 1, 1);
+    const bitis = new Date(year, month, 0, 23, 59, 59);
+
+    // Canlı dersler
+    let canliDersler: any[] = [];
+    // Online sınavlar
+    let sinavlar: any[] = [];
+    // Ödevler
+    let odevler: any[] = [];
+
+    if (userRole === 'ogretmen') {
+      [canliDersler, sinavlar, odevler] = await Promise.all([
+        prisma.canliDers.findMany({
+          where: {
+            ogretmenId: userId,
+            baslangicTarihi: { gte: baslangic, lte: bitis }
+          },
+          select: {
+            id: true,
+            baslik: true,
+            baslangicTarihi: true,
+            bitisTarihi: true,
+            durum: true
+          }
+        }),
+        prisma.onlineSinav.findMany({
+          where: {
+            ogretmenId: userId,
+            baslangicTarihi: { gte: baslangic, lte: bitis }
+          },
+          select: {
+            id: true,
+            baslik: true,
+            baslangicTarihi: true,
+            bitisTarihi: true,
+            durum: true
+          }
+        }),
+        prisma.odev.findMany({
+          where: {
+            ogretmenId: userId,
+            sonTeslimTarihi: { gte: baslangic, lte: bitis }
+          },
+          select: {
+            id: true,
+            baslik: true,
+            sonTeslimTarihi: true
+          }
+        })
+      ]);
+    } else if (userRole === 'ogrenci') {
+      const kayitlar = await prisma.courseEnrollment.findMany({
+        where: { ogrenciId: userId, aktif: true },
+        select: { courseId: true }
+      });
+      const courseIds = kayitlar.map(k => k.courseId);
+
+      [canliDersler, sinavlar, odevler] = await Promise.all([
+        prisma.canliDers.findMany({
+          where: {
+            courseId: { in: courseIds },
+            baslangicTarihi: { gte: baslangic, lte: bitis }
+          },
+          select: {
+            id: true,
+            baslik: true,
+            baslangicTarihi: true,
+            bitisTarihi: true,
+            durum: true,
+            course: { select: { ad: true } }
+          }
+        }),
+        prisma.onlineSinav.findMany({
+          where: {
+            courseId: { in: courseIds },
+            durum: 'AKTIF',
+            baslangicTarihi: { gte: baslangic, lte: bitis }
+          },
+          select: {
+            id: true,
+            baslik: true,
+            baslangicTarihi: true,
+            bitisTarihi: true,
+            sure: true
+          }
+        }),
+        prisma.odev.findMany({
+          where: {
+            courseId: { in: courseIds },
+            aktif: true,
+            sonTeslimTarihi: { gte: baslangic, lte: bitis }
+          },
+          select: {
+            id: true,
+            baslik: true,
+            sonTeslimTarihi: true,
+            course: { select: { ad: true } }
+          }
+        })
+      ]);
+    }
+
+    // Etkinlikleri birleştir
+    const etkinlikler = [
+      ...canliDersler.map(c => ({
+        id: c.id,
+        baslik: c.baslik,
+        tip: 'canli_ders' as const,
+        baslangic: c.baslangicTarihi,
+        bitis: c.bitisTarihi,
+        renk: '#8b5cf6'
+      })),
+      ...sinavlar.map(s => ({
+        id: s.id,
+        baslik: s.baslik,
+        tip: 'sinav' as const,
+        baslangic: s.baslangicTarihi,
+        bitis: s.bitisTarihi,
+        renk: '#ef4444'
+      })),
+      ...odevler.map(o => ({
+        id: o.id,
+        baslik: o.baslik,
+        tip: 'odev' as const,
+        baslangic: o.sonTeslimTarihi,
+        bitis: o.sonTeslimTarihi,
+        renk: '#f59e0b'
+      }))
+    ].sort((a, b) => new Date(a.baslangic).getTime() - new Date(b.baslangic).getTime());
+
+    res.json({
+      success: true,
+      data: {
+        yil: year,
+        ay: month,
+        etkinlikler
+      }
+    });
+  } catch (error) {
+    console.error('Aylık takvim hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+

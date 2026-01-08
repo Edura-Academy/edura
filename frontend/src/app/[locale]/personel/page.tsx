@@ -1,11 +1,24 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import ClientOnlyDate from '../../../components/ClientOnlyDate';
-import { dersProgramiApi, DersProgramiEvent } from '../../../lib/api';
+import { dersProgramiApi, DersProgramiEvent, uploadApi } from '../../../lib/api';
 import { toast } from 'react-hot-toast';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { useTheme } from '@/contexts/ThemeContext';
+import { LanguageSelector } from '@/components/LanguageSelector';
+import { useAccessibility } from '@/contexts/AccessibilityContext';
+import { 
+  TTSStatCard, 
+  TTSMenuItem, 
+  TTSCard, 
+  TTSWrapper,
+  TTSListItem,
+  TTSButton,
+  TTSLink
+} from '@/components/accessibility';
 import {
   Bell,
   Mail,
@@ -216,6 +229,9 @@ const mockDenemeSinavlari: DenemeSinavi[] = [
 ];
 
 export default function PersonelDashboard() {
+  const { resolvedTheme } = useTheme();
+  const { speak, stop, ttsEnabled } = useAccessibility();
+  const isDark = resolvedTheme === 'dark';
   const [personel, setPersonel] = useState<PersonelData>(defaultPersonel);
   const [stats] = useState(mockStats);
   const [bildirimler] = useState(mockBildirimler);
@@ -224,6 +240,16 @@ export default function PersonelDashboard() {
   const [ogrenciler] = useState(mockOgrenciler);
   const [etkinlikler] = useState(mockEtkinlikler);
   const [odevler] = useState(mockOdevler);
+
+  // TTS yardımcı fonksiyonu - mouse hover/focus'ta okur, leave'de durur
+  const ttsHandlers = useCallback((text: string) => ({
+    onMouseEnter: () => ttsEnabled && speak(text),
+    onMouseLeave: () => stop(),
+    onFocus: () => ttsEnabled && speak(text),
+    onBlur: () => stop(),
+    tabIndex: 0,
+    'aria-label': text,
+  }), [ttsEnabled, speak, stop]);
   const [dersProgrami] = useState(mockDersProgrami);
   const [showYoklamaModal, setShowYoklamaModal] = useState(false);
   const [selectedDers, setSelectedDers] = useState<typeof mockBugunDersler[0] | null>(null);
@@ -238,6 +264,12 @@ export default function PersonelDashboard() {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [showProfilModal, setShowProfilModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'genel' | 'dersler' | 'ogrenciler' | 'sinavlar' | 'odevler' | 'program'>('genel');
+  
+  // Profil fotoğrafı state'leri
+  const [profilFoto, setProfilFoto] = useState<string | null>(null);
+  const [profilFotoYukleniyor, setProfilFotoYukleniyor] = useState(false);
+  const [profilFotoHata, setProfilFotoHata] = useState<string | null>(null);
+  const profilFotoInputRef = useRef<HTMLInputElement>(null);
   
   // Sekreter için state'ler
   const [sonKayitlar] = useState(mockSonKayitlar);
@@ -332,6 +364,78 @@ export default function PersonelDashboard() {
       fetchSiniflarVeOgretmenler();
     }
   }, [personel.role]);
+
+  // Profil fotoğrafını çek
+  useEffect(() => {
+    const fetchProfilFoto = async () => {
+      if (!personel.id) return;
+      try {
+        // Role göre userType belirle
+        const userType = personel.role === 'ogretmen' ? 'ogretmen' : 
+                        personel.role === 'sekreter' ? 'sekreter' : 
+                        personel.role === 'mudur' ? 'mudur' : 'user';
+        const response = await uploadApi.getPhoto(userType, Number(personel.id));
+        if (response.success && response.data.url) {
+          setProfilFoto(response.data.url);
+        }
+      } catch (err) {
+        console.log('Profil fotoğrafı bulunamadı');
+      }
+    };
+    fetchProfilFoto();
+  }, [personel.id, personel.role]);
+
+  // Profil fotoğrafı yükleme fonksiyonu
+  const handleProfilFotoYukle = async (file: File) => {
+    if (!personel.id) return;
+    
+    if (!file.type.match(/^image\/(jpeg|jpg|png|webp)$/)) {
+      setProfilFotoHata('Sadece JPG, PNG ve WebP dosyaları yüklenebilir');
+      return;
+    }
+    
+    if (file.size > 8 * 1024 * 1024) {
+      setProfilFotoHata('Dosya boyutu 8MB\'dan küçük olmalı');
+      return;
+    }
+    
+    setProfilFotoYukleniyor(true);
+    setProfilFotoHata(null);
+    
+    try {
+      const userType = personel.role === 'ogretmen' ? 'ogretmen' : 
+                      personel.role === 'sekreter' ? 'sekreter' : 
+                      personel.role === 'mudur' ? 'mudur' : 'user';
+      const response = await uploadApi.uploadPhoto(userType, Number(personel.id), file);
+      if (response.success) {
+        setProfilFoto(response.data.url);
+      }
+    } catch (err) {
+      setProfilFotoHata(err instanceof Error ? err.message : 'Fotoğraf yüklenirken hata oluştu');
+    } finally {
+      setProfilFotoYukleniyor(false);
+    }
+  };
+
+  // Profil fotoğrafı silme fonksiyonu
+  const handleProfilFotoSil = async () => {
+    if (!personel.id || !profilFoto) return;
+    
+    setProfilFotoYukleniyor(true);
+    setProfilFotoHata(null);
+    
+    try {
+      const userType = personel.role === 'ogretmen' ? 'ogretmen' : 
+                      personel.role === 'sekreter' ? 'sekreter' : 
+                      personel.role === 'mudur' ? 'mudur' : 'user';
+      await uploadApi.deletePhoto(userType, Number(personel.id));
+      setProfilFoto(null);
+    } catch (err) {
+      setProfilFotoHata(err instanceof Error ? err.message : 'Fotoğraf silinirken hata oluştu');
+    } finally {
+      setProfilFotoYukleniyor(false);
+    }
+  };
 
   const fetchSiniflarVeOgretmenler = async () => {
     try {
@@ -506,14 +610,21 @@ export default function PersonelDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className={`min-h-screen ${isDark ? 'bg-slate-900' : 'bg-slate-50'}`}>
       {/* Sidebar */}
-      <aside className="fixed left-0 top-0 h-full w-64 bg-slate-900 text-white shadow-xl z-50 hidden lg:block">
-        <div className="p-6 border-b border-slate-700">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
-            Edura
-          </h1>
-          <p className="text-slate-400 text-sm mt-1">Personel Paneli</p>
+      <aside className={`fixed left-0 top-0 h-full w-64 ${isDark ? 'bg-slate-800' : 'bg-slate-900'} text-white shadow-xl z-50 hidden lg:block`}>
+        <div className="p-6 border-b border-slate-700 flex items-center gap-3">
+          <img 
+            src={isDark ? "/logos/Edura-logo-dark-2.png" : "/logos/Edura-logo-nobg.png"} 
+            alt="Edura Logo" 
+            className="w-10 h-10 object-contain"
+          />
+          <div>
+            <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
+              Edura
+            </h1>
+            <p className="text-slate-400 text-xs">Personel Paneli</p>
+          </div>
         </div>
         
         <nav className="p-4 space-y-2">
@@ -708,13 +819,13 @@ export default function PersonelDashboard() {
       {/* Main Content */}
       <main className="lg:ml-64 min-h-screen">
         {/* Top Bar */}
-        <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
+        <header className={`${isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'} border-b sticky top-0 z-40`}>
           <div className="px-6 py-4 flex justify-between items-center">
             <div>
-              <h2 className="text-2xl font-bold text-slate-800">
-                Hoş geldiniz, {personel.ad} {personel.soyad}
+              <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-800'}`}>
+                Hoş geldiniz, {personel.role === 'ogretmen' ? `${personel.ad} Hocam` : personel.role === 'sekreter' ? `Sekreter ${personel.ad}` : `${personel.ad} ${personel.soyad}`}
               </h2>
-              <p className="text-slate-500 text-sm flex items-center gap-2 mt-1">
+              <p className={`${isDark ? 'text-slate-400' : 'text-slate-500'} text-sm flex items-center gap-2 mt-1`}>
                 <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">
                   {getRoleText(personel.role)}
                 </span>
@@ -726,13 +837,19 @@ export default function PersonelDashboard() {
             </div>
 
             <div ref={dropdownRef} className="flex items-center gap-4">
+              {/* Dil Seçici */}
+              <LanguageSelector variant={isDark ? 'dark' : 'light'} />
+              
+              {/* Tema Değiştirici */}
+              <ThemeToggle />
+              
               {/* Arama */}
-              <div className="hidden md:flex items-center bg-slate-100 rounded-lg px-3 py-2">
+              <div className={`hidden md:flex items-center ${isDark ? 'bg-slate-700' : 'bg-slate-100'} rounded-lg px-3 py-2`}>
                 <Search size={18} className="text-slate-400" />
                 <input
                   type="text"
                   placeholder="Ara..."
-                  className="bg-transparent border-none outline-none px-2 text-sm w-48"
+                  className={`bg-transparent border-none outline-none px-2 text-sm w-48 ${isDark ? 'text-white placeholder-slate-400' : ''}`}
                 />
               </div>
 
@@ -993,7 +1110,10 @@ export default function PersonelDashboard() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
+              <div 
+                className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow cursor-pointer"
+                {...ttsHandlers(`Toplam öğrenci sayısı: ${stats.toplamOgrenci}. Bu ay yüzde 12 artış var.`)}
+              >
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-slate-500 text-sm font-medium">Toplam Öğrenci</p>
@@ -1010,7 +1130,10 @@ export default function PersonelDashboard() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
+              <div 
+                className="bg-white rounded-xl p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow cursor-pointer"
+                {...ttsHandlers(`Bugün ${stats.bugunDers} dersiniz var.`)}
+              >
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-slate-500 text-sm font-medium">Bugünkü Ders</p>
@@ -1851,17 +1974,66 @@ export default function PersonelDashboard() {
               </button>
             </div>
             <div className="p-6">
-              {/* Profil Fotoğrafı */}
+              {/* Profil Fotoğrafı - Tıklanabilir */}
               <div className="flex items-center gap-4 mb-6">
-                <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white text-2xl font-bold">
-                  {personel.ad[0]}{personel.soyad[0]}
+                <div 
+                  className={`relative w-20 h-20 rounded-full overflow-hidden cursor-pointer group ${profilFotoYukleniyor ? 'opacity-50' : ''}`}
+                  onClick={() => profilFotoInputRef.current?.click()}
+                >
+                  {profilFoto ? (
+                    <img src={profilFoto} alt="Profil" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-2xl font-bold">
+                      {personel.ad[0]}{personel.soyad[0]}
+                    </div>
+                  )}
+                  {/* Hover overlay */}
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </div>
+                  {/* Loading spinner */}
+                  {profilFotoYukleniyor && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                      <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  )}
                 </div>
+                <input
+                  ref={profilFotoInputRef}
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleProfilFotoYukle(file);
+                    e.target.value = '';
+                  }}
+                />
                 <div>
                   <p className="text-sm font-medium text-slate-700">Profil Fotoğrafı</p>
-                  <p className="text-xs text-slate-500">JPG veya PNG. Maks 2MB</p>
-                  <button className="mt-2 text-sm text-blue-600 hover:text-blue-700 font-medium">
-                    Fotoğraf Yükle
-                  </button>
+                  <p className="text-xs text-slate-500">JPG, PNG, WebP • Maks 8MB</p>
+                  <div className="flex gap-2 mt-2">
+                    <button 
+                      onClick={() => profilFotoInputRef.current?.click()}
+                      disabled={profilFotoYukleniyor}
+                      className="text-sm text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50"
+                    >
+                      {profilFoto ? 'Değiştir' : 'Fotoğraf Yükle'}
+                    </button>
+                    {profilFoto && (
+                      <button 
+                        onClick={handleProfilFotoSil}
+                        disabled={profilFotoYukleniyor}
+                        className="text-sm text-red-600 hover:text-red-700 font-medium disabled:opacity-50"
+                      >
+                        Sil
+                      </button>
+                    )}
+                  </div>
+                  {profilFotoHata && <p className="text-xs text-red-500 mt-1">{profilFotoHata}</p>}
                 </div>
               </div>
               

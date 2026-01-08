@@ -16,6 +16,11 @@ import {
   importJSON,
   getCSVTemplate,
   getJSONTemplate,
+  setDenemeHedef,
+  getDenemeHedef,
+  getOgrenciKarsilastirma,
+  getBransDetayAnaliz,
+  exportToExcel,
 } from '../controllers/deneme.controller';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.middleware';
 
@@ -76,6 +81,24 @@ router.get('/ogrenci/istatistiklerim', authorizeRoles('ogrenci'), getOgrenciDene
 // Belirli öğrencinin sonuçları (veli, öğretmen, admin için)
 router.get('/ogrenci/:ogrenciId/sonuclari', authorizeRoles('admin', 'mudur', 'ogretmen', 'veli'), getOgrenciDenemeSonuclari);
 router.get('/ogrenci/:ogrenciId/istatistikleri', authorizeRoles('admin', 'mudur', 'ogretmen', 'veli'), getOgrenciDenemeIstatistik);
+
+// ==================== HEDEF BELİRLEME ====================
+// Hedef belirleme/güncelleme
+router.post('/hedef', authenticateToken, setDenemeHedef);
+
+// Hedefleri getir
+router.get('/hedef', authenticateToken, getDenemeHedef);
+
+// ==================== KARŞILAŞTIRMALI ANALİZ ====================
+// İki öğrenciyi karşılaştır
+router.get('/karsilastirma', authorizeRoles('admin', 'mudur', 'ogretmen'), getOgrenciKarsilastirma);
+
+// Branş bazlı detay analizi
+router.get('/brans-analiz', authenticateToken, getBransDetayAnaliz);
+
+// ==================== EXCEL EXPORT ====================
+// Sınav sonuçlarını Excel'e export et
+router.get('/:sinavId/export/excel', authorizeRoles('admin', 'mudur', 'ogretmen', 'sekreter'), exportToExcel);
 
 export default router;
 

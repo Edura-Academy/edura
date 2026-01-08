@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from '@/i18n/routing';
 import Link from 'next/link';
 import {
@@ -12,6 +12,10 @@ import {
   AlertTriangle,
   CheckCircle,
   Info,
+  Camera,
+  User,
+  Trash2,
+  Loader2
 } from 'lucide-react';
 
 interface UserData {
@@ -22,12 +26,18 @@ interface UserData {
   role: string;
   sinif?: string;
   kursAd?: string;
+  profilFoto?: string;
 }
 
 export default function OgrenciHesapAyarlariPage() {
   const router = useRouter();
   const [user, setUser] = useState<UserData | null>(null);
-  const [activeTab, setActiveTab] = useState<'email' | 'sifre'>('email');
+  const [activeTab, setActiveTab] = useState<'profil' | 'email' | 'sifre'>('profil');
+  
+  // Profil fotoğrafı state
+  const [profilFoto, setProfilFoto] = useState<string | null>(null);
+  const [fotoLoading, setFotoLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // E-posta değiştirme
   const [yeniEmail, setYeniEmail] = useState('');
@@ -46,14 +56,108 @@ export default function OgrenciHesapAyarlariPage() {
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+
   useEffect(() => {
     const userStr = localStorage.getItem('user');
     if (userStr) {
-      setUser(JSON.parse(userStr));
+      const userData = JSON.parse(userStr);
+      setUser(userData);
+      // Profil fotoğrafını getir
+      fetchProfilFoto(userData.id);
     } else {
       router.push('/login');
     }
   }, [router]);
+
+  // Profil fotoğrafını getir
+  const fetchProfilFoto = async (userId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_URL}/upload/profile/user/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success && data.data?.url) {
+        setProfilFoto(data.data.url);
+      }
+    } catch (error) {
+      console.log('Profil fotoğrafı bulunamadı');
+    }
+  };
+
+  // Profil fotoğrafı yükle
+  const handleFotoYukle = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user?.id) return;
+
+    // Dosya validasyonu
+    if (!file.type.match(/^image\/(jpeg|jpg|png|webp)$/)) {
+      setErrorMessage('Sadece JPG, PNG ve WebP dosyaları yüklenebilir');
+      return;
+    }
+
+    if (file.size > 8 * 1024 * 1024) {
+      setErrorMessage('Dosya boyutu 8MB\'dan küçük olmalı');
+      return;
+    }
+
+    setFotoLoading(true);
+    setErrorMessage('');
+    try {
+      const token = localStorage.getItem('token');
+      const formData = new FormData();
+      formData.append('photo', file);
+
+      const res = await fetch(`${API_URL}/upload/profile/user/${user.id}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setProfilFoto(data.data.url);
+        setSuccessMessage('Profil fotoğrafı güncellendi!');
+        setTimeout(() => setSuccessMessage(''), 3000);
+      } else {
+        setErrorMessage(data.error || 'Fotoğraf yüklenemedi');
+      }
+    } catch (error) {
+      setErrorMessage('Fotoğraf yüklenirken hata oluştu');
+    } finally {
+      setFotoLoading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  // Profil fotoğrafını sil
+  const handleFotoSil = async () => {
+    if (!user?.id || !profilFoto) return;
+
+    setFotoLoading(true);
+    setErrorMessage('');
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_URL}/upload/profile/user/${user.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setProfilFoto(null);
+        setSuccessMessage('Profil fotoğrafı silindi!');
+        setTimeout(() => setSuccessMessage(''), 3000);
+      } else {
+        setErrorMessage(data.error || 'Fotoğraf silinemedi');
+      }
+    } catch (error) {
+      setErrorMessage('Fotoğraf silinirken hata oluştu');
+    } finally {
+      setFotoLoading(false);
+    }
+  };
 
   const handleEmailChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -128,6 +232,17 @@ export default function OgrenciHesapAyarlariPage() {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 mb-6 overflow-hidden">
           <div className="flex border-b border-gray-200">
             <button
+              onClick={() => setActiveTab('profil')}
+              className={`flex-1 py-4 px-6 text-center font-medium transition-colors ${
+                activeTab === 'profil'
+                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <User size={18} className="inline mr-2" />
+              Profil
+            </button>
+            <button
               onClick={() => setActiveTab('email')}
               className={`flex-1 py-4 px-6 text-center font-medium transition-colors ${
                 activeTab === 'email'
@@ -163,6 +278,92 @@ export default function OgrenciHesapAyarlariPage() {
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl flex items-center gap-3">
             <AlertTriangle size={20} className="text-red-600" />
             <p className="text-red-700 font-medium">{errorMessage}</p>
+          </div>
+        )}
+
+        {/* Profil */}
+        {activeTab === 'profil' && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8">
+            <h2 className="text-xl font-bold text-gray-800 mb-6">👤 Profil Fotoğrafı</h2>
+            
+            <div className="flex flex-col items-center">
+              {/* Profil Fotoğrafı */}
+              <div className="relative group mb-4">
+                {profilFoto ? (
+                  <img
+                    src={profilFoto}
+                    alt="Profil"
+                    className="w-32 h-32 rounded-full object-cover border-4 border-blue-100"
+                  />
+                ) : (
+                  <div className="w-32 h-32 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center text-white text-4xl font-bold border-4 border-blue-100">
+                    {user?.ad?.[0]}{user?.soyad?.[0]}
+                  </div>
+                )}
+                
+                {/* Loading overlay */}
+                {fotoLoading && (
+                  <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center">
+                    <Loader2 className="w-10 h-10 text-white animate-spin" />
+                  </div>
+                )}
+                
+                {/* Kamera butonu */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={fotoLoading}
+                  className="absolute bottom-0 right-0 w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center hover:bg-blue-700 transition-colors shadow-lg disabled:opacity-50"
+                >
+                  <Camera className="w-5 h-5" />
+                </button>
+              </div>
+              
+              {/* Gizli file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/webp"
+                onChange={handleFotoYukle}
+                className="hidden"
+              />
+              
+              {/* Kullanıcı bilgileri */}
+              <h3 className="text-xl font-bold text-gray-800 mt-2">{user?.ad} {user?.soyad}</h3>
+              <p className="text-gray-500 text-sm">{user?.email}</p>
+              {user?.sinif && (
+                <span className="mt-2 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                  {user.sinif}
+                </span>
+              )}
+              
+              {/* Fotoğraf butonları */}
+              <div className="flex gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={fotoLoading}
+                  className="px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center gap-2 font-medium"
+                >
+                  <Camera className="w-4 h-4" />
+                  {profilFoto ? 'Fotoğrafı Değiştir' : 'Fotoğraf Ekle'}
+                </button>
+                
+                {profilFoto && (
+                  <button
+                    type="button"
+                    onClick={handleFotoSil}
+                    disabled={fotoLoading}
+                    className="px-5 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center gap-2 font-medium"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Sil
+                  </button>
+                )}
+              </div>
+              
+              <p className="text-xs text-gray-400 mt-4">JPG, PNG veya WebP • Maksimum 8MB</p>
+            </div>
           </div>
         )}
 

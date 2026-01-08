@@ -152,34 +152,51 @@ export const getTeacherCourses = async (req: AuthRequest, res: Response) => {
 
     // Ders adından sınıf bilgisini ayıkla (örn: "Matematik - 5-A" -> "Matematik")
     const extractBaseDersAdi = (ad: string): string => {
+      if (!ad) return '';
+      
+      // Normalize et
+      let normalizedAd = ad.trim();
+      
       // " - " ile ayrılmış ise ilk kısmı al
-      const parts = ad.split(' - ');
+      const parts = normalizedAd.split(' - ');
       if (parts.length > 1) {
-        // Son kısım sınıf adı gibi görünüyorsa (5-A, 6-B, 10-A gibi) sadece ilk kısmı al
-        const lastPart = parts[parts.length - 1];
-        if (/^\d+[-]?[A-Za-z]?$/.test(lastPart)) {
+        // Son kısım sınıf adı gibi görünüyorsa (5-A, 6-B, 10-A, 11-A gibi) sadece ilk kısmı al
+        const lastPart = parts[parts.length - 1].trim();
+        if (/^\d{1,2}[-]?[A-Za-z]?$/.test(lastPart)) {
           return parts.slice(0, -1).join(' - ').trim();
         }
       }
-      return ad;
+      
+      // " (" ile ayrılmış ise (örn: "Matematik (5-A)") ilk kısmı al
+      if (normalizedAd.includes(' (')) {
+        return normalizedAd.split(' (')[0].trim();
+      }
+      
+      return normalizedAd;
     };
 
-    // Benzersiz ana ders adlarını çıkar
-    const benzersizDersAdlari = new Set<string>();
-    const courses: any[] = [];
+    // Benzersiz ana ders adlarını çıkar (lowercase ile karşılaştır)
+    const benzersizDersAdlari = new Map<string, any>();
     
     filtrelenmis.forEach(ders => {
       const baseDersAdi = extractBaseDersAdi(ders.ad);
-      if (!benzersizDersAdlari.has(baseDersAdi)) {
-        benzersizDersAdlari.add(baseDersAdi);
-        // Ders objesini kopyala ve adını sadeleştir
-        courses.push({
+      const normalizedKey = baseDersAdi.toLowerCase().trim();
+      
+      // Eğer bu ders adı daha önce eklenmemişse ekle
+      // Veya bu öğretmenin kendi dersi ise öncelik ver
+      if (!benzersizDersAdlari.has(normalizedKey) || ders.ogretmenId === userId) {
+        benzersizDersAdlari.set(normalizedKey, {
           ...ders,
           ad: baseDersAdi,
-          originalAd: ders.ad // Orijinal adı sakla
+          originalAd: ders.ad
         });
       }
     });
+
+    const courses = Array.from(benzersizDersAdlari.values());
+    
+    // Alfabetik sırala
+    courses.sort((a, b) => a.ad.localeCompare(b.ad, 'tr'));
 
     console.log(`📚 Öğretmen branşı: ${ogretmenBrans}, Bulunan benzersiz ders sayısı: ${courses.length}`);
 
@@ -272,9 +289,9 @@ export const getTeacherHomeworks = async (req: AuthRequest, res: Response) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    // İstatistikleri hesapla
+    // İstatistikleri hesapla ve JSON parse
     const odevlerWithStats = odevler.map(odev => {
-      // Resimler ve dosyalar JSON parse
+      // Ödev resimler ve dosyalar JSON parse
       let resimler: string[] = [];
       let dosyalar: any[] = [];
       try {
@@ -282,10 +299,22 @@ export const getTeacherHomeworks = async (req: AuthRequest, res: Response) => {
         if (odev.dosyalar) dosyalar = JSON.parse(odev.dosyalar);
       } catch (e) {}
 
+      // Teslimler için JSON parse (dosyalar ve resimler)
+      const teslimlerParsed = odev.teslimler.map(t => {
+        let teslimResimler: string[] = [];
+        let teslimDosyalar: any[] = [];
+        try {
+          if ((t as any).resimler) teslimResimler = JSON.parse((t as any).resimler);
+          if ((t as any).dosyalar) teslimDosyalar = JSON.parse((t as any).dosyalar);
+        } catch (e) {}
+        return { ...t, resimler: teslimResimler, dosyalar: teslimDosyalar };
+      });
+
       return {
         ...odev,
         resimler,
         dosyalar,
+        teslimler: teslimlerParsed,
         stats: {
           toplamOgrenci: odev.teslimler.length,
           teslimEdilen: odev.teslimler.filter(t => t.durum !== OdevDurum.BEKLEMEDE).length,
@@ -301,6 +330,14 @@ export const getTeacherHomeworks = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ success: false, error: 'Sunucu hatası' });
   }
 };
+
+// Geç teslim politikası tipi
+interface GecTeslimPolitikasi {
+  aktif: boolean;
+  toleransSuresi: number; // saat cinsinden
+  puanKesintisi: number;  // yüzde cinsinden (her gün için)
+  maxKesinti: number;     // maksimum kesinti yüzdesi
+}
 
 // Yeni ödev oluştur
 export const createHomework = async (req: AuthRequest, res: Response) => {
@@ -320,7 +357,9 @@ export const createHomework = async (req: AuthRequest, res: Response) => {
       icerik,
       resimler,
       dosyalar,
-      sorular
+      sorular,
+      taslak = false,
+      gecTeslimPolitikasi
     } = req.body;
 
     if (!userId) {
@@ -346,24 +385,29 @@ export const createHomework = async (req: AuthRequest, res: Response) => {
     if (userRole === 'ogretmen' && courseId) {
       const course = await prisma.course.findFirst({
         where: { id: courseId },
-        select: { ad: true, ogretmenId: true }
+        select: { ad: true, ogretmenId: true, sinif: { select: { kursId: true } } }
       });
 
       if (!course) {
         return res.status(404).json({ success: false, error: 'Ders bulunamadı' });
       }
 
-      // Öğretmenin bu derse erişimi var mı?
-      if (course.ogretmenId !== userId) {
-        return res.status(403).json({ success: false, error: 'Bu derse ödev ekleme yetkiniz yok' });
-      }
+      // Öğretmenin bu derse erişimi var mı? (atanmış VEYA branş uyumlu)
+      const atanmisMi = course.ogretmenId === userId;
+      const bransUyumlu = ogretmen?.brans ? bransUyumluMu(ogretmen.brans, course.ad) : false;
+      const ayniKurs = course.sinif?.kursId === ogretmen?.kursId;
 
-      // Branş kontrolü
-      if (ogretmen?.brans && !bransUyumluMu(ogretmen.brans, course.ad)) {
+      // Öğretmen bu derse atanmış değilse VE branşı uyumlu değilse hata ver
+      if (!atanmisMi && !bransUyumlu) {
         return res.status(403).json({ 
           success: false, 
-          error: `Branşınız (${ogretmen.brans}) ile seçilen ders (${course.ad}) uyumlu değil. Sadece kendi branşınızda ödev oluşturabilirsiniz.` 
+          error: `Branşınız (${ogretmen?.brans || 'belirtilmemiş'}) ile seçilen ders (${course.ad}) uyumlu değil. Sadece kendi branşınızda ödev oluşturabilirsiniz.` 
         });
+      }
+
+      // Aynı kursta olmalı
+      if (!ayniKurs) {
+        return res.status(403).json({ success: false, error: 'Bu derse ödev ekleme yetkiniz yok' });
       }
     }
 
@@ -371,12 +415,27 @@ export const createHomework = async (req: AuthRequest, res: Response) => {
     if (hedefSiniflar && hedefSiniflar.length > 0) {
       // Öğretmenin bu sınıflara erişimi var mı kontrol et
       if (userRole === 'ogretmen') {
+        // Öğretmenin atandığı derslerden sınıfları al
         const courses = await prisma.course.findMany({
           where: { ogretmenId: userId, aktif: true },
           select: { sinifId: true }
         });
         
-        const erisilebilenSiniflar = courses.map(c => c.sinifId);
+        // Branşa uygun derslerin sınıflarını da al
+        const bransUygunDersler = await prisma.course.findMany({
+          where: { 
+            aktif: true,
+            sinif: { kursId: ogretmen?.kursId || undefined }
+          },
+          select: { sinifId: true, ad: true }
+        });
+        
+        // Branşa uygun sınıfları filtrele
+        const bransUygunSiniflar = bransUygunDersler
+          .filter(d => ogretmen?.brans ? bransUyumluMu(ogretmen.brans, d.ad) : false)
+          .map(d => d.sinifId);
+        
+        const erisilebilenSiniflar = [...new Set([...courses.map(c => c.sinifId), ...bransUygunSiniflar])];
         const yetkisizSiniflar = hedefSiniflar.filter((s: string) => !erisilebilenSiniflar.includes(s));
         
         if (yetkisizSiniflar.length > 0) {
@@ -403,7 +462,9 @@ export const createHomework = async (req: AuthRequest, res: Response) => {
         icerik,
         resimler: resimler ? JSON.stringify(resimler) : null,
         dosyalar: dosyalar ? JSON.stringify(dosyalar) : null,
-        hedefSiniflar: hedefSiniflar ? JSON.stringify(hedefSiniflar) : null
+        hedefSiniflar: hedefSiniflar ? JSON.stringify(hedefSiniflar) : null,
+        taslak,
+        gecTeslimPolitikasi: gecTeslimPolitikasi ? JSON.stringify(gecTeslimPolitikasi) : null
       },
       include: {
         course: { include: { sinif: true } }
@@ -417,7 +478,11 @@ export const createHomework = async (req: AuthRequest, res: Response) => {
         soruMetni: soru.soruMetni,
         resimUrl: soru.resimUrl || null,
         puan: soru.puan || 10,
-        siraNo: index + 1
+        siraNo: index + 1,
+        // Test sorusu için ek alanlar
+        soruTipi: soru.tip || 'klasik',
+        siklar: soru.siklar ? JSON.stringify(soru.siklar) : null,
+        dogruCevap: soru.dogruCevap !== undefined ? soru.dogruCevap : null
       }));
 
       await prisma.odevSoru.createMany({ data: soruData });
@@ -615,7 +680,9 @@ export const updateHomework = async (req: AuthRequest, res: Response) => {
       icerik,
       resimler,
       dosyalar,
-      hedefSiniflar
+      hedefSiniflar,
+      taslak,
+      gecTeslimPolitikasi
     } = req.body;
 
     if (!userId) {
@@ -645,7 +712,9 @@ export const updateHomework = async (req: AuthRequest, res: Response) => {
         ...(icerik !== undefined && { icerik }),
         ...(resimler !== undefined && { resimler: resimler ? JSON.stringify(resimler) : null }),
         ...(dosyalar !== undefined && { dosyalar: dosyalar ? JSON.stringify(dosyalar) : null }),
-        ...(hedefSiniflar !== undefined && { hedefSiniflar: hedefSiniflar ? JSON.stringify(hedefSiniflar) : null })
+        ...(hedefSiniflar !== undefined && { hedefSiniflar: hedefSiniflar ? JSON.stringify(hedefSiniflar) : null }),
+        ...(taslak !== undefined && { taslak }),
+        ...(gecTeslimPolitikasi !== undefined && { gecTeslimPolitikasi: gecTeslimPolitikasi ? JSON.stringify(gecTeslimPolitikasi) : null })
       },
       include: {
         course: { include: { sinif: true } },
@@ -656,6 +725,135 @@ export const updateHomework = async (req: AuthRequest, res: Response) => {
     res.json({ success: true, data: updatedOdev });
   } catch (error) {
     console.error('Ödev güncellenirken hata:', error);
+    res.status(500).json({ success: false, error: 'Sunucu hatası' });
+  }
+};
+
+// Ödevi kopyala
+export const copyHomework = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const { odevId } = req.params;
+    const { yeniBaslik, hedefSiniflar, sonTeslimTarihi, taslak = true } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Yetkisiz erişim' });
+    }
+
+    // Kaynak ödevi getir
+    const kaynakOdev = await prisma.odev.findUnique({
+      where: { id: odevId },
+      include: {
+        sorular: { orderBy: { siraNo: 'asc' } }
+      }
+    });
+
+    if (!kaynakOdev) {
+      return res.status(404).json({ success: false, error: 'Kaynak ödev bulunamadı' });
+    }
+
+    // Yeni ödevi oluştur
+    const yeniOdev = await prisma.odev.create({
+      data: {
+        baslik: yeniBaslik || `${kaynakOdev.baslik} (Kopya)`,
+        aciklama: kaynakOdev.aciklama,
+        courseId: kaynakOdev.courseId,
+        ogretmenId: userId,
+        baslangicTarihi: null,
+        sonTeslimTarihi: sonTeslimTarihi ? new Date(sonTeslimTarihi) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        maxPuan: kaynakOdev.maxPuan,
+        odevTipi: kaynakOdev.odevTipi,
+        konuBasligi: kaynakOdev.konuBasligi,
+        icerik: kaynakOdev.icerik,
+        resimler: kaynakOdev.resimler,
+        dosyalar: kaynakOdev.dosyalar,
+        hedefSiniflar: hedefSiniflar ? JSON.stringify(hedefSiniflar) : kaynakOdev.hedefSiniflar,
+        taslak,
+        gecTeslimPolitikasi: kaynakOdev.gecTeslimPolitikasi,
+        kopyalananOdevId: kaynakOdev.id
+      },
+      include: {
+        course: { include: { sinif: true } }
+      }
+    });
+
+    // Soruları da kopyala
+    if (kaynakOdev.sorular.length > 0) {
+      const soruData = kaynakOdev.sorular.map(soru => ({
+        odevId: yeniOdev.id,
+        soruMetni: soru.soruMetni,
+        resimUrl: soru.resimUrl,
+        puan: soru.puan,
+        siraNo: soru.siraNo,
+        soruTipi: soru.soruTipi,
+        siklar: soru.siklar ?? undefined,
+        dogruCevap: soru.dogruCevap
+      }));
+
+      await prisma.odevSoru.createMany({ data: soruData });
+    }
+
+    // Sonucu döndür
+    const createdOdev = await prisma.odev.findUnique({
+      where: { id: yeniOdev.id },
+      include: {
+        course: { include: { sinif: true } },
+        sorular: { orderBy: { siraNo: 'asc' } }
+      }
+    });
+
+    res.status(201).json({ 
+      success: true, 
+      data: createdOdev,
+      message: 'Ödev başarıyla kopyalandı'
+    });
+  } catch (error) {
+    console.error('Ödev kopyalanırken hata:', error);
+    res.status(500).json({ success: false, error: 'Sunucu hatası' });
+  }
+};
+
+// Taslak ödevleri yayınla
+export const publishDraft = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const { odevId } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Yetkisiz erişim' });
+    }
+
+    // Ödevin öğretmene ait olduğunu ve taslak olduğunu kontrol et
+    const odev = await prisma.odev.findFirst({
+      where: { id: odevId, ogretmenId: userId, taslak: true }
+    });
+
+    if (!odev) {
+      return res.status(404).json({ success: false, error: 'Taslak ödev bulunamadı veya yetkiniz yok' });
+    }
+
+    // Taslağı yayınla
+    const updatedOdev = await prisma.odev.update({
+      where: { id: odevId },
+      data: { 
+        taslak: false,
+        baslangicTarihi: new Date()
+      },
+      include: {
+        course: { include: { sinif: true } },
+        sorular: { orderBy: { siraNo: 'asc' } }
+      }
+    });
+
+    // TODO: Öğrencilere bildirim gönder (mevcut createHomework'taki bildirimleri kullan)
+
+    res.json({ 
+      success: true, 
+      data: updatedOdev,
+      message: 'Ödev başarıyla yayınlandı'
+    });
+  } catch (error) {
+    console.error('Ödev yayınlanırken hata:', error);
     res.status(500).json({ success: false, error: 'Sunucu hatası' });
   }
 };
@@ -906,6 +1104,90 @@ export const uploadSoruImage = async (req: AuthRequest, res: Response) => {
 
 // ==================== ÖDEV DEĞERLENDİRME ====================
 
+// Değerlendirmeyi güncelle/düzenle
+export const updateGrade = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const { teslimId } = req.params;
+    const { puan, ogretmenYorumu, soruPuanlari } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Yetkisiz erişim' });
+    }
+
+    // Teslimi bul ve öğretmenin yetkisini kontrol et
+    const teslim = await prisma.odevTeslim.findFirst({
+      where: { id: teslimId },
+      include: {
+        odev: { select: { ogretmenId: true, maxPuan: true, baslik: true } },
+        ogrenci: { select: { id: true, ad: true, soyad: true, email: true } }
+      }
+    });
+
+    if (!teslim) {
+      return res.status(404).json({ success: false, error: 'Teslim bulunamadı' });
+    }
+
+    if (teslim.odev.ogretmenId !== userId) {
+      return res.status(403).json({ success: false, error: 'Bu teslimi düzenleme yetkiniz yok' });
+    }
+
+    // Puanı kontrol et
+    if (puan !== undefined && (puan < 0 || puan > teslim.odev.maxPuan)) {
+      return res.status(400).json({ success: false, error: `Puan 0 ile ${teslim.odev.maxPuan} arasında olmalı` });
+    }
+
+    // Soru puanlarını güncelle (varsa)
+    if (soruPuanlari && Array.isArray(soruPuanlari)) {
+      for (const sp of soruPuanlari) {
+        await prisma.odevSoruCevap.updateMany({
+          where: { 
+            teslimId,
+            soruId: sp.soruId 
+          },
+          data: {
+            puan: sp.puan,
+            yorum: sp.yorum
+          }
+        });
+      }
+    }
+
+    // Teslimi güncelle
+    const updatedTeslim = await prisma.odevTeslim.update({
+      where: { id: teslimId },
+      data: {
+        ...(puan !== undefined && { puan }),
+        ...(ogretmenYorumu !== undefined && { ogretmenYorumu })
+      },
+      include: {
+        odev: true,
+        ogrenci: { select: { id: true, ad: true, soyad: true, email: true } },
+        soruCevaplari: true
+      }
+    });
+
+    // Öğrenciye bildirim gönder (değerlendirme güncellendi)
+    await prisma.notification.create({
+      data: {
+        userId: teslim.ogrenciId,
+        tip: 'BILDIRIM',
+        baslik: '📝 Değerlendirme Güncellendi',
+        mesaj: `"${teslim.odev.baslik}" ödevinizin değerlendirmesi güncellendi.`
+      }
+    });
+
+    res.json({ 
+      success: true, 
+      data: updatedTeslim,
+      message: 'Değerlendirme başarıyla güncellendi'
+    });
+  } catch (error) {
+    console.error('Değerlendirme güncellenirken hata:', error);
+    res.status(500).json({ success: false, error: 'Sunucu hatası' });
+  }
+};
+
 // Ödev değerlendir (puan ver)
 export const gradeHomework = async (req: AuthRequest, res: Response) => {
   try {
@@ -1029,7 +1311,7 @@ export const getStudentHomeworks = async (req: AuthRequest, res: Response) => {
 
     const now = new Date();
 
-    // Sınıfın derslerine ait ödevleri getir
+    // Sınıfın derslerine ait ödevleri getir (optimize edilmiş - sadece gerekli alanlar)
     const odevler = await prisma.odev.findMany({
       where: {
         aktif: true,
@@ -1050,16 +1332,33 @@ export const getStudentHomeworks = async (req: AuthRequest, res: Response) => {
           }
         ]
       },
-      include: {
+      select: {
+        id: true,
+        baslik: true,
+        aciklama: true,
+        odevTipi: true,
+        konuBasligi: true,
+        sonTeslimTarihi: true,
+        baslangicTarihi: true,
+        maxPuan: true,
+        resimler: true,
+        dosyalar: true,
         course: { select: { id: true, ad: true } },
         ogretmen: { select: { id: true, ad: true, soyad: true } },
-        sorular: { orderBy: { siraNo: 'asc' } },
+        _count: { select: { sorular: true } },
         teslimler: {
           where: { ogrenciId: userId },
-          include: { soruCevaplari: true }
+          select: {
+            id: true,
+            durum: true,
+            puan: true,
+            teslimTarihi: true,
+            ogretmenYorumu: true
+          }
         }
       },
-      orderBy: { sonTeslimTarihi: 'asc' }
+      orderBy: { sonTeslimTarihi: 'asc' },
+      take: 50 // Pagination için limit
     });
 
     // Ödevleri durumlarıyla birlikte döndür
@@ -1067,14 +1366,15 @@ export const getStudentHomeworks = async (req: AuthRequest, res: Response) => {
       let resimler: string[] = [];
       let dosyalar: any[] = [];
       try {
-        if (odev.resimler) resimler = JSON.parse(odev.resimler);
-        if (odev.dosyalar) dosyalar = JSON.parse(odev.dosyalar);
+        if (odev.resimler) resimler = JSON.parse(odev.resimler as string);
+        if (odev.dosyalar) dosyalar = JSON.parse(odev.dosyalar as string);
       } catch (e) {}
 
       return {
         ...odev,
         resimler,
         dosyalar,
+        soruSayisi: odev._count.sorular,
         teslim: odev.teslimler[0] || null,
         gecikmisMi: now > odev.sonTeslimTarihi && !odev.teslimler[0]
       };
@@ -1134,10 +1434,42 @@ export const submitHomework = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ success: false, error: 'Bu ödevi teslim etme yetkiniz yok' });
     }
 
-    // Son teslim tarihi kontrolü
+    // Son teslim tarihi kontrolü ve geç teslim hesaplama
     const now = new Date();
+    let gecTeslimMi = false;
+    let gecikmeGun = 0;
+    let puanKesintisi = 0;
+
     if (now > odev.sonTeslimTarihi) {
-      return res.status(400).json({ success: false, error: 'Son teslim tarihi geçmiş' });
+      // Geç teslim politikasını kontrol et
+      let gecTeslimPolitikasi: GecTeslimPolitikasi | null = null;
+      try {
+        if (odev.gecTeslimPolitikasi) {
+          gecTeslimPolitikasi = JSON.parse(odev.gecTeslimPolitikasi);
+        }
+      } catch (e) {}
+
+      // Geç teslim kabul edilmiyor mu?
+      if (!gecTeslimPolitikasi || !gecTeslimPolitikasi.aktif) {
+        return res.status(400).json({ success: false, error: 'Son teslim tarihi geçmiş ve geç teslim kabul edilmiyor' });
+      }
+
+      // Tolerans süresi kontrolü
+      const toleransMs = (gecTeslimPolitikasi.toleransSuresi || 0) * 60 * 60 * 1000;
+      const toleransBitis = new Date(odev.sonTeslimTarihi.getTime() + toleransMs);
+      
+      if (now > toleransBitis) {
+        // Geç teslim - gecikme gününü hesapla
+        gecTeslimMi = true;
+        const farkMs = now.getTime() - odev.sonTeslimTarihi.getTime();
+        gecikmeGun = Math.ceil(farkMs / (24 * 60 * 60 * 1000));
+        
+        // Puan kesintisi hesapla
+        puanKesintisi = Math.min(
+          gecikmeGun * (gecTeslimPolitikasi.puanKesintisi || 10),
+          gecTeslimPolitikasi.maxKesinti || 50
+        );
+      }
     }
 
     // Mevcut teslimi kontrol et
@@ -1158,7 +1490,10 @@ export const submitHomework = async (req: AuthRequest, res: Response) => {
         dosyalar: dosyalar ? JSON.stringify(dosyalar) : null,
         resimler: resimler ? JSON.stringify(resimler) : null,
         teslimTarihi: new Date(),
-        durum: OdevDurum.TESLIM_EDILDI
+        durum: gecTeslimMi ? OdevDurum.GEC_TESLIM : OdevDurum.TESLIM_EDILDI,
+        gecTeslimMi,
+        gecikmeGun: gecTeslimMi ? gecikmeGun : null,
+        puanKesintisi: gecTeslimMi ? puanKesintisi : null
       },
       create: {
         odevId,
@@ -1167,24 +1502,40 @@ export const submitHomework = async (req: AuthRequest, res: Response) => {
         dosyaUrl,
         dosyalar: dosyalar ? JSON.stringify(dosyalar) : null,
         resimler: resimler ? JSON.stringify(resimler) : null,
-        durum: OdevDurum.TESLIM_EDILDI
+        durum: gecTeslimMi ? OdevDurum.GEC_TESLIM : OdevDurum.TESLIM_EDILDI,
+        gecTeslimMi,
+        gecikmeGun: gecTeslimMi ? gecikmeGun : null,
+        puanKesintisi: gecTeslimMi ? puanKesintisi : null
       }
     });
 
     // Soru cevaplarını kaydet (varsa)
     if (soruCevaplari && Array.isArray(soruCevaplari) && soruCevaplari.length > 0) {
       for (const cevap of soruCevaplari) {
+        // Test sorusu için doğruluk kontrolü
+        let dogruMu: boolean | null = null;
+        if (cevap.secilenSik !== null && cevap.secilenSik !== undefined) {
+          const soru = odev.sorular.find(s => s.id === cevap.soruId);
+          if (soru && soru.dogruCevap !== null) {
+            dogruMu = cevap.secilenSik === soru.dogruCevap;
+          }
+        }
+
         await prisma.odevSoruCevap.upsert({
           where: { soruId_teslimId: { soruId: cevap.soruId, teslimId: teslim.id } },
           update: {
             cevapMetni: cevap.cevapMetni,
-            resimUrl: cevap.resimUrl
+            resimUrl: cevap.resimUrl,
+            secilenSik: cevap.secilenSik,
+            dogruMu
           },
           create: {
             soruId: cevap.soruId,
             teslimId: teslim.id,
             cevapMetni: cevap.cevapMetni,
-            resimUrl: cevap.resimUrl
+            resimUrl: cevap.resimUrl,
+            secilenSik: cevap.secilenSik,
+            dogruMu
           }
         });
       }

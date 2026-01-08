@@ -30,6 +30,7 @@ import denemeRoutes from './routes/deneme.routes';
 import kurumIciDenemeRoutes from './routes/kurumIciDeneme.routes';
 import testRoutes from './routes/test.routes';
 import adminSystemRoutes from './routes/admin-system.routes';
+import chatbotRoutes from './routes/chatbot.routes';
 
 // Load environment variables
 dotenv.config();
@@ -72,6 +73,7 @@ app.use('/api/deneme', denemeRoutes);
 app.use('/api/kurum-ici-deneme', kurumIciDenemeRoutes);
 app.use('/api/test', testRoutes);
 app.use('/api/admin-system', adminSystemRoutes);
+app.use('/api/chatbot', chatbotRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

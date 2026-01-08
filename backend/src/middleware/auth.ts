@@ -7,7 +7,9 @@ export interface AuthRequest extends Request {
   user?: {
     id: string;
     email: string;
-    role: 'admin' | 'mudur' | 'ogretmen' | 'sekreter' | 'ogrenci';
+    role: 'admin' | 'kursSahibi' | 'mudur' | 'ogretmen' | 'sekreter' | 'ogrenci' | 'veli';
+    kursId?: string | null;
+    sinifId?: string | null;
   };
 }
 
@@ -38,8 +40,20 @@ export const authorize = (...roles: string[]) => {
   };
 };
 
+// Sadece Admin
+export const adminOnly = authorize('admin');
+
+// Sadece Kurs Sahibi
+export const kursSahibiOnly = authorize('kursSahibi');
+
+// Admin ve Kurs Sahibi
+export const adminVeKursSahibi = authorize('admin', 'kursSahibi');
+
 // Sadece Müdür
 export const mudurOnly = authorize('mudur');
+
+// Kurs Sahibi ve Müdür
+export const kursSahibiVeMudur = authorize('kursSahibi', 'mudur');
 
 // Müdür ve Sekreter
 export const mudurVeSekreter = authorize('mudur', 'sekreter');
@@ -47,7 +61,7 @@ export const mudurVeSekreter = authorize('mudur', 'sekreter');
 // Öğretmen, Müdür ve Sekreter
 export const ogretmenVeYukarisi = authorize('mudur', 'sekreter', 'ogretmen');
 
-// Admin
-export const adminOnly = authorize('admin');
+// Kurs yönetimi (Kurs Sahibi, Müdür, Sekreter)
+export const kursYonetimi = authorize('kursSahibi', 'mudur', 'sekreter');
 
 export {};

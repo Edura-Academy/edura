@@ -534,3 +534,549 @@ export const removeFcmToken = async (req: AuthRequest, res: Response): Promise<v
     res.status(500).json({ success: false, error: 'Token silinemedi' });
   }
 };
+
+// ==================== ŞİFRE POLİTİKASI ====================
+
+// Şifre güçlülük kontrolü
+interface PasswordStrength {
+  score: number; // 0-4 arası
+  level: 'cok_zayif' | 'zayif' | 'orta' | 'guclu' | 'cok_guclu';
+  feedback: string[];
+}
+
+function checkPasswordStrength(password: string): PasswordStrength {
+  const feedback: string[] = [];
+  let score = 0;
+
+  // Uzunluk kontrolü
+  if (password.length < 8) {
+    feedback.push('Şifre en az 8 karakter olmalı');
+  } else if (password.length >= 12) {
+    score += 2;
+  } else {
+    score += 1;
+  }
+
+  // Büyük harf kontrolü
+  if (!/[A-Z]/.test(password)) {
+    feedback.push('En az bir büyük harf içermeli');
+  } else {
+    score += 1;
+  }
+
+  // Küçük harf kontrolü
+  if (!/[a-z]/.test(password)) {
+    feedback.push('En az bir küçük harf içermeli');
+  } else {
+    score += 1;
+  }
+
+  // Rakam kontrolü
+  if (!/[0-9]/.test(password)) {
+    feedback.push('En az bir rakam içermeli');
+  } else {
+    score += 1;
+  }
+
+  // Özel karakter kontrolü
+  if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+    feedback.push('En az bir özel karakter içermeli (!@#$%^&*...)');
+  } else {
+    score += 1;
+  }
+
+  // Yaygın şifre kontrolü
+  const commonPasswords = ['123456', 'password', 'qwerty', '123456789', '12345678', '12345', 'abc123', 'admin', 'letmein'];
+  if (commonPasswords.includes(password.toLowerCase())) {
+    score = 0;
+    feedback.push('Bu şifre çok yaygın, başka bir şifre seçin');
+  }
+
+  // Seviye belirleme
+  let level: PasswordStrength['level'];
+  if (score <= 1) level = 'cok_zayif';
+  else if (score <= 2) level = 'zayif';
+  else if (score <= 3) level = 'orta';
+  else if (score <= 4) level = 'guclu';
+  else level = 'cok_guclu';
+
+  return { score: Math.min(score, 5), level, feedback };
+}
+
+// Şifre güçlülük endpoint'i
+export const validatePassword = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { password } = req.body;
+
+    if (!password) {
+      res.status(400).json({ success: false, error: 'Şifre gerekli' });
+      return;
+    }
+
+    const strength = checkPasswordStrength(password);
+    const isValid = strength.score >= 3 && strength.feedback.length === 0;
+
+    res.json({
+      success: true,
+      data: {
+        ...strength,
+        isValid,
+        minScore: 3
+      }
+    });
+  } catch (error) {
+    console.error('Şifre doğrulama hatası:', error);
+    res.status(500).json({ success: false, error: 'Şifre kontrol edilemedi' });
+  }
+};
+
+// Şifre değiştirme (güçlülük kontrolü ile)
+export const changePassword = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Yetkisiz erişim' });
+      return;
+    }
+
+    // Mevcut şifreyi doğrula
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { password: true }
+    });
+
+    if (!user) {
+      res.status(404).json({ success: false, error: 'Kullanıcı bulunamadı' });
+      return;
+    }
+
+    const isCurrentValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isCurrentValid) {
+      res.status(400).json({ success: false, error: 'Mevcut şifre yanlış' });
+      return;
+    }
+
+    // Yeni şifre güçlülük kontrolü
+    const strength = checkPasswordStrength(newPassword);
+    if (strength.score < 3) {
+      res.status(400).json({
+        success: false,
+        error: 'Şifre yeterince güçlü değil',
+        feedback: strength.feedback
+      });
+      return;
+    }
+
+    // Şifreyi güncelle
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword }
+    });
+
+    res.json({ success: true, message: 'Şifre başarıyla değiştirildi' });
+  } catch (error) {
+    console.error('Şifre değiştirme hatası:', error);
+    res.status(500).json({ success: false, error: 'Şifre değiştirilemedi' });
+  }
+};
+
+// ==================== TOPLU KULLANICI IMPORT ====================
+
+interface ImportUser {
+  email: string;
+  ad: string;
+  soyad: string;
+  telefon?: string;
+  role: Role;
+  sinifAd?: string;
+  brans?: string;
+  ogrenciNo?: string;
+}
+
+// Toplu kullanıcı import
+export const bulkImportUsers = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { users, kursId, defaultPassword = 'Edura2024!' } = req.body as {
+      users: ImportUser[];
+      kursId?: string;
+      defaultPassword?: string;
+    };
+
+    if (!users || !Array.isArray(users) || users.length === 0) {
+      res.status(400).json({ success: false, error: 'Kullanıcı listesi gerekli' });
+      return;
+    }
+
+    // Şifre güçlülük kontrolü
+    const passwordStrength = checkPasswordStrength(defaultPassword);
+    if (passwordStrength.score < 3) {
+      res.status(400).json({
+        success: false,
+        error: 'Varsayılan şifre yeterince güçlü değil',
+        feedback: passwordStrength.feedback
+      });
+      return;
+    }
+
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+    const results: { success: ImportUser[]; failed: { user: ImportUser; error: string }[] } = {
+      success: [],
+      failed: []
+    };
+
+    // Sınıf adlarını ID'ye çevir
+    const sinifMap = new Map<string, string>();
+    if (kursId) {
+      const siniflar = await prisma.sinif.findMany({
+        where: { kursId },
+        select: { id: true, ad: true }
+      });
+      siniflar.forEach(s => sinifMap.set(s.ad.toLowerCase(), s.id));
+    }
+
+    // Her kullanıcıyı işle
+    for (const userData of users) {
+      try {
+        // Email kontrolü
+        const existingUser = await prisma.user.findUnique({
+          where: { email: userData.email }
+        });
+
+        if (existingUser) {
+          results.failed.push({ user: userData, error: 'Email zaten kullanılıyor' });
+          continue;
+        }
+
+        // Sınıf ID'si bul
+        let sinifId: string | undefined;
+        if (userData.sinifAd && sinifMap.has(userData.sinifAd.toLowerCase())) {
+          sinifId = sinifMap.get(userData.sinifAd.toLowerCase());
+        }
+
+        // Kullanıcıyı oluştur
+        await prisma.user.create({
+          data: {
+            email: userData.email,
+            password: hashedPassword,
+            ad: userData.ad,
+            soyad: userData.soyad,
+            telefon: userData.telefon,
+            role: userData.role,
+            kursId: kursId || undefined,
+            sinifId: userData.role === 'ogrenci' ? sinifId : undefined,
+            brans: userData.role === 'ogretmen' ? userData.brans : undefined,
+            ogrenciNo: userData.role === 'ogrenci' ? userData.ogrenciNo : undefined
+          }
+        });
+
+        results.success.push(userData);
+      } catch (err) {
+        results.failed.push({ user: userData, error: 'Oluşturma hatası' });
+      }
+    }
+
+    res.json({
+      success: true,
+      data: {
+        toplam: users.length,
+        basarili: results.success.length,
+        basarisiz: results.failed.length,
+        basarililar: results.success,
+        basarisizlar: results.failed
+      }
+    });
+  } catch (error) {
+    console.error('Toplu import hatası:', error);
+    res.status(500).json({ success: false, error: 'Kullanıcılar import edilemedi' });
+  }
+};
+
+// Import şablonu
+export const getImportTemplate = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const template = {
+      description: 'Toplu kullanıcı import şablonu',
+      fields: [
+        { name: 'email', required: true, type: 'string', example: 'ornek@email.com' },
+        { name: 'ad', required: true, type: 'string', example: 'Ali' },
+        { name: 'soyad', required: true, type: 'string', example: 'Yılmaz' },
+        { name: 'telefon', required: false, type: 'string', example: '05551234567' },
+        { name: 'role', required: true, type: 'enum', options: ['ogrenci', 'ogretmen', 'veli', 'sekreter'], example: 'ogrenci' },
+        { name: 'sinifAd', required: false, type: 'string', description: 'Öğrenciler için sınıf adı', example: '8-A' },
+        { name: 'brans', required: false, type: 'string', description: 'Öğretmenler için branş', example: 'Matematik' },
+        { name: 'ogrenciNo', required: false, type: 'string', description: 'Öğrenciler için okul numarası', example: '2024001' }
+      ],
+      exampleData: [
+        { email: 'ogrenci1@ornek.com', ad: 'Ahmet', soyad: 'Kaya', role: 'ogrenci', sinifAd: '8-A', ogrenciNo: '2024001' },
+        { email: 'ogrenci2@ornek.com', ad: 'Ayşe', soyad: 'Demir', role: 'ogrenci', sinifAd: '8-B', ogrenciNo: '2024002' },
+        { email: 'ogretmen1@ornek.com', ad: 'Mehmet', soyad: 'Yıldız', role: 'ogretmen', brans: 'Matematik' }
+      ]
+    };
+
+    res.json({ success: true, data: template });
+  } catch (error) {
+    console.error('Şablon hatası:', error);
+    res.status(500).json({ success: false, error: 'Şablon alınamadı' });
+  }
+};
+
+// ==================== OTURUM YÖNETİMİ ====================
+
+// Not: Gerçek oturum yönetimi için JWT blacklist veya session store gerekir
+// Bu örnekte basit bir implementasyon sunuyoruz
+
+// Kullanıcının profil bilgilerini getir
+export const getProfile = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Yetkisiz erişim' });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        ad: true,
+        soyad: true,
+        telefon: true,
+        dogumTarihi: true,
+        role: true,
+        brans: true,
+        ogrenciNo: true,
+        xpPuani: true,
+        xpSeviye: true,
+        streak: true,
+        kurs: { select: { id: true, ad: true } },
+        sinif: { select: { id: true, ad: true, seviye: true } },
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+
+    if (!user) {
+      res.status(404).json({ success: false, error: 'Kullanıcı bulunamadı' });
+      return;
+    }
+
+    res.json({ success: true, data: user });
+  } catch (error) {
+    console.error('Profil hatası:', error);
+    res.status(500).json({ success: false, error: 'Profil alınamadı' });
+  }
+};
+
+// Profil güncelleme
+export const updateProfile = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const { ad, soyad, telefon, dogumTarihi } = req.body;
+
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Yetkisiz erişim' });
+      return;
+    }
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(ad && { ad }),
+        ...(soyad && { soyad }),
+        ...(telefon && { telefon }),
+        ...(dogumTarihi && { dogumTarihi: new Date(dogumTarihi) })
+      },
+      select: {
+        id: true,
+        email: true,
+        ad: true,
+        soyad: true,
+        telefon: true,
+        dogumTarihi: true,
+        role: true
+      }
+    });
+
+    res.json({ success: true, data: user });
+  } catch (error) {
+    console.error('Profil güncelleme hatası:', error);
+    res.status(500).json({ success: false, error: 'Profil güncellenemedi' });
+  }
+};
+
+// Kullanıcı arama (admin/müdür için)
+export const searchUsers = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { q, role, sinifId, limit = 20 } = req.query;
+    const user = await prisma.user.findUnique({
+      where: { id: req.user?.id },
+      select: { kursId: true }
+    });
+
+    const whereCondition: any = {
+      aktif: true,
+      ...(user?.kursId && { kursId: user.kursId }),
+      ...(role && { role: role as Role }),
+      ...(sinifId && { sinifId: sinifId as string })
+    };
+
+    if (q) {
+      whereCondition.OR = [
+        { ad: { contains: q as string } },
+        { soyad: { contains: q as string } },
+        { email: { contains: q as string } },
+        { ogrenciNo: { contains: q as string } }
+      ];
+    }
+
+    const users = await prisma.user.findMany({
+      where: whereCondition,
+      select: {
+        id: true,
+        email: true,
+        ad: true,
+        soyad: true,
+        role: true,
+        ogrenciNo: true,
+        sinif: { select: { ad: true } }
+      },
+      take: parseInt(limit as string),
+      orderBy: [{ ad: 'asc' }, { soyad: 'asc' }]
+    });
+
+    res.json({ success: true, data: users });
+  } catch (error) {
+    console.error('Kullanıcı arama hatası:', error);
+    res.status(500).json({ success: false, error: 'Arama yapılamadı' });
+  }
+};
+
+// ==================== BİLDİRİMLER ====================
+
+// Kullanıcının bildirimlerini getir
+export const getNotifications = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const { limit = '20', unreadOnly } = req.query;
+
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Yetkisiz erişim' });
+      return;
+    }
+
+    const whereCondition: any = { userId };
+    if (unreadOnly === 'true') {
+      whereCondition.okundu = false;
+    }
+
+    const notifications = await prisma.notification.findMany({
+      where: whereCondition,
+      orderBy: { createdAt: 'desc' },
+      take: parseInt(limit as string)
+    });
+
+    // Okunmamış bildirim sayısı
+    const unreadCount = await prisma.notification.count({
+      where: { userId, okundu: false }
+    });
+
+    res.json({ 
+      success: true, 
+      data: notifications,
+      unreadCount 
+    });
+  } catch (error) {
+    console.error('Bildirim getirme hatası:', error);
+    res.status(500).json({ success: false, error: 'Bildirimler getirilemedi' });
+  }
+};
+
+// Bildirimi okundu olarak işaretle
+export const markNotificationAsRead = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const { id } = req.params;
+
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Yetkisiz erişim' });
+      return;
+    }
+
+    const notification = await prisma.notification.findFirst({
+      where: { id, userId }
+    });
+
+    if (!notification) {
+      res.status(404).json({ success: false, error: 'Bildirim bulunamadı' });
+      return;
+    }
+
+    await prisma.notification.update({
+      where: { id },
+      data: { okundu: true }
+    });
+
+    res.json({ success: true, message: 'Bildirim okundu olarak işaretlendi' });
+  } catch (error) {
+    console.error('Bildirim okundu işaretleme hatası:', error);
+    res.status(500).json({ success: false, error: 'İşlem başarısız' });
+  }
+};
+
+// Tüm bildirimleri okundu olarak işaretle
+export const markAllNotificationsAsRead = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Yetkisiz erişim' });
+      return;
+    }
+
+    await prisma.notification.updateMany({
+      where: { userId, okundu: false },
+      data: { okundu: true }
+    });
+
+    res.json({ success: true, message: 'Tüm bildirimler okundu olarak işaretlendi' });
+  } catch (error) {
+    console.error('Toplu bildirim okundu işaretleme hatası:', error);
+    res.status(500).json({ success: false, error: 'İşlem başarısız' });
+  }
+};
+
+// Bildirim sil
+export const deleteNotification = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const { id } = req.params;
+
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Yetkisiz erişim' });
+      return;
+    }
+
+    const notification = await prisma.notification.findFirst({
+      where: { id, userId }
+    });
+
+    if (!notification) {
+      res.status(404).json({ success: false, error: 'Bildirim bulunamadı' });
+      return;
+    }
+
+    await prisma.notification.delete({
+      where: { id }
+    });
+
+    res.json({ success: true, message: 'Bildirim silindi' });
+  } catch (error) {
+    console.error('Bildirim silme hatası:', error);
+    res.status(500).json({ success: false, error: 'Bildirim silinemedi' });
+  }
+};

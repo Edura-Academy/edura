@@ -36,13 +36,13 @@ export default function AyarlarPage() {
     const token = localStorage.getItem('token');
 
     if (!storedUser || !token) {
-      router.push('/login/admin');
+      router.push('/login');
       return;
     }
 
     const parsedUser = JSON.parse(storedUser);
     if (parsedUser.role !== 'admin') {
-      router.push('/login/admin');
+      router.push('/login');
       return;
     }
 

@@ -106,10 +106,11 @@ export const getDenemeSinavlari = async (req: AuthRequest, res: Response) => {
       orderBy: { tarih: 'desc' }
     });
 
-    // Branş bilgilerini parse et
+    // Branş bilgilerini ve hedef sınıfları parse et
     const sinavlarWithParsed = sinavlar.map(sinav => ({
       ...sinav,
       branslar: JSON.parse(sinav.branslarVeSoruSayilari),
+      hedefSiniflar: sinav.hedefSiniflar ? JSON.parse(sinav.hedefSiniflar) : null,
       katilimciSayisi: sinav._count.sonuclar
     }));
 
@@ -158,6 +159,7 @@ export const getDenemeSinavi = async (req: AuthRequest, res: Response) => {
       data: {
         ...sinav,
         branslar: JSON.parse(sinav.branslarVeSoruSayilari),
+        hedefSiniflar: sinav.hedefSiniflar ? JSON.parse(sinav.hedefSiniflar) : null,
         sonuclar: sonuclarWithParsed
       }
     });
@@ -171,7 +173,7 @@ export const getDenemeSinavi = async (req: AuthRequest, res: Response) => {
 export const createDenemeSinavi = async (req: AuthRequest, res: Response) => {
   try {
     const olusturanId = req.user?.id;
-    const { ad, tur, kurum, tarih, sinifId, kursId, branslar, aciklama } = req.body;
+    const { ad, tur, kurum, tarih, sinifId, hedefSiniflar, kursId, branslar, aciklama } = req.body;
 
     if (!ad || !tur || !tarih) {
       return res.status(400).json({ success: false, message: 'Ad, tür ve tarih zorunludur' });
@@ -208,6 +210,7 @@ export const createDenemeSinavi = async (req: AuthRequest, res: Response) => {
         kurum,
         tarih: new Date(tarih),
         sinifId: sinifId || null,
+        hedefSiniflar: hedefSiniflar ? JSON.stringify(hedefSiniflar) : null, // [5, 6, 7, 8] veya [9, 10, 11, 12]
         kursId: kursId || null,
         branslarVeSoruSayilari: JSON.stringify(branslarVeSoruSayilari),
         aciklama,
@@ -223,7 +226,8 @@ export const createDenemeSinavi = async (req: AuthRequest, res: Response) => {
       success: true,
       data: {
         ...sinav,
-        branslar: branslarVeSoruSayilari
+        branslar: branslarVeSoruSayilari,
+        hedefSiniflar: hedefSiniflar || null
       }
     });
   } catch (error) {
@@ -236,13 +240,14 @@ export const createDenemeSinavi = async (req: AuthRequest, res: Response) => {
 export const updateDenemeSinavi = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { ad, kurum, tarih, sinifId, kursId, branslar, aciklama, aktif } = req.body;
+    const { ad, kurum, tarih, sinifId, hedefSiniflar, kursId, branslar, aciklama, aktif } = req.body;
 
     const updateData: any = {};
     if (ad !== undefined) updateData.ad = ad;
     if (kurum !== undefined) updateData.kurum = kurum;
     if (tarih !== undefined) updateData.tarih = new Date(tarih);
     if (sinifId !== undefined) updateData.sinifId = sinifId;
+    if (hedefSiniflar !== undefined) updateData.hedefSiniflar = hedefSiniflar ? JSON.stringify(hedefSiniflar) : null;
     if (kursId !== undefined) updateData.kursId = kursId;
     if (branslar !== undefined) updateData.branslarVeSoruSayilari = JSON.stringify(branslar);
     if (aciklama !== undefined) updateData.aciklama = aciklama;
@@ -261,7 +266,8 @@ export const updateDenemeSinavi = async (req: AuthRequest, res: Response) => {
       success: true,
       data: {
         ...sinav,
-        branslar: JSON.parse(sinav.branslarVeSoruSayilari)
+        branslar: JSON.parse(sinav.branslarVeSoruSayilari),
+        hedefSiniflar: sinav.hedefSiniflar ? JSON.parse(sinav.hedefSiniflar) : null
       }
     });
   } catch (error) {
@@ -889,6 +895,393 @@ export const getJSONTemplate = async (req: AuthRequest, res: Response) => {
     res.json({ success: true, data: template });
   } catch (error) {
     console.error('JSON şablon hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+// ==================== HEDEF BELİRLEME ====================
+
+// Öğrenci deneme hedefi belirle/güncelle
+export const setDenemeHedef = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
+    const { ogrenciId, tur, hedefNet, bransHedefleri, hedefSiralama, hedefTarihi, aciklama } = req.body;
+
+    // Yetki kontrolü: Öğrenci kendi hedefini, öğretmen/müdür herkesin hedefini belirleyebilir
+    const targetOgrenciId = userRole === 'ogrenci' ? userId : ogrenciId;
+
+    if (!targetOgrenciId || !tur || hedefNet === undefined) {
+      return res.status(400).json({ success: false, message: 'Öğrenci ID, tür ve hedef net zorunludur' });
+    }
+
+    // Upsert hedef
+    const hedef = await prisma.denemeHedef.upsert({
+      where: { ogrenciId_tur: { ogrenciId: targetOgrenciId, tur } },
+      update: {
+        hedefNet,
+        bransHedefleri: bransHedefleri ? JSON.stringify(bransHedefleri) : null,
+        hedefSiralama,
+        hedefTarihi: hedefTarihi ? new Date(hedefTarihi) : null,
+        aciklama,
+        aktif: true
+      },
+      create: {
+        ogrenciId: targetOgrenciId,
+        tur,
+        hedefNet,
+        bransHedefleri: bransHedefleri ? JSON.stringify(bransHedefleri) : null,
+        hedefSiralama,
+        hedefTarihi: hedefTarihi ? new Date(hedefTarihi) : null,
+        aciklama
+      }
+    });
+
+    // En son deneme sonucunu al ve ilerleme durumunu güncelle
+    const sonSonuc = await prisma.denemeSonucu.findFirst({
+      where: { 
+        ogrenciId: targetOgrenciId,
+        sinav: { tur }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (sonSonuc) {
+      let ilerlemeDurumu = 'STABIL';
+      if (sonSonuc.toplamNet > hedef.sonNet!) {
+        ilerlemeDurumu = 'YUKSELIYOR';
+      } else if (sonSonuc.toplamNet < hedef.sonNet!) {
+        ilerlemeDurumu = 'DUSUYOR';
+      }
+
+      await prisma.denemeHedef.update({
+        where: { id: hedef.id },
+        data: {
+          sonNet: sonSonuc.toplamNet,
+          sonSiralama: sonSonuc.genelSiralama,
+          ilerlemeDurumu
+        }
+      });
+    }
+
+    res.json({ success: true, data: hedef, message: 'Hedef başarıyla kaydedildi' });
+  } catch (error) {
+    console.error('Hedef belirleme hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+// Öğrenci deneme hedeflerini getir
+export const getDenemeHedef = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
+    const { ogrenciId, tur } = req.query;
+
+    const targetOgrenciId = userRole === 'ogrenci' ? userId : (ogrenciId as string || userId);
+
+    const where: any = { ogrenciId: targetOgrenciId, aktif: true };
+    if (tur) {
+      where.tur = tur;
+    }
+
+    const hedefler = await prisma.denemeHedef.findMany({
+      where,
+      orderBy: { updatedAt: 'desc' }
+    });
+
+    // Branş hedeflerini parse et
+    const hedeflerParsed = hedefler.map(h => ({
+      ...h,
+      bransHedefleri: h.bransHedefleri ? JSON.parse(h.bransHedefleri) : null
+    }));
+
+    res.json({ success: true, data: hedeflerParsed });
+  } catch (error) {
+    console.error('Hedef getirme hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+// ==================== KARŞILAŞTIRMALI ANALİZ ====================
+
+// İki öğrenciyi karşılaştır
+export const getOgrenciKarsilastirma = async (req: AuthRequest, res: Response) => {
+  try {
+    const { ogrenciId1, ogrenciId2, tur, sinavId } = req.query;
+
+    if (!ogrenciId1 || !ogrenciId2) {
+      return res.status(400).json({ success: false, message: 'İki öğrenci ID gerekli' });
+    }
+
+    const where: any = { 
+      ogrenciId: { in: [ogrenciId1 as string, ogrenciId2 as string] }
+    };
+
+    if (tur) {
+      where.sinav = { tur };
+    }
+
+    if (sinavId) {
+      where.sinavId = sinavId;
+    }
+
+    const sonuclar = await prisma.denemeSonucu.findMany({
+      where,
+      include: {
+        sinav: { select: { id: true, ad: true, tur: true, tarih: true } },
+        ogrenci: { select: { id: true, ad: true, soyad: true, ogrenciNo: true, sinif: { select: { ad: true } } } }
+      },
+      orderBy: { sinav: { tarih: 'desc' } }
+    });
+
+    // Öğrenci bazlı grupla
+    const ogrenci1Sonuclari = sonuclar.filter(s => s.ogrenciId === ogrenciId1);
+    const ogrenci2Sonuclari = sonuclar.filter(s => s.ogrenciId === ogrenciId2);
+
+    // Karşılaştırma istatistikleri
+    const karsilastirma = {
+      ogrenci1: {
+        bilgi: ogrenci1Sonuclari[0]?.ogrenci || null,
+        ortalamaNeti: ogrenci1Sonuclari.length > 0 
+          ? Math.round((ogrenci1Sonuclari.reduce((sum, s) => sum + s.toplamNet, 0) / ogrenci1Sonuclari.length) * 100) / 100
+          : 0,
+        enYuksekNet: ogrenci1Sonuclari.length > 0 
+          ? Math.max(...ogrenci1Sonuclari.map(s => s.toplamNet))
+          : 0,
+        denemeSayisi: ogrenci1Sonuclari.length,
+        sonuclar: ogrenci1Sonuclari.map(s => ({
+          sinavAd: s.sinav.ad,
+          tarih: s.sinav.tarih,
+          toplamNet: s.toplamNet,
+          genelSiralama: s.genelSiralama,
+          branslar: JSON.parse(s.branslarVeSonuclar)
+        }))
+      },
+      ogrenci2: {
+        bilgi: ogrenci2Sonuclari[0]?.ogrenci || null,
+        ortalamaNeti: ogrenci2Sonuclari.length > 0 
+          ? Math.round((ogrenci2Sonuclari.reduce((sum, s) => sum + s.toplamNet, 0) / ogrenci2Sonuclari.length) * 100) / 100
+          : 0,
+        enYuksekNet: ogrenci2Sonuclari.length > 0 
+          ? Math.max(...ogrenci2Sonuclari.map(s => s.toplamNet))
+          : 0,
+        denemeSayisi: ogrenci2Sonuclari.length,
+        sonuclar: ogrenci2Sonuclari.map(s => ({
+          sinavAd: s.sinav.ad,
+          tarih: s.sinav.tarih,
+          toplamNet: s.toplamNet,
+          genelSiralama: s.genelSiralama,
+          branslar: JSON.parse(s.branslarVeSonuclar)
+        }))
+      },
+      // Ortak sınavlardaki karşılaştırma
+      ortakSinavlar: [] as any[]
+    };
+
+    // Ortak sınavları bul
+    const ogrenci1SinavIds = new Set(ogrenci1Sonuclari.map(s => s.sinavId));
+    const ogrenci2SinavIds = new Set(ogrenci2Sonuclari.map(s => s.sinavId));
+    const ortakSinavIds = [...ogrenci1SinavIds].filter(id => ogrenci2SinavIds.has(id));
+
+    for (const sId of ortakSinavIds) {
+      const sonuc1 = ogrenci1Sonuclari.find(s => s.sinavId === sId);
+      const sonuc2 = ogrenci2Sonuclari.find(s => s.sinavId === sId);
+      
+      if (sonuc1 && sonuc2) {
+        karsilastirma.ortakSinavlar.push({
+          sinavId: sId,
+          sinavAd: sonuc1.sinav.ad,
+          tarih: sonuc1.sinav.tarih,
+          ogrenci1Net: sonuc1.toplamNet,
+          ogrenci2Net: sonuc2.toplamNet,
+          fark: Math.round((sonuc1.toplamNet - sonuc2.toplamNet) * 100) / 100
+        });
+      }
+    }
+
+    res.json({ success: true, data: karsilastirma });
+  } catch (error) {
+    console.error('Karşılaştırma hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+// Branş bazlı detaylı analiz
+export const getBransDetayAnaliz = async (req: AuthRequest, res: Response) => {
+  try {
+    const { ogrenciId, tur, brans } = req.query;
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
+
+    const targetOgrenciId = userRole === 'ogrenci' ? userId : (ogrenciId as string);
+
+    if (!targetOgrenciId) {
+      return res.status(400).json({ success: false, message: 'Öğrenci ID gerekli' });
+    }
+
+    const where: any = { ogrenciId: targetOgrenciId };
+    if (tur) {
+      where.sinav = { tur };
+    }
+
+    const sonuclar = await prisma.denemeSonucu.findMany({
+      where,
+      include: {
+        sinav: { select: { id: true, ad: true, tur: true, tarih: true, branslarVeSoruSayilari: true } }
+      },
+      orderBy: { sinav: { tarih: 'asc' } }
+    });
+
+    // Branş bazlı trend analizi
+    const bransAnalizleri: Record<string, any> = {};
+
+    for (const sonuc of sonuclar) {
+      const branslarVeSonuclar = JSON.parse(sonuc.branslarVeSonuclar);
+      
+      for (const [bransAdi, data] of Object.entries(branslarVeSonuclar as Record<string, any>)) {
+        if (brans && bransAdi !== brans) continue;
+
+        if (!bransAnalizleri[bransAdi]) {
+          bransAnalizleri[bransAdi] = {
+            ad: bransAdi,
+            trend: [],
+            ortalamaDogru: 0,
+            ortalamaYanlis: 0,
+            ortalamaNet: 0,
+            enYuksekNet: 0,
+            enDusukNet: Infinity,
+            toplamSinav: 0
+          };
+        }
+
+        const analiz = bransAnalizleri[bransAdi];
+        analiz.trend.push({
+          tarih: sonuc.sinav.tarih,
+          sinavAd: sonuc.sinav.ad,
+          dogru: data.dogru,
+          yanlis: data.yanlis,
+          bos: data.bos,
+          net: data.net
+        });
+
+        analiz.ortalamaDogru += data.dogru;
+        analiz.ortalamaYanlis += data.yanlis;
+        analiz.ortalamaNet += data.net;
+        analiz.enYuksekNet = Math.max(analiz.enYuksekNet, data.net);
+        analiz.enDusukNet = Math.min(analiz.enDusukNet, data.net);
+        analiz.toplamSinav++;
+      }
+    }
+
+    // Ortalamaları hesapla
+    for (const bransAdi of Object.keys(bransAnalizleri)) {
+      const analiz = bransAnalizleri[bransAdi];
+      if (analiz.toplamSinav > 0) {
+        analiz.ortalamaDogru = Math.round((analiz.ortalamaDogru / analiz.toplamSinav) * 100) / 100;
+        analiz.ortalamaYanlis = Math.round((analiz.ortalamaYanlis / analiz.toplamSinav) * 100) / 100;
+        analiz.ortalamaNet = Math.round((analiz.ortalamaNet / analiz.toplamSinav) * 100) / 100;
+      }
+      if (analiz.enDusukNet === Infinity) analiz.enDusukNet = 0;
+    }
+
+    res.json({ success: true, data: Object.values(bransAnalizleri) });
+  } catch (error) {
+    console.error('Branş analiz hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+// ==================== EXCEL EXPORT ====================
+
+// Deneme sonuçlarını Excel formatında export et
+export const exportToExcel = async (req: AuthRequest, res: Response) => {
+  try {
+    const { sinavId } = req.params;
+
+    const sinav = await prisma.denemeSinavi.findUnique({
+      where: { id: sinavId },
+      include: {
+        sonuclar: {
+          include: {
+            ogrenci: {
+              select: { 
+                ad: true, 
+                soyad: true, 
+                ogrenciNo: true,
+                sinif: { select: { ad: true } }
+              }
+            }
+          },
+          orderBy: { toplamNet: 'desc' }
+        }
+      }
+    });
+
+    if (!sinav) {
+      return res.status(404).json({ success: false, message: 'Sınav bulunamadı' });
+    }
+
+    const branslar = JSON.parse(sinav.branslarVeSoruSayilari);
+    const bransAdlari = Object.keys(branslar);
+
+    // CSV formatında export (Excel uyumlu)
+    let csvContent = '\uFEFF'; // BOM for UTF-8
+    
+    // Header
+    const headers = [
+      'Sıra',
+      'Öğrenci No',
+      'Ad Soyad',
+      'Sınıf',
+      ...bransAdlari.flatMap(b => [`${b} D`, `${b} Y`, `${b} B`, `${b} Net`]),
+      'Toplam Doğru',
+      'Toplam Yanlış',
+      'Toplam Boş',
+      'Toplam Net',
+      'Sınıf Sırası',
+      'Genel Sıralama'
+    ];
+    csvContent += headers.join(';') + '\n';
+
+    // Data rows
+    sinav.sonuclar.forEach((sonuc, index) => {
+      const branslarVeSonuclar = JSON.parse(sonuc.branslarVeSonuclar);
+      
+      const row = [
+        index + 1,
+        sonuc.ogrenci.ogrenciNo || '-',
+        `${sonuc.ogrenci.ad} ${sonuc.ogrenci.soyad}`,
+        sonuc.ogrenci.sinif?.ad || '-'
+      ];
+
+      // Branş sonuçları
+      for (const bransAdi of bransAdlari) {
+        const bransSonuc = branslarVeSonuclar[bransAdi] || { dogru: 0, yanlis: 0, bos: 0, net: 0 };
+        row.push(bransSonuc.dogru, bransSonuc.yanlis, bransSonuc.bos, bransSonuc.net);
+      }
+
+      // Toplam sonuçlar
+      row.push(
+        sonuc.toplamDogru,
+        sonuc.toplamYanlis,
+        sonuc.toplamBos,
+        sonuc.toplamNet,
+        sonuc.sinifSirasi || '-',
+        sonuc.genelSiralama || '-'
+      );
+
+      csvContent += row.join(';') + '\n';
+    });
+
+    // Response
+    const fileName = `${sinav.ad.replace(/[^a-zA-Z0-9]/g, '_')}_sonuclari.csv`;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.send(csvContent);
+
+  } catch (error) {
+    console.error('Excel export hatası:', error);
     res.status(500).json({ success: false, message: 'Sunucu hatası' });
   }
 };

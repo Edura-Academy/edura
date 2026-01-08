@@ -52,7 +52,7 @@ export default function CocukDevamsizlik() {
   const fetchDevamsizlik = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/veli/cocuk/${cocukId}/devamsizlik`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/veli/cocuk/${cocukId}/devamsizlik`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

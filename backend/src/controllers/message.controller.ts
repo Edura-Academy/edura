@@ -3,6 +3,7 @@ import prisma from '../lib/prisma';
 import { AuthRequest } from '../types';
 import { ConversationType } from '@prisma/client';
 import { pushService } from '../services/push.service';
+import { socketService, SocketEvents } from '../services/socket.service';
 
 // Kullanıcının tüm konuşmalarını getir
 export const getConversations = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -85,7 +86,7 @@ export const getConversations = async (req: AuthRequest, res: Response): Promise
             rol: u.user.role,
             brans: u.user.brans,
             grupRol: u.rolAd,
-            online: false // TODO: Online durumu için ayrı bir sistem gerekli
+            online: socketService.isUserOnline(u.user.id) // 🔌 Real-time online durumu
           })),
           sabitle: member?.sabitle || false,
           seslesiz: member?.seslesiz || false,
@@ -296,6 +297,15 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
       }).catch(err => console.error('Push notification hatası:', err));
     }
 
+    // 🔌 WebSocket: Real-time mesaj gönder
+    socketService.sendNewMessage(conversationId, {
+      id: message.id,
+      gonderenId: message.gonderenId,
+      gonderenAd: message.gonderen.ad + ' ' + message.gonderen.soyad,
+      icerik: message.icerik,
+      createdAt: message.createdAt,
+    });
+
     res.status(201).json({
       success: true,
       data: {
@@ -490,7 +500,8 @@ export const getAvailableUsers = async (req: AuthRequest, res: Response): Promis
   try {
     const userId = req.user?.id;
     const kursId = req.user?.kursId;
-    const { search, type } = req.query;
+    const userSinifId = req.user?.sinifId;
+    const { search, type, grouped, limit } = req.query;
 
     if (!userId) {
       res.status(401).json({ success: false, error: 'Yetkilendirme gerekli' });
@@ -523,6 +534,9 @@ export const getAvailableUsers = async (req: AuthRequest, res: Response): Promis
       ];
     }
 
+    // Limit varsa kullan, yoksa tüm kullanıcıları getir (max 200)
+    const takeLimit = limit ? Math.min(parseInt(limit as string), 200) : 200;
+
     const users = await prisma.user.findMany({
       where: whereClause,
       select: {
@@ -531,18 +545,79 @@ export const getAvailableUsers = async (req: AuthRequest, res: Response): Promis
         soyad: true,
         role: true,
         brans: true,
+        sinifId: true,
         sinif: {
           select: {
-            ad: true
+            id: true,
+            ad: true,
+            seviye: true
           }
+        },
+        dersKayitlari: {
+          select: {
+            course: {
+              select: {
+                ad: true
+              }
+            }
+          },
+          take: 5
         }
       },
-      take: 20,
+      take: takeLimit,
       orderBy: [
-        { role: 'asc' },
+        { sinifId: 'asc' },
         { ad: 'asc' }
       ]
     });
+
+    // Gruplanmış sonuç isteniyorsa
+    if (grouped === 'true') {
+      // Sınıf bazlı gruplama
+      const groupedData: Record<string, any[]> = {
+        'Sınıf Arkadaşlarım': [],
+        'Diğer Sınıflar': [],
+        'Öğretmenler': [],
+        'Personel': []
+      };
+
+      users.forEach(u => {
+        const userData = {
+          id: u.id,
+          ad: u.ad,
+          soyad: u.soyad,
+          rol: u.role,
+          brans: u.brans,
+          sinif: u.sinif?.ad,
+          sinifId: u.sinifId,
+          sinifSeviye: u.sinif?.seviye,
+          dersler: u.dersKayitlari?.map(dk => dk.course.ad) || []
+        };
+
+        if (u.role === 'ogretmen') {
+          groupedData['Öğretmenler'].push(userData);
+        } else if (u.role === 'mudur' || u.role === 'sekreter') {
+          groupedData['Personel'].push(userData);
+        } else if (u.sinifId === userSinifId) {
+          groupedData['Sınıf Arkadaşlarım'].push(userData);
+        } else {
+          groupedData['Diğer Sınıflar'].push(userData);
+        }
+      });
+
+      // Boş grupları filtrele
+      const filteredGroups = Object.fromEntries(
+        Object.entries(groupedData).filter(([_, arr]) => arr.length > 0)
+      );
+
+      res.json({
+        success: true,
+        grouped: true,
+        data: filteredGroups,
+        total: users.length
+      });
+      return;
+    }
 
     res.json({
       success: true,
@@ -553,11 +628,145 @@ export const getAvailableUsers = async (req: AuthRequest, res: Response): Promis
         rol: u.role,
         brans: u.brans,
         sinif: u.sinif?.ad,
-      }))
+        sinifId: u.sinifId,
+        sinifSeviye: u.sinif?.seviye,
+        dersler: u.dersKayitlari?.map(dk => dk.course.ad) || []
+      })),
+      total: users.length
     });
   } catch (error) {
     console.error('Get available users error:', error);
     res.status(500).json({ success: false, error: 'Kullanıcılar alınamadı' });
+  }
+};
+
+// Sınıf arkadaşlarını getir (tümünü - limit yok)
+export const getClassmates = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const kursId = req.user?.kursId;
+    const userSinifId = req.user?.sinifId;
+    const { search, sinifId } = req.query;
+
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Yetkilendirme gerekli' });
+      return;
+    }
+
+    // Hangi sınıfın arkadaşlarını getireceğimizi belirle
+    const targetSinifId = sinifId || userSinifId;
+
+    let whereClause: any = {
+      id: { not: userId },
+      aktif: true,
+      role: 'ogrenci',
+    };
+
+    // Kurs bazlı filtreleme
+    if (kursId) {
+      whereClause.kursId = kursId;
+    }
+
+    // Sınıf bazlı filtreleme (opsiyonel)
+    if (targetSinifId) {
+      whereClause.sinifId = targetSinifId;
+    }
+
+    // Arama
+    if (search) {
+      whereClause.OR = [
+        { ad: { contains: search as string } },
+        { soyad: { contains: search as string } },
+      ];
+    }
+
+    const classmates = await prisma.user.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        ad: true,
+        soyad: true,
+        role: true,
+        sinifId: true,
+        sinif: {
+          select: {
+            id: true,
+            ad: true,
+            seviye: true
+          }
+        },
+        dersKayitlari: {
+          select: {
+            course: {
+              select: {
+                id: true,
+                ad: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: [
+        { ad: 'asc' },
+        { soyad: 'asc' }
+      ]
+    });
+
+    // Sınıf bazlı gruplama
+    const groupedByClass: Record<string, any[]> = {};
+    
+    classmates.forEach(student => {
+      const className = student.sinif?.ad || 'Sınıfsız';
+      if (!groupedByClass[className]) {
+        groupedByClass[className] = [];
+      }
+      
+      groupedByClass[className].push({
+        id: student.id,
+        ad: student.ad,
+        soyad: student.soyad,
+        sinif: student.sinif?.ad,
+        sinifId: student.sinifId,
+        sinifSeviye: student.sinif?.seviye,
+        dersler: student.dersKayitlari?.map(dk => ({
+          id: dk.course.id,
+          ad: dk.course.ad
+        })) || []
+      });
+    });
+
+    // Aynı sınıftaki arkadaşları öne al
+    const sortedGroups: Record<string, any[]> = {};
+    
+    // Önce kullanıcının kendi sınıfı
+    if (userSinifId) {
+      const userClass = await prisma.sinif.findUnique({
+        where: { id: userSinifId },
+        select: { ad: true }
+      });
+      if (userClass && groupedByClass[userClass.ad]) {
+        sortedGroups[userClass.ad] = groupedByClass[userClass.ad];
+      }
+    }
+    
+    // Sonra diğer sınıflar
+    Object.keys(groupedByClass)
+      .sort()
+      .forEach(className => {
+        if (!sortedGroups[className]) {
+          sortedGroups[className] = groupedByClass[className];
+        }
+      });
+
+    res.json({
+      success: true,
+      data: sortedGroups,
+      total: classmates.length,
+      userSinifId
+    });
+  } catch (error) {
+    console.error('Get classmates error:', error);
+    res.status(500).json({ success: false, error: 'Sınıf arkadaşları alınamadı' });
   }
 };
 

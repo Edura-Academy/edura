@@ -1,0 +1,906 @@
+{
+  "common": {
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "add": "إضافة",
+    "search": "بحث",
+    "loading": "جارٍ التحميل...",
+    "error": "خطأ",
+    "success": "نجاح",
+    "close": "إغلاق",
+    "back": "رجوع",
+    "next": "التالي",
+    "yes": "نعم",
+    "no": "لا",
+    "active": "نشط",
+    "passive": "غير نشط",
+    "all": "الكل",
+    "view": "عرض",
+    "details": "التفاصيل"
+  },
+  "auth": {
+    "login": "تسجيل الدخول",
+    "logout": "تسجيل الخروج",
+    "username": "اسم المستخدم",
+    "password": "كلمة المرور",
+    "email": "البريد الإلكتروني",
+    "forgotPassword": "نسيت كلمة المرور",
+    "changePassword": "تغيير كلمة المرور",
+    "currentPassword": "كلمة المرور الحالية",
+    "newPassword": "كلمة المرور الجديدة",
+    "confirmPassword": "تأكيد كلمة المرور",
+    "rememberMe": "تذكرني",
+    "courseTrackingSystem": "نظام تتبع الدورات",
+    "userType": "نوع المستخدم",
+    "staff": "الموظفون",
+    "student": "الطالب",
+    "staffLoginDesc": "تسجيل دخول الدورة، المدير، المعلم، السكرتير",
+    "studentLoginDesc": "تسجيل دخول الطالب",
+    "enterUsername": "أدخل اسم المستخدم",
+    "enterPassword": "أدخل كلمة المرور",
+    "logging": "جارٍ تسجيل الدخول...",
+    "invalidCredentials": "اسم المستخدم أو كلمة المرور غير صحيحة",
+    "connectionError": "خطأ في الاتصال. هل الخادم يعمل؟",
+    "copyright": "© 2025 أكاديمية إيدورا. جميع الحقوق محفوظة.",
+    "testLogin": "تسجيل دخول تجريبي",
+    "selectUser": "بأي مستخدم تريد تسجيل الدخول؟",
+    "cancel": "إلغاء"
+  },
+  "admin": {
+    "title": "لوحة الإدارة",
+    "welcome": "مرحباً",
+    "systemAdmin": "مدير النظام",
+    "dashboard": "لوحة التحكم",
+    "courses": "الدورات",
+    "users": "المستخدمون",
+    "reports": "التقارير",
+    "settings": "الإعدادات",
+    "newCourse": "إضافة دورة جديدة",
+    "addUser": "إضافة مستخدم",
+    "registeredCourses": "الدورات المسجلة",
+    "totalStudents": "إجمالي الطلاب",
+    "totalTeachers": "إجمالي المعلمين",
+    "totalManagers": "إجمالي المديرين",
+    "systemDescription": "بصفتك مدير النظام، لديك حق الوصول إلى جميع الدورات."
+  },
+  "profile": {
+    "editProfile": "تعديل الملف الشخصي",
+    "accountSettings": "إعدادات الحساب",
+    "profilePhoto": "صورة الملف الشخصي",
+    "firstName": "الاسم الأول",
+    "lastName": "اسم العائلة",
+    "removePhoto": "إزالة الصورة",
+    "photoHint": "JPG أو PNG. الحد الأقصى 2 ميجابايت"
+  },
+  "notifications": {
+    "title": "الإشعارات",
+    "markAllRead": "تحديد الكل كمقروء",
+    "viewAll": "عرض جميع الإشعارات",
+    "newCourseRegistration": "تسجيل دورة جديدة",
+    "passwordChanged": "تم تغيير كلمة المرور",
+    "systemUpdate": "تم تحديث النظام",
+    "newManager": "تمت إضافة مدير جديد"
+  },
+  "messages": {
+    "title": "الرسائل",
+    "newMessage": "رسالة جديدة",
+    "viewAll": "عرض جميع الرسائل"
+  },
+  "language": {
+    "title": "اللغة",
+    "turkish": "Türkçe",
+    "english": "English",
+    "german": "Deutsch",
+    "arabic": "العربية",
+    "french": "Français",
+    "spanish": "Español"
+  },
+  "courses": {
+    "courseName": "اسم الدورة",
+    "address": "العنوان",
+    "phone": "الهاتف",
+    "status": "الحالة",
+    "actions": "الإجراءات",
+    "createCourse": "إنشاء دورة",
+    "updateCourse": "تحديث الدورة",
+    "courseDetails": "تفاصيل الدورة",
+    "statistics": "الإحصائيات",
+    "students": "الطلاب",
+    "teachers": "المعلمون",
+    "classes": "الفصول",
+    "managers": "المديرون",
+    "secretaries": "السكرتارية"
+  },
+  "users": {
+    "userType": "نوع المستخدم",
+    "manager": "مدير",
+    "teacher": "معلم",
+    "secretary": "سكرتير",
+    "student": "طالب",
+    "branch": "الفرع",
+    "educationCoach": "مدرب تعليمي",
+    "createUser": "إنشاء مستخدم",
+    "selectCourse": "اختر الدورة",
+    "selectBranch": "اختر الفرع"
+  },
+  "settings": {
+    "changeEmail": "تغيير البريد الإلكتروني",
+    "changePassword": "تغيير كلمة المرور",
+    "deleteAccount": "حذف الحساب",
+    "currentEmail": "البريد الإلكتروني الحالي",
+    "newEmail": "البريد الإلكتروني الجديد",
+    "verifyPassword": "تأكيد كلمة المرور",
+    "updateEmail": "تحديث البريد الإلكتروني",
+    "updatePassword": "تحديث كلمة المرور",
+    "deleteWarning": "عند حذف حسابك، سيتم حذف جميع بياناتك بشكل دائم. لا يمكن التراجع عن هذا الإجراء.",
+    "deleteConfirmText": "لحذف حسابك نهائياً، اكتب حذف حسابي أدناه:",
+    "deleteConfirmPlaceholder": "حذف حسابي"
+  },
+  "time": {
+    "minutesAgo": "دقائق مضت",
+    "hoursAgo": "ساعات مضت",
+    "yesterday": "أمس",
+    "daysAgo": "أيام مضت"
+  },
+  "chatbot": {
+    "title": "مساعد إيدورا",
+    "placeholder": "اكتب رسالة...",
+    "voiceMode": "الوضع الصوتي",
+    "chatMode": "وضع الدردشة",
+    "listening": "جارٍ الاستماع...",
+    "speaking": "جارٍ التحدث...",
+    "stop": "إيقاف",
+    "send": "إرسال",
+    "welcome": "مرحباً! أنا مساعد إيدورا. كيف يمكنني مساعدتك؟",
+    "error": "حدث خطأ. يرجى المحاولة مرة أخرى.",
+    "connectionError": "خطأ في الاتصال. يرجى التحقق من اتصالك بالإنترنت."
+  },
+  "accessibility": {
+    "ttsEnabled": "تم تفعيل النطق",
+    "ttsDisabled": "تم تعطيل النطق",
+    "voiceAssistant": "المساعد الصوتي",
+    "microphoneButton": "زر الميكروفون. انقر أو اضغط Enter للتحدث.",
+    "assistantOpened": "تم فتح المساعد",
+    "assistantClosed": "تم إغلاق المساعد",
+    "voiceModeActivated": "تم تفعيل الوضع الصوتي. انقر على زر الميكروفون للتحدث.",
+    "chatModeActivated": "تم تفعيل وضع الدردشة.",
+    "noSpeechDetected": "لم يتم اكتشاف صوت. يرجى المحاولة مرة أخرى.",
+    "microphoneAccessDenied": "تم رفض الوصول إلى الميكروفون.",
+    "browserNotSupported": "متصفحك لا يدعم التعرف على الصوت.",
+    "networkError": "خطأ في الشبكة. يرجى التحقق من اتصالك بالإنترنت."
+  },
+  "manager": {
+    "panel": "لوحة المدير",
+    "institutionManager": "مدير المؤسسة",
+    "menu": {
+      "homePage": "الصفحة الرئيسية",
+      "userManagement": "إدارة المستخدمين",
+      "classManagement": "إدارة الفصول",
+      "mockExams": "الاختبارات التجريبية",
+      "reports": "التقارير",
+      "announcements": "الإعلانات",
+      "messages": "الرسائل",
+      "systemAnnouncements": "إعلانات النظام",
+      "support": "طلب الدعم",
+      "helpCenter": "مركز المساعدة",
+      "new": "جديد"
+    },
+    "welcome": {
+      "title": "مرحباً، المدير {name}!",
+      "subtitle": "يمكنك متابعة الحالة العامة لمؤسستك من هنا."
+    },
+    "stats": {
+      "student": "طالب",
+      "teacher": "معلم",
+      "secretary": "سكرتير",
+      "class": "فصل",
+      "totalStudents": "إجمالي الطلاب",
+      "totalTeachers": "إجمالي المعلمين",
+      "totalSecretaries": "إجمالي السكرتارية",
+      "totalClasses": "إجمالي الفصول",
+      "activeStudents": "الطلاب النشطون في مؤسستك",
+      "activeTeachers": "المعلمون النشطون في مؤسستك",
+      "activeSecretaries": "السكرتارية النشطة في مؤسستك",
+      "activeClasses": "الفصول النشطة في مؤسستك"
+    },
+    "quickActions": {
+      "addTeacher": "إضافة معلم",
+      "newTeacher": "معلم جديد",
+      "addTeacherDesc": "انقر لإضافة معلم جديد إلى طاقمك",
+      "createClass": "إنشاء فصل",
+      "newClass": "فتح فصل جديد",
+      "createClassDesc": "انقر لإنشاء فصل جديد",
+      "mockExam": "اختبار تجريبي",
+      "createTytAyt": "إنشاء TYT/AYT",
+      "mockExamDesc": "انقر لإنشاء اختبار تجريبي TYT أو AYT",
+      "publishAnnouncement": "نشر إعلان",
+      "toAllStaff": "لجميع الموظفين",
+      "publishAnnouncementDesc": "انقر لإرسال إعلان لجميع الموظفين",
+      "reports": "التقارير",
+      "performanceAnalysis": "تحليل الأداء",
+      "reportsDesc": "انقر لعرض تحليل الأداء والتقارير"
+    },
+    "recentUsers": {
+      "title": "المستخدمون المضافون حديثاً",
+      "viewAll": "عرض الكل",
+      "noUsers": "لم تتم إضافة مستخدمين بعد",
+      "description": "قائمة المستخدمين المضافين حديثاً. انقر لعرض الكل."
+    },
+    "quickActionsPanel": {
+      "title": "الإجراءات السريعة",
+      "description": "لوحة الإجراءات السريعة. الوصول إلى الإجراءات المستخدمة بشكل متكرر هنا.",
+      "createMockExam": "إنشاء اختبار تجريبي",
+      "createMockExamDesc": "إضافة اختبار TYT أو AYT أو LGS",
+      "addNewTeacher": "إضافة معلم جديد",
+      "addNewTeacherDesc": "أضف معلماً جديداً إلى طاقمك",
+      "performanceReports": "تقارير الأداء",
+      "performanceReportsDesc": "تحليلات وإحصائيات مفصلة",
+      "publishAnnouncementDesc": "إرسال إعلان لجميع الموظفين"
+    },
+    "roles": {
+      "teacher": "معلم",
+      "secretary": "سكرتير",
+      "student": "طالب",
+      "parent": "ولي أمر"
+    },
+    "header": {
+      "search": "بحث...",
+      "mockExams": "الاختبارات التجريبية",
+      "accountSettings": "إعدادات الحساب",
+      "logout": "تسجيل الخروج"
+    },
+    "tts": {
+      "currentPage": "أنت في هذه الصفحة",
+      "goToPage": "الذهاب إلى الصفحة",
+      "welcomeMessage": "مرحباً المدير {name}! يمكنك متابعة الحالة العامة لمؤسستك من هذه اللوحة. يوجد {students} طالب، {teachers} معلم، {secretaries} سكرتير و {classes} فصل.",
+      "userInfo": "المستخدم {index}: {name}، الدور: {role}",
+      "addUserHint": "اذهب إلى صفحة إدارة المستخدمين لإضافة مستخدمين."
+    }
+  },
+  "parent": {
+    "panel": "لوحة ولي الأمر",
+    "role": "ولي أمر",
+    "welcome": {
+      "title": "مرحباً، {name}!",
+      "subtitle": "يمكنك متابعة المسيرة التعليمية لطفلك من هنا."
+    },
+    "childInfo": {
+      "title": "طفلي",
+      "myChildren": "أطفالي",
+      "class": "الصف",
+      "studentNo": "رقم الطالب",
+      "school": "المدرسة",
+      "viewDetails": "عرض التفاصيل",
+      "noChildren": "لا يوجد أطفال مسجلين"
+    },
+    "stats": {
+      "average": "المعدل",
+      "absences": "الغياب",
+      "pendingHomework": "الواجبات المعلقة",
+      "completedExams": "الاختبارات المكتملة",
+      "xp": "نقاط XP",
+      "badges": "الشارات"
+    },
+    "menu": {
+      "homePage": "الرئيسية",
+      "childProgress": "تقدم طفلي",
+      "examResults": "نتائج الاختبارات",
+      "homeworkStatus": "حالة الواجبات",
+      "attendance": "الحضور",
+      "payments": "المدفوعات",
+      "messages": "الرسائل",
+      "announcements": "الإعلانات",
+      "schedule": "الجدول الدراسي",
+      "teachers": "المعلمون",
+      "settings": "الإعدادات",
+      "compare": "مقارنة"
+    },
+    "childProgress": {
+      "title": "تقدم طفلي",
+      "lastMonth": "الشهر الماضي",
+      "generalAverage": "المعدل العام",
+      "examCount": "عدد الاختبارات",
+      "homeworkCompletion": "إنجاز الواجبات",
+      "attendanceRate": "نسبة الحضور"
+    },
+    "recentExams": {
+      "title": "نتائج الاختبارات الأخيرة",
+      "viewAll": "عرض الكل",
+      "noExams": "لا توجد نتائج اختبارات بعد"
+    },
+    "pendingHomework": {
+      "title": "الواجبات المعلقة",
+      "viewAll": "عرض الكل",
+      "noHomework": "لا توجد واجبات معلقة",
+      "deadline": "الموعد النهائي"
+    },
+    "payments": {
+      "title": "المدفوعات",
+      "totalDebt": "إجمالي الدين",
+      "paidAmount": "المدفوع",
+      "pendingAmount": "المعلق",
+      "overdueAmount": "المتأخر",
+      "pending": "دفعة معلقة",
+      "paid": "مدفوع",
+      "overdue": "متأخر",
+      "makePayment": "إجراء دفعة",
+      "payNow": "ادفع الآن",
+      "paymentHistory": "سجل المدفوعات",
+      "nextPayment": "الدفعة القادمة",
+      "upcoming": "قادم",
+      "paymentPlans": "خطط الدفع",
+      "history": "السجل",
+      "noPayments": "لا توجد سجلات دفع",
+      "progress": "تقدم الدفع",
+      "cardNumber": "رقم البطاقة",
+      "cardHolder": "حامل البطاقة",
+      "expiryDate": "تاريخ انتهاء الصلاحية",
+      "cvv": "CVV",
+      "secure3d": "الدفع مع 3D Secure",
+      "securityInfo": "معلومات الدفع الخاصة بك مشفرة بـ SSL 256 بت",
+      "processing": "جاري المعالجة..."
+    },
+    "teachers": {
+      "title": "المعلمون",
+      "sendMessage": "إرسال رسالة",
+      "viewProfile": "عرض الملف الشخصي",
+      "branch": "التخصص"
+    },
+    "notifications": {
+      "title": "الإشعارات",
+      "newExamResult": "نتيجة اختبار جديدة",
+      "homeworkDeadline": "اقتراب موعد الواجب",
+      "paymentReminder": "تذكير بالدفع",
+      "absenceAlert": "تنبيه الغياب",
+      "noNotifications": "لا توجد إشعارات",
+      "markAllRead": "تعليم الكل كمقروء"
+    },
+    "messages": {
+      "title": "الرسائل",
+      "newMessage": "رسالة جديدة",
+      "conversations": "المحادثات",
+      "searchConversations": "البحث في المحادثات...",
+      "typeMessage": "اكتب رسالتك...",
+      "send": "إرسال",
+      "noMessages": "لا توجد رسائل بعد",
+      "selectConversation": "اختر محادثة",
+      "startConversation": "اختر معلماً لبدء محادثة",
+      "selectTeacher": "اختر معلماً",
+      "online": "متصل",
+      "offline": "غير متصل",
+      "typing": "يكتب...",
+      "today": "اليوم",
+      "yesterday": "أمس"
+    },
+    "announcements": {
+      "title": "الإعلانات",
+      "search": "البحث في الإعلانات...",
+      "filter": "تصفية",
+      "category": "الفئة",
+      "priority": "الأولوية",
+      "allCategories": "جميع الفئات",
+      "allPriorities": "جميع الأولويات",
+      "clearFilters": "مسح الفلاتر",
+      "pinned": "مثبت",
+      "noAnnouncements": "لا توجد إعلانات بعد",
+      "noResults": "لم يتم العثور على نتائج",
+      "categories": {
+        "general": "عام",
+        "education": "تعليم",
+        "payment": "دفع",
+        "event": "فعالية",
+        "meeting": "اجتماع",
+        "other": "أخرى"
+      },
+      "priorities": {
+        "low": "منخفضة",
+        "normal": "عادية",
+        "high": "عالية",
+        "urgent": "عاجلة"
+      }
+    },
+    "examResults": {
+      "title": "نتائج الاختبارات",
+      "selectChild": "اختر طفلاً",
+      "examType": "نوع الاختبار",
+      "allTypes": "جميع الأنواع",
+      "totalExams": "إجمالي الاختبارات",
+      "averageNet": "المعدل الصافي",
+      "highestNet": "أعلى درجة",
+      "lastChange": "آخر تغيير",
+      "weakSubjects": "المواد الضعيفة",
+      "weakSubjectsWarning": "يحتاج مزيداً من الممارسة في هذه المواد",
+      "detailedResults": "نتائج مفصلة",
+      "subjectPerformance": "الأداء حسب المادة",
+      "developmentTrend": "اتجاه التطور",
+      "noResults": "لا توجد نتائج اختبارات بعد",
+      "correct": "صحيح",
+      "wrong": "خطأ",
+      "empty": "فارغ",
+      "net": "صافي",
+      "date": "التاريخ",
+      "examName": "اسم الاختبار"
+    },
+    "compare": {
+      "title": "مقارنة الأطفال",
+      "performance": "الأداء",
+      "generalPerformance": "الأداء العام",
+      "ranking": "الترتيب",
+      "detailedComparison": "مقارنة مفصلة",
+      "selectMetric": "اختر مقياساً",
+      "metrics": {
+        "examAverage": "معدل الاختبارات",
+        "homeworkRate": "نسبة تسليم الواجبات",
+        "homeworkScore": "درجة الواجبات",
+        "classParticipation": "المشاركة الصفية",
+        "absences": "الغياب"
+      },
+      "bestPerformance": "أفضل أداء",
+      "comparisonTable": "جدول المقارنة",
+      "evaluations": {
+        "excellent": "ممتاز",
+        "veryGood": "جيد جداً",
+        "good": "جيد",
+        "medium": "متوسط",
+        "needsImprovement": "يحتاج تحسين",
+        "attention": "انتباه!"
+      },
+      "singleChildView": "لا يمكن المقارنة مع طفل واحد فقط",
+      "viewDetails": "عرض التفاصيل"
+    },
+    "settings": {
+      "title": "إعدادات الحساب",
+      "subtitle": "إدارة إعدادات الملف الشخصي والأمان وإمكانية الوصول",
+      "tabs": {
+        "profile": "الملف الشخصي",
+        "security": "الأمان",
+        "notifications": "الإشعارات",
+        "accessibility": "إمكانية الوصول"
+      },
+      "profile": {
+        "title": "معلومات الملف الشخصي",
+        "photo": "صورة الملف الشخصي",
+        "uploadPhoto": "رفع صورة جديدة",
+        "deletePhoto": "حذف الصورة",
+        "photoFormats": "الصيغ المدعومة: JPG، PNG، WebP (حد أقصى 8 ميغابايت)",
+        "firstName": "الاسم الأول",
+        "lastName": "اسم العائلة",
+        "email": "البريد الإلكتروني",
+        "emailReadonly": "اتصل بالمسؤول لتغيير البريد الإلكتروني",
+        "phone": "الهاتف",
+        "saveChanges": "حفظ التغييرات",
+        "saving": "جاري الحفظ...",
+        "updateSuccess": "تم تحديث الملف الشخصي بنجاح!",
+        "photoUploadSuccess": "تم رفع صورة الملف الشخصي بنجاح!",
+        "photoDeleteSuccess": "تم حذف صورة الملف الشخصي!"
+      },
+      "security": {
+        "title": "تغيير كلمة المرور",
+        "currentPassword": "كلمة المرور الحالية",
+        "newPassword": "كلمة المرور الجديدة",
+        "confirmPassword": "تأكيد كلمة المرور الجديدة",
+        "passwordHint": "6 أحرف على الأقل، أحرف كبيرة/صغيرة وأرقام مطلوبة",
+        "passwordStrength": {
+          "veryWeak": "ضعيفة جداً",
+          "weak": "ضعيفة",
+          "medium": "متوسطة",
+          "strong": "قوية"
+        },
+        "passwordsMatch": "كلمات المرور متطابقة",
+        "passwordsDontMatch": "كلمات المرور غير متطابقة",
+        "changePassword": "تغيير كلمة المرور",
+        "changing": "جاري التغيير...",
+        "changeSuccess": "تم تغيير كلمة المرور بنجاح!"
+      },
+      "notifications": {
+        "title": "تفضيلات الإشعارات",
+        "emailNotifications": "إشعارات البريد الإلكتروني",
+        "emailDesc": "تلقي رسائل للتحديثات المهمة",
+        "pushNotifications": "الإشعارات الفورية",
+        "pushDesc": "إشعارات المتصفح",
+        "permissionGranted": "تم منح الإذن",
+        "permissionDenied": "تم رفض الإذن",
+        "grantPermission": "منح الإذن",
+        "categories": "فئات الإشعارات",
+        "homeworkNotif": "إشعارات الواجبات",
+        "homeworkNotifDesc": "حول واجبات طفلك",
+        "absenceNotif": "إشعارات الغياب",
+        "absenceNotifDesc": "سجلات الغياب",
+        "examNotif": "نتائج الاختبارات",
+        "examNotifDesc": "نتائج الاختبارات والامتحانات",
+        "messageNotif": "إشعارات الرسائل",
+        "messageNotifDesc": "رسائل من المعلمين",
+        "announcementNotif": "إشعارات الإعلانات",
+        "announcementNotifDesc": "إعلانات المؤسسة",
+        "saveSettings": "حفظ الإعدادات",
+        "updateSuccess": "تم تحديث إعدادات الإشعارات!"
+      },
+      "accessibility": {
+        "title": "إمكانية الوصول",
+        "resetSettings": "إعادة التعيين للافتراضي",
+        "resetSuccess": "تمت إعادة تعيين الإعدادات للافتراضي"
+      }
+    },
+    "childDetails": {
+      "grades": "الدرجات",
+      "attendance": "الحضور",
+      "homework": "الواجبات",
+      "teachers": "المعلمون",
+      "schedule": "الجدول",
+      "noData": "لم يتم العثور على بيانات"
+    },
+    "quickAccess": {
+      "title": "قائمة الوصول السريع"
+    },
+    "header": {
+      "accountSettings": "إعدادات الحساب",
+      "logout": "تسجيل الخروج"
+    },
+    "tts": {
+      "currentPage": "أنت حالياً في هذه الصفحة",
+      "goToPage": "انقر للذهاب إلى الصفحة",
+      "welcomeMessage": "مرحباً، {name}. يمكنك متابعة الحالة الأكاديمية لأطفالك من هنا.",
+      "childCard": "{name}. الصف: {class}. الغياب: {absences} أيام. المعدل: {average}. الواجبات المعلقة: {homework}.",
+      "viewGrades": "عرض درجات",
+      "viewAttendance": "عرض معلومات الحضور والغياب لـ",
+      "viewHomework": "عرض واجبات",
+      "notification": "إشعار: {title}. {message}",
+      "announcement": "إعلان: {title}. {priority}",
+      "profileMenu": "قائمة الملف الشخصي. انقر لفتح القائمة",
+      "logoutButton": "تسجيل الخروج. انقر لتسجيل الخروج",
+      "settingsLink": "إعدادات الحساب. انقر للذهاب إلى الإعدادات",
+      "notificationsButton": "الإشعارات",
+      "messagesButton": "الرسائل. انقر لعرض رسائلك",
+      "newMessageButton": "رسالة جديدة. انقر لإرسال رسالة للمعلمين",
+      "payNowButton": "ادفع الآن. انقر للدفع",
+      "examResult": "الاختبار: {name}. الصافي: {net}. صحيح: {correct}. خطأ: {wrong}",
+      "compareChild": "{name}. الأداء العام: {performance} نقطة",
+      "userInfo": "المستخدم المتصل: {name}. ولي أمر."
+    }
+  },
+  "student": {
+    "panel": "لوحة الطالب",
+    "welcome": {
+      "title": "مرحباً، {name}!",
+      "subtitle": "كيف حالك اليوم؟ إنجازات جديدة تنتظرك!"
+    },
+    "stats": {
+      "lessonCount": "عدد الدروس",
+      "absences": "الغياب",
+      "average": "المعدل",
+      "examCount": "عدد الاختبارات"
+    },
+    "menu": {
+      "homePage": "الرئيسية",
+      "homework": "الواجبات",
+      "exams": "الاختبارات",
+      "liveClass": "درس مباشر",
+      "materials": "المواد",
+      "achievements": "الإنجازات",
+      "schedule": "الجدول",
+      "progress": "التقدم",
+      "attendance": "الحضور",
+      "messages": "الرسائل",
+      "announcements": "الإعلانات",
+      "mockExams": "الاختبارات التجريبية"
+    },
+    "academicProgress": {
+      "title": "التقدم الأكاديمي",
+      "lastWeeks": "آخر 4 أسابيع",
+      "generalAverage": "المعدل العام",
+      "solvedExams": "الاختبارات المحلولة",
+      "submittedHomework": "الواجبات المسلمة",
+      "attendanceRate": "معدل الحضور",
+      "examTrend": "اتجاه الأداء",
+      "subjectSuccess": "النجاح حسب المادة",
+      "weeklyActivity": "النشاط الأسبوعي",
+      "week": "أسبوع",
+      "exam": "اختبار",
+      "homework": "واجب"
+    },
+    "mockExams": {
+      "title": "الاختبارات التجريبية",
+      "count": "{count} اختبار",
+      "correct": "ص",
+      "wrong": "خ",
+      "empty": "ف",
+      "noResults": "لا توجد نتائج اختبارات بعد",
+      "noResultsDesc": "ستظهر النتائج هنا بعد أول اختبار لك!"
+    },
+    "weeklySchedule": {
+      "title": "الجدول الأسبوعي",
+      "yourSchedule": "جدولك",
+      "empty": "فارغ",
+      "days": {
+        "monday": "الإثنين",
+        "tuesday": "الثلاثاء",
+        "wednesday": "الأربعاء",
+        "thursday": "الخميس",
+        "friday": "الجمعة",
+        "saturday": "السبت",
+        "sunday": "الأحد"
+      }
+    },
+    "teachers": {
+      "title": "معلموني",
+      "count": "{count} معلم",
+      "sendMessage": "إرسال رسالة",
+      "noTeachers": "لا يوجد معلمون مسجلون"
+    },
+    "dailyQuestion": {
+      "title": "سؤال اليوم",
+      "dailyChallenge": "تحدي يومي",
+      "preparing": "جاري تحضير السؤال...",
+      "newQuestionsDaily": "أسئلة جديدة كل يوم!",
+      "correct": "صحيح",
+      "wrong": "خطأ",
+      "submitAnswer": "إرسال الإجابة",
+      "showHint": "عرض تلميح",
+      "hintWarning": "(XP مخفض للنصف)",
+      "congratulations": "تهانينا!",
+      "earnedXP": "+{xp} XP مكتسب!",
+      "wrongAnswer": "إجابة خاطئة!",
+      "explanation": "الشرح"
+    },
+    "gamification": {
+      "level": "المستوى",
+      "totalXP": "XP الإجمالي",
+      "streak": "سلسلة",
+      "days": "أيام",
+      "highestStreak": "أعلى سلسلة",
+      "levels": {
+        "beginner": "مبتدئ",
+        "apprentice": "متدرب",
+        "master": "ماهر",
+        "expert": "خبير",
+        "legend": "أسطورة"
+      }
+    },
+    "profile": {
+      "editProfile": "تعديل الملف الشخصي",
+      "updateInfo": "تحديث المعلومات",
+      "profilePhoto": "صورة الملف الشخصي",
+      "photoFormats": "JPG أو PNG أو GIF (حد أقصى 5MB)",
+      "changePhoto": "تغيير",
+      "firstName": "الاسم الأول",
+      "lastName": "اسم العائلة",
+      "email": "البريد الإلكتروني",
+      "emailCantChange": "لا يمكن تغيير البريد الإلكتروني",
+      "phone": "الهاتف",
+      "class": "الصف",
+      "studentNo": "رقم الطالب",
+      "saving": "جاري الحفظ...",
+      "profileUpdated": "تم تحديث الملف الشخصي بنجاح!",
+      "updateFailed": "فشل تحديث الملف الشخصي."
+    },
+    "notifications": {
+      "title": "الإشعارات",
+      "noNotifications": "لا توجد إشعارات"
+    },
+    "header": {
+      "accountSettings": "إعدادات الحساب",
+      "logout": "تسجيل الخروج"
+    },
+    "activeExams": {
+      "title": "الاختبارات المباشرة النشطة",
+      "waiting": "{count} اختبارات تنتظرك!",
+      "viewAll": "عرض الكل",
+      "duration": "دقيقة",
+      "questions": "أسئلة"
+    }
+  },
+  "teacher": {
+    "panel": "لوحة المعلم",
+    "welcome": {
+      "title": "مرحباً، الأستاذ {name}!",
+      "subtitle": "يمكنك إدارة دروسك وطلابك من هنا."
+    },
+    "stats": {
+      "totalStudents": "إجمالي الطلاب",
+      "activeClasses": "الصفوف النشطة",
+      "pendingHomework": "الواجبات المعلقة",
+      "upcomingExams": "الاختبارات القادمة"
+    },
+    "menu": {
+      "homePage": "الرئيسية",
+      "myClasses": "صفوفي",
+      "students": "طلابي",
+      "homework": "الواجبات",
+      "exams": "الاختبارات",
+      "liveClass": "درس مباشر",
+      "materials": "المواد",
+      "attendance": "الحضور",
+      "grades": "الدرجات",
+      "messages": "الرسائل",
+      "announcements": "الإعلانات",
+      "questionBank": "بنك الأسئلة",
+      "reports": "التقارير"
+    },
+    "classes": {
+      "title": "صفوفي",
+      "studentCount": "{count} طالب",
+      "viewClass": "عرض الصف",
+      "noClasses": "لا توجد صفوف مسندة"
+    },
+    "homework": {
+      "title": "الواجبات",
+      "createHomework": "إنشاء واجب",
+      "pending": "في انتظار التقييم",
+      "graded": "تم التقييم",
+      "deadline": "الموعد النهائي",
+      "submissions": "التسليمات"
+    },
+    "exams": {
+      "title": "الاختبارات",
+      "createExam": "إنشاء اختبار",
+      "activeExams": "الاختبارات النشطة",
+      "completedExams": "الاختبارات المكتملة",
+      "duration": "المدة",
+      "questions": "الأسئلة"
+    },
+    "liveClass": {
+      "title": "درس مباشر",
+      "startClass": "بدء الدرس",
+      "scheduleClass": "جدولة درس",
+      "upcomingClasses": "الدروس القادمة",
+      "pastClasses": "الدروس السابقة"
+    },
+    "attendance": {
+      "title": "الحضور",
+      "takeAttendance": "تسجيل الحضور",
+      "present": "حاضر",
+      "absent": "غائب",
+      "late": "متأخر",
+      "excused": "معذور"
+    },
+    "grades": {
+      "title": "الدرجات",
+      "enterGrades": "إدخال الدرجات",
+      "classAverage": "معدل الصف",
+      "highestGrade": "أعلى درجة",
+      "lowestGrade": "أدنى درجة"
+    },
+    "todaySchedule": {
+      "title": "جدول اليوم",
+      "noClass": "لا دروس اليوم",
+      "nextClass": "الدرس التالي"
+    }
+  },
+  "secretary": {
+    "panel": "لوحة السكرتير",
+    "welcome": {
+      "title": "مرحباً، {name}!",
+      "subtitle": "يمكنك إدارة عمليات المؤسسة من هنا."
+    },
+    "stats": {
+      "totalStudents": "إجمالي الطلاب",
+      "pendingRegistrations": "التسجيلات المعلقة",
+      "pendingPayments": "المدفوعات المعلقة",
+      "todayAbsences": "غياب اليوم"
+    },
+    "menu": {
+      "homePage": "الرئيسية",
+      "studentRegistration": "تسجيل الطلاب",
+      "payments": "المدفوعات",
+      "attendance": "الغياب",
+      "documents": "المستندات",
+      "reports": "التقارير",
+      "messages": "الرسائل",
+      "announcements": "الإعلانات"
+    },
+    "registration": {
+      "title": "تسجيل الطلاب",
+      "newRegistration": "تسجيل جديد",
+      "pendingRegistrations": "التسجيلات المعلقة",
+      "completedRegistrations": "التسجيلات المكتملة"
+    },
+    "payments": {
+      "title": "المدفوعات",
+      "receivePayment": "استلام دفعة",
+      "pendingPayments": "المدفوعات المعلقة",
+      "paymentHistory": "سجل المدفوعات",
+      "generateReceipt": "إنشاء إيصال"
+    },
+    "attendance": {
+      "title": "الغياب",
+      "enterAbsence": "تسجيل غياب",
+      "todayAbsences": "غياب اليوم",
+      "monthlyReport": "التقرير الشهري"
+    },
+    "documents": {
+      "title": "المستندات",
+      "studentDocument": "وثيقة طالب",
+      "transcript": "كشف الدرجات",
+      "certificate": "شهادة"
+    }
+  },
+  "courseOwner": {
+    "panel": "لوحة مالك الدورة",
+    "title": "مالك الدورة",
+    "menu": {
+      "homePage": "الرئيسية",
+      "courseOverview": "نظرة عامة",
+      "financialReports": "التقارير المالية",
+      "managers": "إدارة المديرين",
+      "announcements": "الإعلانات",
+      "messages": "الرسائل",
+      "settings": "الإعدادات"
+    },
+    "welcome": {
+      "title": "مرحباً، مالك {courseName}، {name}!",
+      "subtitle": "يمكنك متابعة الحالة العامة والتقارير المالية لدورتك من هنا."
+    },
+    "stats": {
+      "totalRevenue": "إجمالي الإيرادات",
+      "totalStudents": "إجمالي الطلاب",
+      "totalTeachers": "إجمالي المعلمين",
+      "totalClasses": "إجمالي الصفوف",
+      "totalManagers": "عدد المديرين",
+      "monthlyRevenue": "الإيرادات الشهرية",
+      "pendingPayments": "المدفوعات المعلقة",
+      "student": "طالب",
+      "teacher": "معلم",
+      "class": "صف",
+      "manager": "مدير"
+    },
+    "quickActions": {
+      "viewFinancials": "عرض التقارير المالية",
+      "assignManager": "تعيين مدير",
+      "courseSettings": "إعدادات الدورة",
+      "viewReports": "التقارير المفصلة",
+      "newManager": "تعيين مدير جديد",
+      "incomeExpense": "الإيرادات/المصروفات",
+      "analysis": "تحليل",
+      "settings": "الإعدادات"
+    },
+    "courseInfo": {
+      "title": "معلومات الدورة",
+      "name": "اسم الدورة",
+      "address": "العنوان",
+      "phone": "الهاتف",
+      "manager": "المدير المعين"
+    },
+    "header": {
+      "search": "بحث...",
+      "accountSettings": "إعدادات الحساب",
+      "logout": "تسجيل الخروج"
+    },
+    "managers": {
+      "title": "المديرون المعينون",
+      "viewAll": "عرض الكل",
+      "active": "نشط",
+      "passive": "غير نشط",
+      "noManagers": "لم يتم تعيين مديرين بعد",
+      "assignManager": "تعيين مدير",
+      "managerList": "قائمة المديرين المعينين للدورة"
+    },
+    "ownerActions": {
+      "title": "إجراءات مالك الدورة",
+      "managerManagement": "إدارة المديرين",
+      "managerManagementDesc": "تعيين أو تعديل أو إزالة المديرين",
+      "financialReports": "التقارير المالية",
+      "financialReportsDesc": "تتبع الإيرادات والمصروفات والمدفوعات",
+      "courseSettings": "إعدادات الدورة",
+      "courseSettingsDesc": "تحديث المعلومات"
+    },
+    "tts": {
+      "currentPage": "أنت في هذه الصفحة",
+      "goToPage": "انتقل إلى الصفحة",
+      "welcomeMessage": "مرحباً {name}! يمكنك متابعة حالة دورة {courseName} من هذه اللوحة.",
+      "totalStudentsDesc": "إجمالي عدد الطلاب في دورتنا",
+      "totalTeachersDesc": "إجمالي عدد المعلمين في دورتنا",
+      "totalClassesDesc": "إجمالي عدد الصفوف في دورتنا",
+      "totalManagersDesc": "عدد المديرين المعينين",
+      "assignManagerDesc": "انقر لتعيين مدير للدورة",
+      "viewFinancialsDesc": "عرض التقارير المالية",
+      "viewReportsDesc": "عرض التقارير المفصلة",
+      "courseSettingsDesc": "تعديل إعدادات الدورة",
+      "ownerActionsDesc": "لوحة الإجراءات السريعة لمالك الدورة",
+      "managerManagerDesc": "عمليات تعيين وإدارة المديرين",
+      "noManagersDesc": "لم يتم تعيين مديرين بعد. انتقل إلى صفحة الإدارة لتعيين مدير."
+    }
+  }
+}
+

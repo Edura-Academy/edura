@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import prisma from '../lib/prisma';
-import { DuyuruHedef, DuyuruOncelik } from '@prisma/client';
+import { DuyuruHedef, DuyuruOncelik, DuyuruKategori } from '@prisma/client';
 import { AuthRequest } from '../types';
 import { pushService } from '../services/push.service';
 
@@ -11,19 +11,36 @@ export const getAllDuyurular = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     const kursId = req.user?.kursId;
+    const { kategori, arsivlendi, pinlendi } = req.query;
 
     if (!userId) {
       return res.status(401).json({ success: false, error: 'Yetkisiz erişim' });
     }
 
+    const where: any = kursId ? { kursId } : {};
+    
+    // Filtreler
+    if (kategori) {
+      where.kategori = kategori;
+    }
+    if (arsivlendi !== undefined) {
+      where.arsivlendi = arsivlendi === 'true';
+    }
+    if (pinlendi !== undefined) {
+      where.pinlendi = pinlendi === 'true';
+    }
+
     const duyurular = await prisma.duyuru.findMany({
-      where: kursId ? { kursId } : {},
+      where,
       include: {
         olusturan: { select: { id: true, ad: true, soyad: true, role: true } },
         kurs: { select: { id: true, ad: true } },
         _count: { select: { okuyanlar: true } }
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: [
+        { pinlendi: 'desc' },
+        { createdAt: 'desc' }
+      ]
     });
 
     res.json({ success: true, data: duyurular });
@@ -38,7 +55,7 @@ export const createDuyuru = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     const kursId = req.user?.kursId;
-    const { baslik, icerik, hedef, oncelik, sinifIds, dosyaUrl, dosyaAd, yayinTarihi, bitisTarihi } = req.body;
+    const { baslik, icerik, hedef, oncelik, kategori, sinifIds, dosyaUrl, dosyaAd, yayinTarihi, bitisTarihi, pinlendi } = req.body;
 
     if (!userId) {
       return res.status(401).json({ success: false, error: 'Yetkisiz erişim' });
@@ -48,6 +65,11 @@ export const createDuyuru = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ success: false, error: 'Başlık ve içerik gerekli' });
     }
 
+    // İleri tarihli yayın kontrolü
+    const yayinTarihiDate = yayinTarihi ? new Date(yayinTarihi) : new Date();
+    const now = new Date();
+    const ileriTarihli = yayinTarihiDate > now;
+
     // Duyuruyu oluştur
     const duyuru = await prisma.duyuru.create({
       data: {
@@ -55,23 +77,32 @@ export const createDuyuru = async (req: AuthRequest, res: Response) => {
         icerik,
         hedef: hedef || 'HERKESE',
         oncelik: oncelik || 'NORMAL',
+        kategori: kategori || 'GENEL',
         sinifIds: sinifIds ? JSON.stringify(sinifIds) : null,
         dosyaUrl,
         dosyaAd,
         olusturanId: userId,
         kursId,
-        yayinTarihi: yayinTarihi ? new Date(yayinTarihi) : new Date(),
-        bitisTarihi: bitisTarihi ? new Date(bitisTarihi) : null
+        yayinTarihi: yayinTarihiDate,
+        bitisTarihi: bitisTarihi ? new Date(bitisTarihi) : null,
+        pinlendi: pinlendi || false,
+        aktif: !ileriTarihli // İleri tarihli ise aktif değil
       },
       include: {
         olusturan: { select: { id: true, ad: true, soyad: true } }
       }
     });
 
-    // Hedef kitleye bildirim gönder
-    await sendDuyuruNotifications(duyuru, kursId || undefined);
+    // Hedef kitleye bildirim gönder (sadece hemen yayınlanacaksa)
+    if (!ileriTarihli) {
+      await sendDuyuruNotifications(duyuru, kursId || undefined);
+    }
 
-    res.status(201).json({ success: true, data: duyuru });
+    res.status(201).json({ 
+      success: true, 
+      data: duyuru,
+      message: ileriTarihli ? `Duyuru ${yayinTarihiDate.toLocaleDateString('tr-TR')} tarihinde yayınlanacak` : 'Duyuru oluşturuldu'
+    });
   } catch (error) {
     console.error('Duyuru oluşturulurken hata:', error);
     res.status(500).json({ success: false, error: 'Sunucu hatası' });
@@ -83,7 +114,7 @@ export const updateDuyuru = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     const { duyuruId } = req.params;
-    const { baslik, icerik, hedef, oncelik, sinifIds, dosyaUrl, dosyaAd, aktif, bitisTarihi } = req.body;
+    const { baslik, icerik, hedef, oncelik, kategori, sinifIds, dosyaUrl, dosyaAd, aktif, bitisTarihi, pinlendi } = req.body;
 
     if (!userId) {
       return res.status(401).json({ success: false, error: 'Yetkisiz erişim' });
@@ -105,17 +136,179 @@ export const updateDuyuru = async (req: AuthRequest, res: Response) => {
         ...(icerik && { icerik }),
         ...(hedef && { hedef }),
         ...(oncelik && { oncelik }),
+        ...(kategori && { kategori }),
         ...(sinifIds !== undefined && { sinifIds: sinifIds ? JSON.stringify(sinifIds) : null }),
         ...(dosyaUrl !== undefined && { dosyaUrl }),
         ...(dosyaAd !== undefined && { dosyaAd }),
         ...(aktif !== undefined && { aktif }),
-        ...(bitisTarihi !== undefined && { bitisTarihi: bitisTarihi ? new Date(bitisTarihi) : null })
+        ...(bitisTarihi !== undefined && { bitisTarihi: bitisTarihi ? new Date(bitisTarihi) : null }),
+        ...(pinlendi !== undefined && { pinlendi })
       }
     });
 
     res.json({ success: true, data: updatedDuyuru });
   } catch (error) {
     console.error('Duyuru güncellenirken hata:', error);
+    res.status(500).json({ success: false, error: 'Sunucu hatası' });
+  }
+};
+
+// Duyuruyu pinle/pin kaldır
+export const togglePin = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const { duyuruId } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Yetkisiz erişim' });
+    }
+
+    const duyuru = await prisma.duyuru.findUnique({
+      where: { id: duyuruId }
+    });
+
+    if (!duyuru) {
+      return res.status(404).json({ success: false, error: 'Duyuru bulunamadı' });
+    }
+
+    const updatedDuyuru = await prisma.duyuru.update({
+      where: { id: duyuruId },
+      data: {
+        pinlendi: !duyuru.pinlendi
+      }
+    });
+
+    res.json({ 
+      success: true, 
+      data: updatedDuyuru,
+      message: updatedDuyuru.pinlendi ? 'Duyuru pinlendi' : 'Pin kaldırıldı'
+    });
+  } catch (error) {
+    console.error('Pin değiştirme hatası:', error);
+    res.status(500).json({ success: false, error: 'Sunucu hatası' });
+  }
+};
+
+// Duyuruyu arşivle
+export const archiveDuyuru = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const { duyuruId } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Yetkisiz erişim' });
+    }
+
+    const duyuru = await prisma.duyuru.findUnique({
+      where: { id: duyuruId }
+    });
+
+    if (!duyuru) {
+      return res.status(404).json({ success: false, error: 'Duyuru bulunamadı' });
+    }
+
+    const updatedDuyuru = await prisma.duyuru.update({
+      where: { id: duyuruId },
+      data: {
+        arsivlendi: true,
+        arsivTarihi: new Date(),
+        aktif: false,
+        pinlendi: false
+      }
+    });
+
+    res.json({ 
+      success: true, 
+      data: updatedDuyuru,
+      message: 'Duyuru arşivlendi'
+    });
+  } catch (error) {
+    console.error('Arşivleme hatası:', error);
+    res.status(500).json({ success: false, error: 'Sunucu hatası' });
+  }
+};
+
+// Duyuruyu arşivden çıkar
+export const unarchiveDuyuru = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const { duyuruId } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Yetkisiz erişim' });
+    }
+
+    const duyuru = await prisma.duyuru.findUnique({
+      where: { id: duyuruId }
+    });
+
+    if (!duyuru) {
+      return res.status(404).json({ success: false, error: 'Duyuru bulunamadı' });
+    }
+
+    const updatedDuyuru = await prisma.duyuru.update({
+      where: { id: duyuruId },
+      data: {
+        arsivlendi: false,
+        arsivTarihi: null,
+        aktif: true
+      }
+    });
+
+    res.json({ 
+      success: true, 
+      data: updatedDuyuru,
+      message: 'Duyuru arşivden çıkarıldı'
+    });
+  } catch (error) {
+    console.error('Arşivden çıkarma hatası:', error);
+    res.status(500).json({ success: false, error: 'Sunucu hatası' });
+  }
+};
+
+// Arşivlenmiş duyuruları getir
+export const getArchivedDuyurular = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const kursId = req.user?.kursId;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Yetkisiz erişim' });
+    }
+
+    const duyurular = await prisma.duyuru.findMany({
+      where: {
+        ...(kursId ? { kursId } : {}),
+        arsivlendi: true
+      },
+      include: {
+        olusturan: { select: { id: true, ad: true, soyad: true, role: true } },
+        _count: { select: { okuyanlar: true } }
+      },
+      orderBy: { arsivTarihi: 'desc' }
+    });
+
+    res.json({ success: true, data: duyurular });
+  } catch (error) {
+    console.error('Arşiv getirme hatası:', error);
+    res.status(500).json({ success: false, error: 'Sunucu hatası' });
+  }
+};
+
+// Kategori listesi getir
+export const getKategoriler = async (req: AuthRequest, res: Response) => {
+  try {
+    const kategoriler = [
+      { value: 'GENEL', label: 'Genel', icon: '📢' },
+      { value: 'AKADEMIK', label: 'Akademik', icon: '📚' },
+      { value: 'ETKINLIK', label: 'Etkinlik', icon: '🎉' },
+      { value: 'SINAV', label: 'Sınav', icon: '📝' },
+      { value: 'IDARI', label: 'İdari', icon: '🏛️' },
+      { value: 'DIGER', label: 'Diğer', icon: '📌' }
+    ];
+
+    res.json({ success: true, data: kategoriler });
+  } catch (error) {
     res.status(500).json({ success: false, error: 'Sunucu hatası' });
   }
 };
@@ -156,6 +349,7 @@ export const getMyDuyurular = async (req: AuthRequest, res: Response) => {
     const role = req.user?.role;
     const kursId = req.user?.kursId;
     const sinifId = req.user?.sinifId;
+    const { kategori } = req.query;
 
     if (!userId) {
       return res.status(401).json({ success: false, error: 'Yetkisiz erişim' });
@@ -174,17 +368,29 @@ export const getMyDuyurular = async (req: AuthRequest, res: Response) => {
       hedefFilter.push('PERSONEL');
     }
 
+    const whereClause: any = {
+      aktif: true,
+      arsivlendi: false,
+      yayinTarihi: { lte: now },
+      OR: [
+        { bitisTarihi: null },
+        { bitisTarihi: { gte: now } }
+      ],
+      hedef: { in: hedefFilter }
+    };
+
+    if (kursId) {
+      whereClause.AND = [
+        { OR: [{ kursId }, { kursId: null }] }
+      ];
+    }
+
+    if (kategori) {
+      whereClause.kategori = kategori;
+    }
+
     const duyurular = await prisma.duyuru.findMany({
-      where: {
-        aktif: true,
-        yayinTarihi: { lte: now },
-        OR: [
-          { bitisTarihi: null },
-          { bitisTarihi: { gte: now } }
-        ],
-        hedef: { in: hedefFilter },
-        ...(kursId ? { OR: [{ kursId }, { kursId: null }] } : {})
-      },
+      where: whereClause,
       include: {
         olusturan: { select: { id: true, ad: true, soyad: true, role: true } },
         okuyanlar: {
@@ -193,6 +399,7 @@ export const getMyDuyurular = async (req: AuthRequest, res: Response) => {
         }
       },
       orderBy: [
+        { pinlendi: 'desc' },
         { oncelik: 'desc' },
         { yayinTarihi: 'desc' }
       ]
@@ -218,6 +425,8 @@ export const getMyDuyurular = async (req: AuthRequest, res: Response) => {
       icerik: d.icerik,
       hedef: d.hedef,
       oncelik: d.oncelik,
+      kategori: d.kategori,
+      pinlendi: d.pinlendi,
       dosyaUrl: d.dosyaUrl,
       dosyaAd: d.dosyaAd,
       olusturan: `${d.olusturan.ad} ${d.olusturan.soyad}`,
@@ -232,7 +441,8 @@ export const getMyDuyurular = async (req: AuthRequest, res: Response) => {
       toplam: formattedDuyurular.length,
       okunmamis: formattedDuyurular.filter(d => !d.okundu).length,
       acil: formattedDuyurular.filter(d => d.oncelik === 'ACIL').length,
-      onemli: formattedDuyurular.filter(d => d.oncelik === 'ONEMLI').length
+      onemli: formattedDuyurular.filter(d => d.oncelik === 'ONEMLI').length,
+      pinli: formattedDuyurular.filter(d => d.pinlendi).length
     };
 
     res.json({

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface ModalProps {
   isOpen: boolean;
@@ -8,10 +9,12 @@ interface ModalProps {
   title: string;
   children: React.ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
-  variant?: 'dark' | 'light';
+  variant?: 'dark' | 'light' | 'auto';
 }
 
-export default function Modal({ isOpen, onClose, title, children, size = 'md', variant = 'dark' }: ModalProps) {
+export default function Modal({ isOpen, onClose, title, children, size = 'md', variant = 'auto' }: ModalProps) {
+  const { resolvedTheme } = useTheme();
+  
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -42,18 +45,19 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md', v
     xl: 'max-w-4xl',
   };
 
-  const isDark = variant === 'dark';
+  // Auto variant: sistem/kullanıcı temasına göre belirle
+  const isDark = variant === 'auto' ? resolvedTheme === 'dark' : variant === 'dark';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div 
-        className={`absolute inset-0 ${isDark ? 'bg-black/60 backdrop-blur-sm' : 'bg-black/40'}`}
+        className={`absolute inset-0 ${isDark ? 'bg-black/60 backdrop-blur-sm' : 'bg-black/40 backdrop-blur-sm'}`}
         onClick={onClose}
       />
       
       {/* Modal Content */}
-      <div className={`relative ${sizeClasses[size]} w-full mx-4 ${isDark ? 'bg-slate-800 border border-slate-700' : 'bg-white'} rounded-lg shadow-2xl animate-modal-in`}>
+      <div className={`relative ${sizeClasses[size]} w-full mx-4 ${isDark ? 'bg-slate-800 border border-slate-700' : 'bg-white border border-gray-200'} rounded-xl shadow-2xl animate-modal-in`}>
         {/* Header - only show if title exists */}
         {title && (
           <div className={`flex items-center justify-between px-6 py-4 ${isDark ? 'border-b border-slate-700' : 'border-b border-gray-200'}`}>
@@ -82,7 +86,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md', v
         )}
         
         {/* Body */}
-        <div className={`${title ? 'px-6 py-4' : ''} max-h-[80vh] overflow-y-auto`}>
+        <div className={`${title ? 'px-6 py-4' : ''} max-h-[80vh] overflow-y-auto ${isDark ? 'text-slate-200' : 'text-gray-700'}`}>
           {children}
         </div>
       </div>

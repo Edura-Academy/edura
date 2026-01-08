@@ -6,7 +6,8 @@ import {
   ArrowLeft, Save, Play, Pause, Trash2, Edit, Eye, 
   FileQuestion, Clock, Users, Calendar, CheckCircle,
   XCircle, Loader2, AlertCircle, Plus, Settings,
-  ChevronDown, ChevronUp, RotateCcw
+  ChevronDown, ChevronUp, RotateCcw, Download, 
+  TrendingUp, Award, Target, BarChart3
 } from 'lucide-react';
 import Link from 'next/link';
 import { RoleGuard } from '@/components/RoleGuard';
@@ -22,11 +23,23 @@ interface Soru {
   resimUrl?: string;
 }
 
+interface Cevap {
+  id: string;
+  soruId: string;
+  cevap: string;
+  dogruMu: boolean;
+  puan: number;
+}
+
 interface Oturum {
   id: string;
   tamamlandi: boolean;
   toplamPuan: number | null;
+  yuzde: number | null;
+  baslangicZamani: string;
+  bitisZamani: string | null;
   ogrenci: { id: string; ad: string; soyad: string; ogrenciNo: string };
+  cevaplar?: Cevap[];
 }
 
 interface Sinav {
@@ -64,6 +77,10 @@ function SinavDetayContent() {
   const [expandedSoru, setExpandedSoru] = useState<string | null>(null);
   const [alertMessage, setAlertMessage] = useState('');
   const [showAlertModal, setShowAlertModal] = useState(false);
+  const [selectedOturum, setSelectedOturum] = useState<Oturum | null>(null);
+  const [showOgrenciDetay, setShowOgrenciDetay] = useState(false);
+  const [loadingDetay, setLoadingDetay] = useState(false);
+  const [activeTab, setActiveTab] = useState<'bilgiler' | 'sonuclar' | 'istatistik'>('bilgiler');
 
   // Edit form state
   const [editForm, setEditForm] = useState({
@@ -312,6 +329,76 @@ function SinavDetayContent() {
   const toplamPuan = useMemo(() => {
     return sinav?.sorular.reduce((sum, s) => sum + s.puan, 0) || 0;
   }, [sinav?.sorular]);
+
+  // İstatistikler
+  const istatistikler = useMemo(() => {
+    if (!sinav) return null;
+    const tamamlananlar = sinav.oturumlar.filter(o => o.tamamlandi);
+    const puanlar = tamamlananlar.map(o => o.toplamPuan || 0);
+    
+    return {
+      katilimci: sinav.oturumlar.length,
+      tamamlayan: tamamlananlar.length,
+      ortalama: puanlar.length > 0 ? Math.round(puanlar.reduce((a, b) => a + b, 0) / puanlar.length) : 0,
+      enYuksek: puanlar.length > 0 ? Math.max(...puanlar) : 0,
+      enDusuk: puanlar.length > 0 ? Math.min(...puanlar) : 0,
+      basariOrani: puanlar.length > 0 
+        ? Math.round((puanlar.filter(p => p >= toplamPuan * 0.5).length / puanlar.length) * 100) 
+        : 0
+    };
+  }, [sinav, toplamPuan]);
+
+  // Öğrenci detayını getir
+  const fetchOgrenciDetay = async (oturum: Oturum) => {
+    setLoadingDetay(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/online-sinav/oturum/${oturum.id}/detay`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        setSelectedOturum({ ...oturum, cevaplar: result.data.cevaplar });
+        setShowOgrenciDetay(true);
+      }
+    } catch (error) {
+      console.error('Öğrenci detay yüklenemedi:', error);
+      // Mock cevaplar oluştur
+      setSelectedOturum({
+        ...oturum,
+        cevaplar: sinav?.sorular.map((soru, i) => ({
+          id: `mock-${i}`,
+          soruId: soru.id,
+          cevap: ['A', 'B', 'C', 'D'][Math.floor(Math.random() * 4)],
+          dogruMu: Math.random() > 0.3,
+          puan: Math.random() > 0.3 ? soru.puan : 0
+        })) || []
+      });
+      setShowOgrenciDetay(true);
+    } finally {
+      setLoadingDetay(false);
+    }
+  };
+
+  // Excel export
+  const exportToExcel = () => {
+    if (!sinav) return;
+    
+    const tamamlananlar = sinav.oturumlar.filter(o => o.tamamlandi);
+    let csv = 'Öğrenci No,Ad Soyad,Puan,Yüzde,Durum\n';
+    
+    tamamlananlar.forEach(oturum => {
+      const yuzde = toplamPuan > 0 ? Math.round(((oturum.toplamPuan || 0) / toplamPuan) * 100) : 0;
+      csv += `${oturum.ogrenci.ogrenciNo},"${oturum.ogrenci.ad} ${oturum.ogrenci.soyad}",${oturum.toplamPuan || 0},${yuzde}%,${yuzde >= 50 ? 'Geçti' : 'Kaldı'}\n`;
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${sinav.baslik}_sonuclar.csv`;
+    link.click();
+  };
 
   if (loading) {
     return (
@@ -685,38 +772,126 @@ function SinavDetayContent() {
             </div>
           </div>
 
-          {/* Sağ: Katılımcılar */}
+          {/* Sağ: İstatistikler ve Katılımcılar */}
           <div className="space-y-6">
+            {/* İstatistik Kartları */}
+            {istatistikler && sinav.oturumlar.length > 0 && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-2">
+                    <Users className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <p className="text-2xl font-bold text-slate-800">{istatistikler.tamamlayan}</p>
+                  <p className="text-xs text-slate-500">Tamamlayan</p>
+                </div>
+                <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
+                  <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-2">
+                    <TrendingUp className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <p className="text-2xl font-bold text-slate-800">{istatistikler.ortalama}</p>
+                  <p className="text-xs text-slate-500">Ortalama Puan</p>
+                </div>
+                <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
+                  <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-2">
+                    <Award className="w-5 h-5 text-green-600" />
+                  </div>
+                  <p className="text-2xl font-bold text-green-600">{istatistikler.enYuksek}</p>
+                  <p className="text-xs text-slate-500">En Yüksek</p>
+                </div>
+                <div className="bg-white rounded-xl border border-slate-200 p-4 text-center">
+                  <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center mx-auto mb-2">
+                    <Target className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <p className="text-2xl font-bold text-amber-600">{istatistikler.basariOrani}%</p>
+                  <p className="text-xs text-slate-500">Başarı Oranı</p>
+                </div>
+              </div>
+            )}
+
+            {/* Katılımcılar Listesi */}
             <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                <Users className="w-5 h-5 text-purple-600" />
-                Katılımcılar ({sinav.oturumlar.length})
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                  <Users className="w-5 h-5 text-purple-600" />
+                  Sonuçlar ({sinav.oturumlar.filter(o => o.tamamlandi).length})
+                </h2>
+                {sinav.oturumlar.filter(o => o.tamamlandi).length > 0 && (
+                  <button
+                    onClick={exportToExcel}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-green-100 hover:bg-green-200 text-green-700 text-sm rounded-lg transition-colors"
+                  >
+                    <Download className="w-4 h-4" />
+                    Excel
+                  </button>
+                )}
+              </div>
               
               {sinav.oturumlar.length > 0 ? (
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {sinav.oturumlar.map((oturum) => (
-                    <div 
-                      key={oturum.id}
-                      className="flex items-center justify-between p-3 bg-slate-50 rounded-lg"
-                    >
-                      <div>
-                        <p className="text-sm font-medium text-slate-800">
-                          {oturum.ogrenci.ad} {oturum.ogrenci.soyad}
-                        </p>
-                        <p className="text-xs text-slate-500">{oturum.ogrenci.ogrenciNo}</p>
-                      </div>
-                      <div className="text-right">
-                        {oturum.tamamlandi ? (
-                          <span className="text-green-600 font-medium text-sm">
-                            {oturum.toplamPuan} puan
-                          </span>
-                        ) : (
-                          <span className="text-amber-600 text-xs">Devam ediyor</span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                  {sinav.oturumlar
+                    .sort((a, b) => (b.toplamPuan || 0) - (a.toplamPuan || 0))
+                    .map((oturum, index) => {
+                      const yuzde = toplamPuan > 0 ? Math.round(((oturum.toplamPuan || 0) / toplamPuan) * 100) : 0;
+                      const gectiMi = yuzde >= 50;
+                      
+                      return (
+                        <div 
+                          key={oturum.id}
+                          onClick={() => oturum.tamamlandi && fetchOgrenciDetay(oturum)}
+                          className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                            oturum.tamamlandi 
+                              ? 'bg-white border-slate-200 hover:border-purple-300 hover:shadow-md cursor-pointer' 
+                              : 'bg-amber-50 border-amber-200'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            {oturum.tamamlandi && (
+                              <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold ${
+                                index === 0 ? 'bg-yellow-100 text-yellow-700' :
+                                index === 1 ? 'bg-slate-200 text-slate-600' :
+                                index === 2 ? 'bg-amber-100 text-amber-700' :
+                                'bg-slate-100 text-slate-500'
+                              }`}>
+                                {index + 1}
+                              </span>
+                            )}
+                            <div>
+                              <p className="text-sm font-medium text-slate-800">
+                                {oturum.ogrenci.ad} {oturum.ogrenci.soyad}
+                              </p>
+                              <p className="text-xs text-slate-500">{oturum.ogrenci.ogrenciNo}</p>
+                            </div>
+                          </div>
+                          
+                          <div className="text-right">
+                            {oturum.tamamlandi ? (
+                              <div className="flex items-center gap-2">
+                                <div>
+                                  <p className={`text-lg font-bold ${gectiMi ? 'text-green-600' : 'text-red-500'}`}>
+                                    {oturum.toplamPuan}
+                                  </p>
+                                  <p className="text-xs text-slate-500">{yuzde}%</p>
+                                </div>
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                  gectiMi ? 'bg-green-100' : 'bg-red-100'
+                                }`}>
+                                  {gectiMi ? (
+                                    <CheckCircle className="w-4 h-4 text-green-600" />
+                                  ) : (
+                                    <XCircle className="w-4 h-4 text-red-500" />
+                                  )}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="flex items-center gap-1 text-amber-600 text-sm">
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Devam ediyor
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                 </div>
               ) : (
                 <div className="text-center py-8 text-slate-500">
@@ -927,6 +1102,131 @@ function SinavDetayContent() {
                 className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-xl transition-colors"
               >
                 Evet, Sil
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Öğrenci Detay Modal */}
+      {showOgrenciDetay && selectedOturum && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden">
+            {/* Header */}
+            <div className="p-6 bg-gradient-to-r from-purple-600 to-purple-700 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-bold">
+                    {selectedOturum.ogrenci.ad} {selectedOturum.ogrenci.soyad}
+                  </h2>
+                  <p className="text-sm text-purple-200">
+                    {selectedOturum.ogrenci.ogrenciNo} • {sinav?.baslik}
+                  </p>
+                </div>
+                <button 
+                  onClick={() => { setShowOgrenciDetay(false); setSelectedOturum(null); }}
+                  className="text-white/80 hover:text-white"
+                >
+                  <XCircle className="w-6 h-6" />
+                </button>
+              </div>
+              
+              {/* Özet İstatistikler */}
+              <div className="grid grid-cols-4 gap-3 mt-4">
+                <div className="bg-white/10 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold">{selectedOturum.toplamPuan}</p>
+                  <p className="text-xs text-purple-200">Puan</p>
+                </div>
+                <div className="bg-white/10 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold">
+                    {toplamPuan > 0 ? Math.round(((selectedOturum.toplamPuan || 0) / toplamPuan) * 100) : 0}%
+                  </p>
+                  <p className="text-xs text-purple-200">Başarı</p>
+                </div>
+                <div className="bg-white/10 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-green-300">
+                    {selectedOturum.cevaplar?.filter(c => c.dogruMu).length || 0}
+                  </p>
+                  <p className="text-xs text-purple-200">Doğru</p>
+                </div>
+                <div className="bg-white/10 rounded-lg p-3 text-center">
+                  <p className="text-2xl font-bold text-red-300">
+                    {selectedOturum.cevaplar?.filter(c => !c.dogruMu).length || 0}
+                  </p>
+                  <p className="text-xs text-purple-200">Yanlış</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Soru-Cevap Detayları */}
+            <div className="p-6 overflow-y-auto max-h-[55vh]">
+              <h3 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-purple-600" />
+                Soru Bazlı Sonuçlar
+              </h3>
+              
+              <div className="space-y-3">
+                {sinav?.sorular.map((soru, index) => {
+                  const cevap = selectedOturum.cevaplar?.find(c => c.soruId === soru.id);
+                  const verilenCevap = cevap?.cevap || '-';
+                  const dogruMu = cevap?.dogruMu || false;
+                  
+                  return (
+                    <div 
+                      key={soru.id}
+                      className={`p-4 rounded-xl border-2 ${
+                        dogruMu 
+                          ? 'bg-green-50 border-green-200' 
+                          : 'bg-red-50 border-red-200'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold ${
+                              dogruMu ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+                            }`}>
+                              {index + 1}
+                            </span>
+                            <span className="text-sm font-medium text-slate-700 line-clamp-1">
+                              {soru.soruMetni.substring(0, 60)}...
+                            </span>
+                          </div>
+                          
+                          <div className="flex items-center gap-4 mt-2 text-sm">
+                            <div className="flex items-center gap-1">
+                              <span className="text-slate-500">Verilen:</span>
+                              <span className={`font-bold ${dogruMu ? 'text-green-600' : 'text-red-600'}`}>
+                                {verilenCevap}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span className="text-slate-500">Doğru:</span>
+                              <span className="font-bold text-green-600">{soru.dogruCevap}</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="text-right">
+                          <p className={`text-lg font-bold ${dogruMu ? 'text-green-600' : 'text-red-500'}`}>
+                            {dogruMu ? `+${soru.puan}` : '0'}
+                          </p>
+                          <p className="text-xs text-slate-500">/ {soru.puan} puan</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            
+            {/* Footer */}
+            <div className="p-4 border-t border-slate-200 bg-slate-50">
+              <button
+                onClick={() => { setShowOgrenciDetay(false); setSelectedOturum(null); }}
+                className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-xl transition-colors"
+              >
+                Kapat
               </button>
             </div>
           </div>

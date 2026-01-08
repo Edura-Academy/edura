@@ -6,11 +6,16 @@ import { AuthRequest } from '../types';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'edura-secret-key';
 
+// Personel rolleri (Personel girişinden giriş yapabilir)
+const PERSONEL_ROLES = ['admin', 'kursSahibi', 'mudur', 'ogretmen', 'sekreter'];
+// Öğrenci/Veli rolleri (Öğrenci girişinden giriş yapabilir)
+const OGRENCI_ROLES = ['ogrenci', 'veli'];
+
 // Login
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     // Frontend hem kullaniciAdi hem sifre gönderiyor
-    const { kullaniciAdi, sifre, email, password } = req.body;
+    const { kullaniciAdi, sifre, email, password, kullaniciTuru } = req.body;
     
     // Hem eski (email/password) hem yeni (kullaniciAdi/sifre) format desteği
     const loginEmail = kullaniciAdi || email;
@@ -21,14 +26,25 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Kullanıcıyı email ile bul
-    const user = await prisma.user.findUnique({
+    // Kullanıcıyı email ile bul - önce tam olarak, sonra @edura.com ekleyerek
+    let user = await prisma.user.findUnique({
       where: { email: loginEmail },
       include: {
         kurs: true,
         sinif: true,
       },
     });
+
+    // Bulunamadıysa ve @ yoksa, @edura.com ekleyerek tekrar dene
+    if (!user && !loginEmail.includes('@')) {
+      user = await prisma.user.findUnique({
+        where: { email: `${loginEmail}@edura.com` },
+        include: {
+          kurs: true,
+          sinif: true,
+        },
+      });
+    }
 
     if (!user) {
       res.status(401).json({ success: false, error: 'Kullanıcı bulunamadı' });
@@ -45,6 +61,30 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     if (!isValidPassword) {
       res.status(401).json({ success: false, error: 'Geçersiz şifre' });
       return;
+    }
+
+    // 🔒 Giriş türü kontrolü - Personel ve Öğrenci izolasyonu
+    if (kullaniciTuru) {
+      const isPersonelLogin = PERSONEL_ROLES.includes(kullaniciTuru) || kullaniciTuru === 'personel' || kullaniciTuru === 'kurs';
+      const isOgrenciLogin = kullaniciTuru === 'ogrenci';
+      
+      // Personel girişi seçildiyse, sadece personel rolleri kabul edilir
+      if (isPersonelLogin && !PERSONEL_ROLES.includes(user.role)) {
+        res.status(401).json({ 
+          success: false, 
+          error: 'Bu hesap personel girişi için uygun değil. Lütfen Öğrenci girişini kullanın.' 
+        });
+        return;
+      }
+      
+      // Öğrenci girişi seçildiyse, sadece öğrenci/veli rolleri kabul edilir
+      if (isOgrenciLogin && !OGRENCI_ROLES.includes(user.role)) {
+        res.status(401).json({ 
+          success: false, 
+          error: 'Bu hesap öğrenci girişi için uygun değil. Lütfen Personel girişini kullanın.' 
+        });
+        return;
+      }
     }
 
     // Token oluştur
@@ -174,79 +214,6 @@ export const me = async (req: AuthRequest, res: Response): Promise<void> => {
   } catch (error) {
     console.error('Me error:', error);
     res.status(500).json({ success: false, error: 'Kullanıcı bilgisi alınamadı' });
-  }
-};
-
-// Bypass Login - Test için (sadece development ortamında)
-export const bypassLogin = async (req: Request, res: Response): Promise<void> => {
-  try {
-    // Sadece development ortamında çalışsın
-    if (process.env.NODE_ENV === 'production') {
-      res.status(403).json({ success: false, error: 'Bu endpoint production ortamında devre dışı' });
-      return;
-    }
-
-    const { email } = req.body;
-
-    if (!email) {
-      res.status(400).json({ success: false, error: 'Email gerekli' });
-      return;
-    }
-
-    // Kullanıcıyı email ile bul
-    const user = await prisma.user.findUnique({
-      where: { email },
-      include: {
-        kurs: true,
-        sinif: true,
-      },
-    });
-
-    if (!user) {
-      res.status(404).json({ success: false, error: 'Kullanıcı bulunamadı' });
-      return;
-    }
-
-    if (!user.aktif) {
-      res.status(401).json({ success: false, error: 'Hesap devre dışı' });
-      return;
-    }
-
-    // Token oluştur (şifre kontrolü yapmadan)
-    const token = jwt.sign(
-      {
-        id: user.id,
-        userId: user.id,
-        email: user.email,
-        role: user.role,
-        kursId: user.kursId,
-      },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    res.json({
-      success: true,
-      data: {
-        token,
-        user: {
-          id: user.id,
-          email: user.email,
-          ad: user.ad,
-          soyad: user.soyad,
-          telefon: user.telefon,
-          role: user.role,
-          brans: user.brans,
-          ogrenciNo: user.ogrenciNo,
-          sifreDegistirildiMi: true, // Bypass login - şifre değiştirme zorunluluğunu kaldır
-          kurs: user.kurs,
-          sinif: user.sinif,
-        },
-      },
-    });
-  } catch (error) {
-    console.error('Bypass login error:', error);
-    res.status(500).json({ success: false, error: 'Bypass giriş başarısız' });
   }
 };
 

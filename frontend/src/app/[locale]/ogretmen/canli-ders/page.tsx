@@ -37,6 +37,18 @@ interface Course {
   };
 }
 
+interface Sinif {
+  id: string;
+  ad: string;
+  seviye: number;
+}
+
+interface OgretmenBilgi {
+  ad: string;
+  soyad: string;
+  brans?: string;
+}
+
 interface CanliDers {
   id: string;
   baslik: string;
@@ -89,6 +101,8 @@ interface KatilimIstatistik {
 function OgretmenCanliDersContent() {
   const [dersler, setDersler] = useState<CanliDers[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [siniflar, setSiniflar] = useState<Sinif[]>([]);
+  const [ogretmenBilgi, setOgretmenBilgi] = useState<OgretmenBilgi | null>(null);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showStatsModal, setShowStatsModal] = useState(false);
@@ -101,6 +115,7 @@ function OgretmenCanliDersContent() {
     baslik: '',
     aciklama: '',
     courseId: '',
+    hedefSiniflar: [] as string[],
     baslangicTarihi: '',
     bitisTarihi: '',
     odaSifresi: '',
@@ -115,6 +130,7 @@ function OgretmenCanliDersContent() {
   useEffect(() => {
     fetchDersler();
     fetchCourses();
+    fetchSiniflar();
   }, [filter]);
 
   const fetchDersler = async () => {
@@ -148,8 +164,50 @@ function OgretmenCanliDersContent() {
     }
   };
 
+  const fetchSiniflar = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_URL}/canli-ders/ogretmen/siniflar`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.siniflar) {
+        setSiniflar(data.siniflar);
+      }
+      if (data.ogretmen) {
+        setOgretmenBilgi(data.ogretmen);
+      }
+    } catch (error) {
+      console.error('Sınıflar alınamadı:', error);
+    }
+  };
+
+  const toggleSinifSecimi = (sinifId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      hedefSiniflar: prev.hedefSiniflar.includes(sinifId)
+        ? prev.hedefSiniflar.filter(id => id !== sinifId)
+        : [...prev.hedefSiniflar, sinifId]
+    }));
+  };
+
+  const tumSiniflariSec = () => {
+    if (formData.hedefSiniflar.length === siniflar.length) {
+      setFormData(prev => ({ ...prev, hedefSiniflar: [] }));
+    } else {
+      setFormData(prev => ({ ...prev, hedefSiniflar: siniflar.map(s => s.id) }));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Hedef sınıf kontrolü
+    if (formData.hedefSiniflar.length === 0) {
+      alert('Lütfen en az bir hedef sınıf seçin');
+      return;
+    }
+
     try {
       const token = localStorage.getItem('token');
       const url = editMode && selectedDers
@@ -166,12 +224,22 @@ function OgretmenCanliDersContent() {
       });
 
       if (res.ok) {
+        const result = await res.json();
         setShowModal(false);
         resetForm();
         fetchDersler();
+        
+        // Başarı mesajı göster
+        if (result.hedefOgrenciSayisi) {
+          alert(`Canlı ders başarıyla oluşturuldu! ${result.hedefOgrenciSayisi} öğrenciye bildirim gönderildi.`);
+        }
+      } else {
+        const error = await res.json();
+        alert(error.error || 'Bir hata oluştu');
       }
     } catch (error) {
       console.error('İşlem hatası:', error);
+      alert('Bir hata oluştu');
     }
   };
 
@@ -255,10 +323,15 @@ function OgretmenCanliDersContent() {
 
   const editDers = (ders: CanliDers) => {
     setSelectedDers(ders);
+    // Course'un sınıfını bul ve hedefSiniflar'a ekle
+    const course = courses.find(c => c.id === ders.courseId);
+    const sinifId = course ? siniflar.find(s => s.ad === course.sinif.ad)?.id : undefined;
+    
     setFormData({
       baslik: ders.baslik,
       aciklama: ders.aciklama || '',
       courseId: ders.courseId,
+      hedefSiniflar: sinifId ? [sinifId] : [],
       baslangicTarihi: new Date(ders.baslangicTarihi).toISOString().slice(0, 16),
       bitisTarihi: new Date(ders.bitisTarihi).toISOString().slice(0, 16),
       odaSifresi: ders.odaSifresi || '',
@@ -276,6 +349,7 @@ function OgretmenCanliDersContent() {
       baslik: '',
       aciklama: '',
       courseId: '',
+      hedefSiniflar: [],
       baslangicTarihi: '',
       bitisTarihi: '',
       odaSifresi: '',
@@ -405,8 +479,13 @@ function OgretmenCanliDersContent() {
                         </span>
                       )}
                     </div>
-                    <p className="text-slate-500 mb-3">
-                      {ders.course.sinif.ad} - {ders.course.ad}
+                    <p className="text-slate-500 mb-3 flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                        <Users className="w-3 h-3" />
+                        {ders.course.sinif.ad}
+                      </span>
+                      <span className="text-slate-400">•</span>
+                      <span>{ders.course.ad}</span>
                     </p>
                     {ders.aciklama && (
                       <p className="text-slate-600 text-sm mb-3">{ders.aciklama}</p>
@@ -528,6 +607,21 @@ function OgretmenCanliDersContent() {
               </div>
 
               <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                {/* Öğretmen Branş Bilgisi */}
+                {ogretmenBilgi && (
+                  <div className="bg-gradient-to-r from-red-50 to-pink-50 rounded-xl p-4 border border-red-100">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                        <Video className="w-5 h-5 text-red-600" />
+                      </div>
+                      <div>
+                        <p className="text-slate-800 font-medium">{ogretmenBilgi.ad} {ogretmenBilgi.soyad}</p>
+                        <p className="text-sm text-red-600">{ogretmenBilgi.brans || 'Branş Belirtilmemiş'}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="col-span-2">
                     <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -539,7 +633,7 @@ function OgretmenCanliDersContent() {
                       value={formData.baslik}
                       onChange={e => setFormData({ ...formData, baslik: e.target.value })}
                       className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
-                      placeholder="Örn: Matematik - Türev Konusu"
+                      placeholder="Örn: Türev Konusu - Çözümlü Sorular"
                     />
                   </div>
 
@@ -556,23 +650,58 @@ function OgretmenCanliDersContent() {
                     />
                   </div>
 
+                  {/* Hedef Sınıf Seçimi */}
                   <div className="col-span-2">
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Ders
-                    </label>
-                    <select
-                      required
-                      value={formData.courseId}
-                      onChange={e => setFormData({ ...formData, courseId: e.target.value })}
-                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
-                    >
-                      <option value="">Ders Seçin</option>
-                      {courses.map(c => (
-                        <option key={c.id} value={c.id}>
-                          {c.sinif.ad} - {c.ad}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-slate-700">
+                        Hedef Sınıflar *
+                      </label>
+                      <button
+                        type="button"
+                        onClick={tumSiniflariSec}
+                        className="text-xs text-red-600 hover:text-red-700 font-medium"
+                      >
+                        {formData.hedefSiniflar.length === siniflar.length ? 'Tümünü Kaldır' : 'Tümünü Seç'}
+                      </button>
+                    </div>
+                    <div className="border border-slate-200 rounded-xl p-4 max-h-48 overflow-y-auto">
+                      {siniflar.length === 0 ? (
+                        <p className="text-slate-500 text-sm text-center py-2">Sınıf bulunamadı</p>
+                      ) : (
+                        <div className="grid grid-cols-3 gap-2">
+                          {siniflar.map(sinif => (
+                            <label
+                              key={sinif.id}
+                              className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
+                                formData.hedefSiniflar.includes(sinif.id)
+                                  ? 'bg-red-100 border-red-300 border'
+                                  : 'bg-slate-50 border border-transparent hover:bg-slate-100'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={formData.hedefSiniflar.includes(sinif.id)}
+                                onChange={() => toggleSinifSecimi(sinif.id)}
+                                className="w-4 h-4 rounded border-slate-300 text-red-600 focus:ring-red-500"
+                              />
+                              <span className={`text-sm ${formData.hedefSiniflar.includes(sinif.id) ? 'text-red-800 font-medium' : 'text-slate-700'}`}>
+                                {sinif.ad}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {formData.hedefSiniflar.length > 0 && (
+                      <p className="text-xs text-slate-500 mt-1">
+                        {formData.hedefSiniflar.length} sınıf seçildi - Bu sınıflardaki tüm öğrencilere bildirim gönderilecek
+                      </p>
+                    )}
+                    {formData.hedefSiniflar.length === 0 && (
+                      <p className="text-xs text-red-500 mt-1">
+                        En az bir sınıf seçmelisiniz
+                      </p>
+                    )}
                   </div>
 
                   <div>

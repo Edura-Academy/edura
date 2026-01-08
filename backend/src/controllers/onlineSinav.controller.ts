@@ -596,6 +596,65 @@ export const getSinavSonuclari = async (req: AuthRequest, res: Response) => {
   }
 };
 
+// Oturum detayı (öğretmen - öğrenci cevapları)
+export const getOturumDetay = async (req: AuthRequest, res: Response) => {
+  try {
+    const ogretmenId = req.user?.id;
+    const { oturumId } = req.params;
+
+    // Oturumu ve ilişkili sınavı getir
+    const oturum = await prisma.sinavOturumu.findFirst({
+      where: { id: oturumId },
+      include: {
+        sinav: { select: { ogretmenId: true } },
+        ogrenci: { select: { id: true, ad: true, soyad: true, ogrenciNo: true } },
+        cevaplar: {
+          include: {
+            soru: { select: { id: true, siraNo: true, soruMetni: true, dogruCevap: true, puan: true } }
+          },
+          orderBy: { soru: { siraNo: 'asc' } }
+        }
+      }
+    });
+
+    if (!oturum) {
+      return res.status(404).json({ success: false, message: 'Oturum bulunamadı' });
+    }
+
+    // Yetki kontrolü
+    if (oturum.sinav.ogretmenId !== ogretmenId) {
+      return res.status(403).json({ success: false, message: 'Bu oturuma erişim yetkiniz yok' });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        oturum: {
+          id: oturum.id,
+          baslangicZamani: oturum.baslangicZamani,
+          bitisZamani: oturum.bitisZamani,
+          toplamPuan: oturum.toplamPuan,
+          yuzde: oturum.yuzde,
+          dogruSayisi: oturum.dogruSayisi,
+          yanlisSayisi: oturum.yanlisSayisi
+        },
+        ogrenci: oturum.ogrenci,
+        cevaplar: oturum.cevaplar.map(c => ({
+          id: c.id,
+          soruId: c.soruId,
+          cevap: c.cevap,
+          dogruMu: c.dogruMu,
+          puan: c.alinanPuan || 0,
+          soru: c.soru
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('Oturum detay hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
 // ==================== ÖĞRENCİ - SINAV ÇÖZME ====================
 
 // Aktif sınavları listele (öğrenci)
@@ -604,18 +663,26 @@ export const getAktifSinavlar = async (req: AuthRequest, res: Response) => {
     const ogrenciId = req.user?.id;
     const now = new Date();
 
-    // Öğrencinin bilgilerini al (sınıf bilgisi dahil)
+    // Öğrencinin bilgilerini al (sınıf ve KURS bilgisi dahil)
     const ogrenci = await prisma.user.findUnique({
       where: { id: ogrenciId },
       select: { 
         id: true, 
         sinifId: true,
-        sinif: { select: { id: true, ad: true } }
+        kursId: true, // KURS İZOLASYONU İÇİN EKLENDİ
+        sinif: { select: { id: true, ad: true, kursId: true } }
       }
     });
 
     if (!ogrenci) {
       return res.status(404).json({ success: false, message: 'Öğrenci bulunamadı' });
+    }
+
+    // Öğrencinin kursId'sini belirle (önce direkt, sonra sınıf üzerinden)
+    const ogrenciKursId = ogrenci.kursId || ogrenci.sinif?.kursId;
+
+    if (!ogrenciKursId) {
+      return res.status(400).json({ success: false, message: 'Öğrenci kursu bulunamadı' });
     }
 
     // Öğrencinin kayıtlı olduğu derslerin ID'lerini al
@@ -627,11 +694,14 @@ export const getAktifSinavlar = async (req: AuthRequest, res: Response) => {
     const courseIds = kayitlar.map(k => k.courseId);
 
     // Sınavları getir: CourseEnrollment VEYA hedefSiniflar üzerinden erişim
+    // ÖNEMLİ: Sadece öğrencinin kursundaki sınavlar gösterilir (KURS İZOLASYONU)
     const sinavlar = await prisma.onlineSinav.findMany({
       where: {
         durum: 'AKTIF',
         baslangicTarihi: { lte: now },
         bitisTarihi: { gte: now },
+        // KURS İZOLASYONU: Sınav öğretmeninin kursu, öğrencinin kursuyla aynı olmalı
+        ogretmen: { kursId: ogrenciKursId },
         OR: [
           // 1. Ders kaydı üzerinden erişim (CourseEnrollment)
           { courseId: { in: courseIds.length > 0 ? courseIds : ['none'] } },
@@ -639,7 +709,7 @@ export const getAktifSinavlar = async (req: AuthRequest, res: Response) => {
           ...(ogrenci.sinifId ? [{ hedefSiniflar: { contains: ogrenci.sinifId } }] : []),
           // 3. Sınıf adı üzerinden erişim (5A, 5B gibi)
           ...(ogrenci.sinif?.ad ? [{ hedefSiniflar: { contains: ogrenci.sinif.ad } }] : []),
-          // 4. Hedef sınıf belirtilmemiş sınavlar (herkese açık)
+          // 4. Hedef sınıf belirtilmemiş sınavlar (aynı kurstaki herkese açık)
           { hedefSiniflar: null, courseId: null }
         ]
       },
@@ -684,19 +754,23 @@ export const startSinav = async (req: AuthRequest, res: Response) => {
     const { sinavId } = req.params;
     const now = new Date();
 
-    // Öğrencinin sınıf bilgisini al
+    // Öğrencinin sınıf ve KURS bilgisini al
     const ogrenci = await prisma.user.findUnique({
       where: { id: ogrenciId },
       select: { 
         id: true, 
         sinifId: true,
-        sinif: { select: { id: true, ad: true } }
+        kursId: true, // KURS İZOLASYONU İÇİN EKLENDİ
+        sinif: { select: { id: true, ad: true, kursId: true } }
       }
     });
 
     if (!ogrenci) {
       return res.status(404).json({ success: false, message: 'Öğrenci bulunamadı' });
     }
+
+    // Öğrencinin kursId'sini belirle
+    const ogrenciKursId = ogrenci.kursId || ogrenci.sinif?.kursId;
 
     // Sınavı kontrol et
     const sinav = await prisma.onlineSinav.findFirst({
@@ -708,6 +782,7 @@ export const startSinav = async (req: AuthRequest, res: Response) => {
       },
       include: {
         sorular: { orderBy: { siraNo: 'asc' } },
+        ogretmen: { select: { kursId: true } }, // KURS İZOLASYONU İÇİN EKLENDİ
         course: {
           include: {
             kayitlar: { where: { ogrenciId, aktif: true } }
@@ -718,6 +793,11 @@ export const startSinav = async (req: AuthRequest, res: Response) => {
 
     if (!sinav) {
       return res.status(404).json({ success: false, message: 'Sınav bulunamadı veya aktif değil' });
+    }
+
+    // KURS İZOLASYONU: Sınav öğretmeninin kursu, öğrencinin kursuyla aynı olmalı
+    if (ogrenciKursId && sinav.ogretmen?.kursId && sinav.ogretmen.kursId !== ogrenciKursId) {
+      return res.status(403).json({ success: false, message: 'Bu sınava erişim yetkiniz yok (farklı kurs)' });
     }
 
     // Erişim kontrolü: CourseEnrollment VEYA hedefSiniflar
@@ -744,7 +824,7 @@ export const startSinav = async (req: AuthRequest, res: Response) => {
       }
     }
     
-    // 3. Herkese açık sınavlar (courseId ve hedefSiniflar null)
+    // 3. Herkese açık sınavlar (courseId ve hedefSiniflar null) - AYNI KURS İÇİNDE
     if (!sinav.courseId && !sinav.hedefSiniflar) {
       erisimVar = true;
     }
@@ -753,32 +833,26 @@ export const startSinav = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ success: false, message: 'Bu sınava erişim yetkiniz yok' });
     }
 
-    // Mevcut oturum var mı kontrol et
-    let oturum = await prisma.sinavOturumu.findUnique({
-      where: { sinavId_ogrenciId: { sinavId, ogrenciId: ogrenciId! } },
-      include: { cevaplar: true }
-    });
-
-    if (oturum?.tamamlandi) {
-      return res.status(400).json({ success: false, message: 'Bu sınavı zaten tamamladınız' });
-    }
-
-    // Soru sırasını belirle
+    // Soru sırasını belirle (yeni oturum için)
     let soruSirasi = sinav.sorular.map(s => s.id);
     if (sinav.karistir) {
       soruSirasi = soruSirasi.sort(() => Math.random() - 0.5);
     }
 
-    if (!oturum) {
-      // Yeni oturum oluştur
-      oturum = await prisma.sinavOturumu.create({
-        data: {
-          sinavId,
-          ogrenciId: ogrenciId!,
-          soruSirasi: JSON.stringify(soruSirasi)
-        },
-        include: { cevaplar: true }
-      });
+    // Mevcut oturum var mı kontrol et veya oluştur (upsert ile race condition önleme)
+    let oturum = await prisma.sinavOturumu.upsert({
+      where: { sinavId_ogrenciId: { sinavId, ogrenciId: ogrenciId! } },
+      update: {}, // Varsa güncelleme yapma
+      create: {
+        sinavId,
+        ogrenciId: ogrenciId!,
+        soruSirasi: JSON.stringify(soruSirasi)
+      },
+      include: { cevaplar: true }
+    });
+
+    if (oturum.tamamlandi) {
+      return res.status(400).json({ success: false, message: 'Bu sınavı zaten tamamladınız' });
     }
 
     // Soruları sıraya göre getir (doğru cevapları gizle)
@@ -1040,6 +1114,359 @@ export const getOgrenciSinavGecmisi = async (req: AuthRequest, res: Response) =>
     res.json({ success: true, data: gecmis });
   } catch (error) {
     console.error('Sınav geçmişi hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+// ==================== SINAV ÖNİZLEME VE ANALİZ ====================
+
+// Sınav önizleme (öğretmen sınavı yayınlamadan önce görebilsin)
+export const getSinavOnizleme = async (req: AuthRequest, res: Response) => {
+  try {
+    const ogretmenId = req.user?.id;
+    const { sinavId } = req.params;
+
+    const sinav = await prisma.onlineSinav.findFirst({
+      where: { id: sinavId, ogretmenId },
+      include: {
+        course: { select: { id: true, ad: true, sinif: { select: { ad: true } } } },
+        sorular: { orderBy: { siraNo: 'asc' } }
+      }
+    });
+
+    if (!sinav) {
+      return res.status(404).json({ success: false, message: 'Sınav bulunamadı' });
+    }
+
+    // Soruları öğrenci göreceği formatta hazırla
+    const sorularOnizleme = sinav.sorular.map((soru, index) => ({
+      siraNo: index + 1,
+      soruMetni: soru.soruMetni,
+      soruTipi: soru.soruTipi,
+      puan: soru.puan,
+      secenekler: soru.secenekler ? JSON.parse(soru.secenekler) : null,
+      dogruCevap: soru.dogruCevap, // Öğretmene göster
+      resimUrl: soru.resimUrl
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        id: sinav.id,
+        baslik: sinav.baslik,
+        aciklama: sinav.aciklama,
+        course: sinav.course,
+        dersAdi: sinav.dersAdi,
+        sure: sinav.sure,
+        maksimumPuan: sinav.maksimumPuan,
+        baslangicTarihi: sinav.baslangicTarihi,
+        bitisTarihi: sinav.bitisTarihi,
+        karistir: sinav.karistir,
+        geriDonus: sinav.geriDonus,
+        sonucGoster: sinav.sonucGoster,
+        durum: sinav.durum,
+        soruSayisi: sinav.sorular.length,
+        toplamPuan: sinav.sorular.reduce((sum, s) => sum + s.puan, 0),
+        sorular: sorularOnizleme
+      }
+    });
+  } catch (error) {
+    console.error('Önizleme hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+// Detaylı sınav analiz raporu
+export const getSinavAnalizRaporu = async (req: AuthRequest, res: Response) => {
+  try {
+    const ogretmenId = req.user?.id;
+    const { sinavId } = req.params;
+
+    const sinav = await prisma.onlineSinav.findFirst({
+      where: { id: sinavId, ogretmenId },
+      include: {
+        course: { 
+          select: { 
+            id: true, 
+            ad: true, 
+            sinif: { select: { id: true, ad: true } } 
+          } 
+        },
+        sorular: { orderBy: { siraNo: 'asc' } },
+        oturumlar: {
+          where: { tamamlandi: true },
+          include: {
+            ogrenci: { 
+              select: { 
+                id: true, 
+                ad: true, 
+                soyad: true, 
+                ogrenciNo: true 
+              } 
+            },
+            cevaplar: true
+          },
+          orderBy: { toplamPuan: 'desc' }
+        }
+      }
+    });
+
+    if (!sinav) {
+      return res.status(404).json({ success: false, message: 'Sınav bulunamadı' });
+    }
+
+    // Genel istatistikler
+    const puanlar = sinav.oturumlar.map(o => o.toplamPuan || 0);
+    const maxPuan = sinav.sorular.reduce((sum, s) => sum + s.puan, 0);
+    
+    const genelIstatistik = {
+      katilimci: sinav.oturumlar.length,
+      ortalama: puanlar.length > 0 ? Math.round(puanlar.reduce((a, b) => a + b, 0) / puanlar.length * 10) / 10 : 0,
+      enYuksek: puanlar.length > 0 ? Math.max(...puanlar) : 0,
+      enDusuk: puanlar.length > 0 ? Math.min(...puanlar) : 0,
+      maxPuan,
+      ortalamaYuzde: puanlar.length > 0 ? Math.round((puanlar.reduce((a, b) => a + b, 0) / puanlar.length / maxPuan) * 100) : 0,
+      gecenSayisi: puanlar.filter(p => p >= maxPuan * 0.5).length,
+      gecmeOrani: puanlar.length > 0 ? Math.round((puanlar.filter(p => p >= maxPuan * 0.5).length / puanlar.length) * 100) : 0
+    };
+
+    // Puan dağılımı (histogram)
+    const puanDagilimi = {
+      '0-20': puanlar.filter(p => p / maxPuan * 100 <= 20).length,
+      '21-40': puanlar.filter(p => p / maxPuan * 100 > 20 && p / maxPuan * 100 <= 40).length,
+      '41-60': puanlar.filter(p => p / maxPuan * 100 > 40 && p / maxPuan * 100 <= 60).length,
+      '61-80': puanlar.filter(p => p / maxPuan * 100 > 60 && p / maxPuan * 100 <= 80).length,
+      '81-100': puanlar.filter(p => p / maxPuan * 100 > 80).length
+    };
+
+    // Soru bazlı analiz
+    const soruAnaliz = sinav.sorular.map(soru => {
+      const cevaplar = sinav.oturumlar.flatMap(o => o.cevaplar).filter(c => c.soruId === soru.id);
+      const dogruSayisi = cevaplar.filter(c => c.dogruMu).length;
+      const yanlisSayisi = cevaplar.filter(c => !c.dogruMu && c.cevap).length;
+      const bosSayisi = cevaplar.filter(c => !c.cevap).length;
+      
+      // Seçenek dağılımı (çoktan seçmeli için)
+      const secenekDagilimi: Record<string, number> = {};
+      if (soru.soruTipi === 'COKTAN_SECMELI') {
+        cevaplar.forEach(c => {
+          if (c.cevap) {
+            secenekDagilimi[c.cevap] = (secenekDagilimi[c.cevap] || 0) + 1;
+          }
+        });
+      }
+      
+      return {
+        soruId: soru.id,
+        siraNo: soru.siraNo,
+        soruMetni: soru.soruMetni.substring(0, 100) + (soru.soruMetni.length > 100 ? '...' : ''),
+        soruTipi: soru.soruTipi,
+        puan: soru.puan,
+        dogruCevap: soru.dogruCevap,
+        dogruSayisi,
+        yanlisSayisi,
+        bosSayisi,
+        dogruOrani: cevaplar.length > 0 ? Math.round((dogruSayisi / cevaplar.length) * 100) : 0,
+        zorluk: cevaplar.length > 0 
+          ? (dogruSayisi / cevaplar.length > 0.7 ? 'Kolay' : dogruSayisi / cevaplar.length > 0.4 ? 'Orta' : 'Zor')
+          : 'Belirsiz',
+        secenekDagilimi
+      };
+    });
+
+    // En zor ve en kolay sorular
+    const siraliSorular = [...soruAnaliz].sort((a, b) => a.dogruOrani - b.dogruOrani);
+    const enZorSorular = siraliSorular.slice(0, 3);
+    const enKolaySorular = siraliSorular.slice(-3).reverse();
+
+    // Öğrenci sıralaması
+    const ogrenciSiralaması = sinav.oturumlar.map((oturum, index) => ({
+      siralama: index + 1,
+      ogrenci: oturum.ogrenci,
+      toplamPuan: oturum.toplamPuan || 0,
+      yuzde: oturum.yuzde || 0,
+      dogruSayisi: oturum.dogruSayisi || 0,
+      yanlisSayisi: oturum.yanlisSayisi || 0,
+      bosSayisi: oturum.bosSayisi || 0,
+      sure: oturum.bitisZamani && oturum.baslangicZamani 
+        ? Math.round((new Date(oturum.bitisZamani).getTime() - new Date(oturum.baslangicZamani).getTime()) / 60000)
+        : null
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        sinav: {
+          id: sinav.id,
+          baslik: sinav.baslik,
+          course: sinav.course,
+          dersAdi: sinav.dersAdi,
+          sure: sinav.sure,
+          durum: sinav.durum,
+          baslangicTarihi: sinav.baslangicTarihi,
+          bitisTarihi: sinav.bitisTarihi,
+          soruSayisi: sinav.sorular.length
+        },
+        genelIstatistik,
+        puanDagilimi,
+        soruAnaliz,
+        enZorSorular,
+        enKolaySorular,
+        ogrenciSiralaması
+      }
+    });
+  } catch (error) {
+    console.error('Analiz raporu hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+// ==================== PERSONEL (SEKRETER) ERİŞİMLERİ ====================
+
+// Personel için tüm sınavları listele
+export const getPersonelSinavListesi = async (req: AuthRequest, res: Response) => {
+  try {
+    const kursId = req.user?.kursId;
+    const { durum, courseId } = req.query;
+
+    // Kursa ait tüm sınavları getir
+    const where: Record<string, unknown> = {};
+    
+    if (kursId) {
+      where.course = { sinif: { kursId } };
+    }
+    if (durum) {
+      where.durum = durum;
+    }
+    if (courseId) {
+      where.courseId = courseId;
+    }
+
+    const sinavlar = await prisma.onlineSinav.findMany({
+      where,
+      include: {
+        course: { 
+          select: { 
+            id: true, 
+            ad: true,
+            sinif: { select: { id: true, ad: true } }
+          } 
+        },
+        ogretmen: { select: { id: true, ad: true, soyad: true } },
+        sorular: { select: { id: true } },
+        oturumlar: { select: { id: true, tamamlandi: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const sinavlarWithStats = sinavlar.map(sinav => ({
+      id: sinav.id,
+      baslik: sinav.baslik,
+      aciklama: sinav.aciklama,
+      course: sinav.course || { id: sinav.bransKodu || 'deneme', ad: sinav.dersAdi || 'Deneme Sınavı' },
+      ogretmen: sinav.ogretmen,
+      sure: sinav.sure,
+      durum: sinav.durum,
+      baslangicTarihi: sinav.baslangicTarihi,
+      bitisTarihi: sinav.bitisTarihi,
+      soruSayisi: sinav.sorular.length,
+      katilimciSayisi: sinav.oturumlar.length,
+      tamamlayanSayisi: sinav.oturumlar.filter(o => o.tamamlandi).length
+    }));
+
+    res.json({ success: true, data: sinavlarWithStats });
+  } catch (error) {
+    console.error('Personel sınav listesi hatası:', error);
+    res.status(500).json({ success: false, message: 'Sunucu hatası' });
+  }
+};
+
+// Personel için sınav sonuçları (sadece görüntüleme)
+export const getPersonelSinavSonuclari = async (req: AuthRequest, res: Response) => {
+  try {
+    const kursId = req.user?.kursId;
+    const { sinavId } = req.params;
+
+    const sinav = await prisma.onlineSinav.findFirst({
+      where: { 
+        id: sinavId,
+        ...(kursId && { course: { sinif: { kursId } } })
+      },
+      include: {
+        course: { 
+          select: { 
+            id: true, 
+            ad: true,
+            sinif: { select: { id: true, ad: true } }
+          } 
+        },
+        ogretmen: { select: { id: true, ad: true, soyad: true } },
+        sorular: { orderBy: { siraNo: 'asc' } },
+        oturumlar: {
+          where: { tamamlandi: true },
+          include: {
+            ogrenci: { 
+              select: { 
+                id: true, 
+                ad: true, 
+                soyad: true, 
+                ogrenciNo: true,
+                sinif: { select: { ad: true } }
+              } 
+            }
+          },
+          orderBy: { toplamPuan: 'desc' }
+        }
+      }
+    });
+
+    if (!sinav) {
+      return res.status(404).json({ success: false, message: 'Sınav bulunamadı' });
+    }
+
+    // İstatistikler
+    const puanlar = sinav.oturumlar.map(o => o.toplamPuan || 0);
+    const maxPuan = sinav.sorular.reduce((sum, s) => sum + s.puan, 0);
+    
+    const istatistik = {
+      katilimci: sinav.oturumlar.length,
+      ortalama: puanlar.length > 0 ? Math.round(puanlar.reduce((a, b) => a + b, 0) / puanlar.length) : 0,
+      enYuksek: puanlar.length > 0 ? Math.max(...puanlar) : 0,
+      enDusuk: puanlar.length > 0 ? Math.min(...puanlar) : 0,
+      maxPuan,
+      gecenSayisi: puanlar.filter(p => p >= maxPuan * 0.5).length
+    };
+
+    // Öğrenci sonuçları
+    const ogrenciSonuclari = sinav.oturumlar.map((oturum, index) => ({
+      siralama: index + 1,
+      ogrenci: oturum.ogrenci,
+      toplamPuan: oturum.toplamPuan,
+      yuzde: oturum.yuzde,
+      dogruSayisi: oturum.dogruSayisi,
+      yanlisSayisi: oturum.yanlisSayisi,
+      bosSayisi: oturum.bosSayisi,
+      bitisZamani: oturum.bitisZamani
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        sinav: {
+          id: sinav.id,
+          baslik: sinav.baslik,
+          course: sinav.course || { id: sinav.bransKodu, ad: sinav.dersAdi },
+          ogretmen: sinav.ogretmen,
+          durum: sinav.durum,
+          sure: sinav.sure,
+          soruSayisi: sinav.sorular.length
+        },
+        istatistik,
+        ogrenciSonuclari
+      }
+    });
+  } catch (error) {
+    console.error('Personel sınav sonuçları hatası:', error);
     res.status(500).json({ success: false, message: 'Sunucu hatası' });
   }
 };

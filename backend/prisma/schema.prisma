@@ -12,6 +12,7 @@ datasource db {
 
 enum Role {
   admin
+  kursSahibi  // Kurs sahibi (Patron) - Kurs hesabını yöneten kişi
   mudur
   ogretmen
   sekreter
@@ -45,13 +46,14 @@ enum OdevDurum {
   BEKLEMEDE
   TESLIM_EDILDI
   DEGERLENDIRILDI
+  GEC_TESLIM       // Geç teslim edildi
 }
 
 enum OdevTipi {
-  KLASIK          // Klasik metin tabanlı ödev
-  SORU_CEVAP      // Sorulu ödev (klasik sorular)
+  TEST            // Çoktan seçmeli test soruları
+  SORU_CEVAP      // Klasik sorular (metin cevaplı)
   DOSYA_YUKLE     // Sadece dosya yükleme
-  KARISIK         // Hepsi bir arada
+  KARISIK         // Test ve klasik sorular bir arada
 }
 
 enum YoklamaDurum {
@@ -69,12 +71,18 @@ model Kurs {
   telefon     String
   aktif       Boolean  @default(true)
   
+  // Kurs Sahibi ilişkisi
+  sahipId     String?
+  sahip       User?    @relation("KursSahibi", fields: [sahipId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
   siniflar    Sinif[]
   users       User[]
   duyurular   Duyuru[]
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  
+  @@index([sahipId])
 }
 
 // Kullanıcılar tablosu - Tüm roller için merkezi tablo
@@ -118,6 +126,9 @@ model User {
   // Push Notification
   fcmToken          String?   // Firebase Cloud Messaging token
   
+  // Profil Fotoğrafı
+  profilFoto        String?   // Firebase Storage URL
+  
   // İlişkiler
   gonderdigiMesajlar    Message[] @relation("GonderenMesajlar")
   aldigiMesajlar        Message[] @relation("AlanMesajlar")
@@ -149,6 +160,9 @@ model User {
   // Materyal ilişkileri
   yuklenanMateryaller   Materyal[] @relation("MateryalYukleyen")
   
+  // Soru Havuzu ilişkileri (Öğretmenler soru ekleyebilir)
+  ekledigiSorular       SoruHavuzu[] @relation("OgretmenSorulari")
+  
   // Birebir Ders ilişkileri
   ogretmenBirebirDersler BirebirDers[] @relation("OgretmenBirebirDersler")
   ogrenciBirebirDersler  BirebirDers[] @relation("OgrenciBirebirDersler")
@@ -156,8 +170,20 @@ model User {
   
   // Gamification ilişkileri
   xpPuani               Int       @default(0)
+  xpSeviye              XPSeviye  @default(BASLANGIC) // Başlangıç, Çırak, Usta, Uzman, Efsane
   streak                Int       @default(0)
+  enYuksekStreak        Int       @default(0) // Rekor streak
   sonAktiviteTarihi     DateTime?
+  
+  // CS:GO tarzı gösterilecek rozet seçimi
+  seciliRozetId         String?   // Profilde gösterilecek rozet
+  
+  // İstatistikler
+  toplamCozulenSoru     Int       @default(0)
+  toplamDogruCevap      Int       @default(0)
+  toplamTeslimOdev      Int       @default(0)
+  toplamKatilinanDers   Int       @default(0)
+  
   rozetler              Rozet[]
   gunlukGorevler        GunlukGorev[]
   gunSorusuCevaplari    GununSorusuCevap[]
@@ -166,11 +192,15 @@ model User {
   olusturduguDenemeSinavlari DenemeSinavi[] @relation("DenemeSinavOlusturan")
   denemeSonuclari            DenemeSonucu[] @relation("OgrenciDenemeSonuclari")
   girdigiDenemeSonuclari     DenemeSonucu[] @relation("DenemeSonucuGiren")
+  denemeHedefleri            DenemeHedef[]
   
   // Kurum İçi Deneme Sınavı ilişkileri
   kurumIciDenemeler          KurumIciDeneme[] @relation("KurumIciDenemeOlusturan")
   soruPaketleri              DenemeSoruPaketi[] @relation("OgretmenSoruPaketleri")
   denemeOturumlari           DenemeOturumu[] @relation("OgrenciDenemeOturumlari")
+  
+  // Kurs Sahipliği ilişkisi
+  sahipOlduguKurslar         Kurs[] @relation("KursSahibi")
   
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -469,6 +499,16 @@ model Odev {
   maxPuan         Int       @default(100)
   aktif           Boolean   @default(true)
   
+  // Taslak özelliği
+  taslak          Boolean   @default(false)
+  
+  // Geç teslim politikası (JSON)
+  // { aktif: boolean, toleransSuresi: number (saat), puanKesintisi: number (%) }
+  gecTeslimPolitikasi String? @db.Text
+  
+  // Kopyalama referansı
+  kopyalananOdevId String?  // Hangi ödevden kopyalandı
+  
   // Ödev tipi ve içerik
   odevTipi        OdevTipi  @default(KARISIK)
   konuBasligi     String?   // Konu başlığı
@@ -491,6 +531,7 @@ model Odev {
   @@index([sonTeslimTarihi])
   @@index([baslangicTarihi])
   @@index([odevTipi])
+  @@index([taslak])
 }
 
 // Ödev Soruları - Öğretmen klasik sorular ekleyebilir
@@ -503,6 +544,11 @@ model OdevSoru {
   soruMetni   String   @db.Text
   resimUrl    String?  // Soru için resim (max 8MB)
   puan        Int      @default(10)
+  
+  // Test sorusu için ek alanlar
+  soruTipi    String   @default("klasik") // "test" veya "klasik"
+  siklar      Json?    // Test sorusu şıkları ["A şıkkı", "B şıkkı", ...]
+  dogruCevap  Int?     // Doğru cevap indeksi (0, 1, 2, 3...)
   
   // Öğrenci cevapları
   cevaplar    OdevSoruCevap[]
@@ -522,8 +568,10 @@ model OdevSoruCevap {
   teslimId    String
   teslim      OdevTeslim @relation(fields: [teslimId], references: [id], onDelete: Cascade)
   
-  cevapMetni  String?   @db.Text // Yazılı cevap
+  cevapMetni  String?   @db.Text // Yazılı cevap (klasik sorular için)
   resimUrl    String?   // Cevap için resim (max 8MB)
+  secilenSik  Int?      // Test sorusu için seçilen şık indeksi (0, 1, 2, 3...)
+  dogruMu     Boolean?  // Test sorusu için otomatik hesaplanan doğru/yanlış
   puan        Int?      // Verilen puan
   yorum       String?   @db.Text // Öğretmen yorumu
   
@@ -555,6 +603,12 @@ model OdevTeslim {
   puan        Int?
   ogretmenYorumu String? @db.Text
   
+  // Geç teslim bilgisi
+  gecTeslimMi     Boolean  @default(false)
+  gecikmeGun      Int?     // Kaç gün geç teslim edildi
+  puanKesintisi   Float?   // Uygulanan puan kesintisi yüzdesi
+  orijinalPuan    Int?     // Kesinti öncesi puan
+  
   // Soru cevapları ilişkisi
   soruCevaplari OdevSoruCevap[]
   
@@ -565,6 +619,7 @@ model OdevTeslim {
   @@index([odevId])
   @@index([ogrenciId])
   @@index([durum])
+  @@index([gecTeslimMi])
 }
 
 // Duyuru hedef kitlesi
@@ -583,6 +638,16 @@ enum DuyuruOncelik {
   ACIL
 }
 
+// Duyuru kategorileri
+enum DuyuruKategori {
+  GENEL           // Genel duyurular
+  AKADEMIK        // Akademik duyurular
+  ETKINLIK        // Etkinlik duyuruları
+  SINAV           // Sınav duyuruları
+  IDARI           // İdari duyurular
+  DIGER           // Diğer
+}
+
 // Duyurular
 model Duyuru {
   id          String        @id @default(uuid())
@@ -590,6 +655,7 @@ model Duyuru {
   icerik      String        @db.Text
   hedef       DuyuruHedef   @default(HERKESE)
   oncelik     DuyuruOncelik @default(NORMAL)
+  kategori    DuyuruKategori @default(GENEL)
   
   // Hedef sınıflar (hedef SINIF ise)
   sinifIds    String?       // JSON array: ["sinif1-id", "sinif2-id"]
@@ -611,6 +677,11 @@ model Duyuru {
   yayinTarihi DateTime      @default(now())
   bitisTarihi DateTime?     // Opsiyonel: Duyurunun sona erme tarihi
   
+  // Pinleme ve arşiv
+  pinlendi    Boolean       @default(false)
+  arsivlendi  Boolean       @default(false)
+  arsivTarihi DateTime?
+  
   // Okunma takibi
   okuyanlar   DuyuruOkuma[]
   
@@ -622,6 +693,9 @@ model Duyuru {
   @@index([hedef])
   @@index([aktif])
   @@index([yayinTarihi])
+  @@index([kategori])
+  @@index([pinlendi])
+  @@index([arsivlendi])
 }
 
 // Duyuru okunma takibi
@@ -709,10 +783,21 @@ model Odeme {
   // Taksit bilgisi
   taksitNo        Int?         // 1, 2, 3... (taksitli ödemelerde)
   vadeTarihi      DateTime
+  orijinalVadeTarihi DateTime? // Erteleme öncesi orijinal vade tarihi
+  
+  // Taksit erteleme
+  ertelendi       Boolean      @default(false)
+  ertelemeSayisi  Int          @default(0)
+  ertelemeNotu    String?
   
   // Ödeme bilgisi
   odemeYontemi    OdemeYontemi?
   odemeTarihi     DateTime?
+  
+  // Kupon kullanımı
+  kuponId         String?
+  kupon           IndirimKuponu? @relation(fields: [kuponId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  kuponIndirimi   Float?       // Uygulanan kupon indirimi
   
   // iyzico bilgileri
   iyzicoPaymentId String?      // iyzico ödeme ID
@@ -724,6 +809,14 @@ model Odeme {
   
   aciklama        String?
   
+  // Makbuz bilgisi
+  makbuzNo        String?      @unique
+  makbuzUrl       String?      // PDF makbuz URL'i
+  
+  // Hatırlatma
+  hatirlatimaGonderildi Boolean @default(false)
+  sonHatirlatmaTarihi   DateTime?
+  
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
@@ -731,6 +824,74 @@ model Odeme {
   @@index([ogrenciId])
   @@index([durum])
   @@index([vadeTarihi])
+  @@index([kuponId])
+  @@index([makbuzNo])
+}
+
+// İndirim Kuponları
+model IndirimKuponu {
+  id              String       @id @default(uuid())
+  kod             String       @unique
+  aciklama        String?
+  
+  // İndirim tipi
+  indirimTipi     String       @default("YUZDE") // YUZDE veya TUTAR
+  indirimDegeri   Float        // Yüzde veya sabit tutar
+  
+  // Kullanım limitleri
+  kullanimLimiti  Int?         // null = sınırsız
+  kullanilanAdet  Int          @default(0)
+  
+  // Geçerlilik
+  baslangicTarihi DateTime     @default(now())
+  bitisTarihi     DateTime?
+  aktif           Boolean      @default(true)
+  
+  // Minimum tutar
+  minTutar        Float?       // Minimum ödeme tutarı
+  
+  // Kurs bazlı (opsiyonel)
+  kursId          String?
+  
+  odemeler        Odeme[]
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  
+  @@index([kod])
+  @@index([aktif])
+  @@index([bitisTarihi])
+  @@index([kursId])
+}
+
+// Ödeme Hatırlatmaları
+model OdemeHatirlama {
+  id              String       @id @default(uuid())
+  ogrenciId       String
+  odemePlaniId    String?
+  
+  // Hatırlatma tipi
+  tip             String       // YAKLASAN, GECIKEN, GENEL
+  
+  // Zamanlanmış gönderim
+  gonderimTarihi  DateTime
+  gonderildiMi    Boolean      @default(false)
+  gonderimZamani  DateTime?
+  
+  // İçerik
+  baslik          String
+  mesaj           String       @db.Text
+  
+  // Kanal
+  emailGonderilsin Boolean     @default(true)
+  pushGonderilsin  Boolean     @default(true)
+  smsGonderilsin   Boolean     @default(false)
+  
+  createdAt       DateTime     @default(now())
+  
+  @@index([gonderimTarihi])
+  @@index([gonderildiMi])
+  @@index([ogrenciId])
 }
 
 // ================== CANLI DERS SİSTEMİ ==================
@@ -1120,8 +1281,9 @@ model DenemeSinavi {
   tarih           DateTime
   
   // Hedef kitle
-  sinifId         String?      // Belirli sınıf için (null = tüm sınıflar)
+  sinifId         String?      // Belirli sınıf için (null = tüm sınıflar) [Eski sistem - uyumluluk için]
   sinif           Sinif?       @relation("DenemeSinavSinif", fields: [sinifId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  hedefSiniflar   String?      // JSON array: [5, 6, 7, 8] veya [9, 10, 11, 12] - Sınıf seviyeleri
   kursId          String?      // Belirli kurs için (null = tüm kurslar)
   
   // Branş bazlı soru sayıları (JSON)
@@ -1191,22 +1353,108 @@ model DenemeSonucu {
   @@index([girenId])
 }
 
+// Öğrenci Deneme Hedefleri
+model DenemeHedef {
+  id              String       @id @default(uuid())
+  ogrenciId       String
+  ogrenci         User         @relation(fields: [ogrenciId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  
+  // Hedef türü (TYT, AYT, LGS)
+  tur             DenemeTuru
+  
+  // Hedef net (toplam)
+  hedefNet        Float
+  
+  // Branş bazlı hedef netler (JSON)
+  // Örnek: {"TYT_TURKCE": 30, "TYT_MATEMATIK": 25}
+  bransHedefleri  String?      @db.Text
+  
+  // Hedef sıralama
+  hedefSiralama   Int?
+  
+  // Hedef tarih
+  hedefTarihi     DateTime?    // Bu tarihe kadar hedefe ulaşma
+  
+  // İlerleme takibi
+  sonNet          Float?       // En son deneme neti
+  sonSiralama     Int?         // En son sıralama
+  ilerlemeDurumu  String?      // YUKSELIYOR, DUSUYOR, STABIL
+  
+  aktif           Boolean      @default(true)
+  aciklama        String?
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  
+  @@unique([ogrenciId, tur])
+  @@index([ogrenciId])
+  @@index([tur])
+  @@index([aktif])
+}
+
 // ================== GAMİFİCATİON SİSTEMİ ==================
 
+// XP Seviyeleri (CS:GO tarzı)
+enum XPSeviye {
+  BASLANGIC     // 0-999 XP (Gri rozet)
+  CIRAK         // 1000-4999 XP (Bronz rozet)
+  USTA          // 5000-14999 XP (Gümüş rozet)
+  UZMAN         // 15000-29999 XP (Altın rozet)
+  EFSANE        // 30000+ XP (Elmas rozet)
+}
+
 enum RozetTipi {
-  STREAK_7       // 7 gün streak
-  STREAK_30      // 30 gün streak
-  STREAK_100     // 100 gün streak
-  ILK_ODEV       // İlk ödev teslimi
-  ODEV_USTASI    // 50 ödev teslimi
-  SINAV_SAMPIYONU // 10 sınavda %90+ 
-  ERKEN_KUS      // Sabah 8'den önce görev
-  GECE_KUSU      // Gece 22'den sonra görev
-  SOSYAL_KELEBEK // 10 mesaj gönder
-  CANLI_DERS_KATILIMCISI // 20 canlı derse katıl
-  XP_1000        // 1000 XP topla
-  XP_5000        // 5000 XP topla
-  XP_10000       // 10000 XP topla
+  // Streak Rozetleri 🔥
+  STREAK_7         // 7 gün üst üste aktif
+  STREAK_30        // 30 gün üst üste aktif
+  STREAK_100       // 100 gün üst üste aktif (Streak Ustası)
+  STREAK_365       // 365 gün üst üste aktif (Yıllık Efsane)
+  
+  // Ödev Rozetleri 📚
+  ILK_ODEV         // İlk ödev teslimi
+  ODEV_10          // 10 ödev teslimi
+  ODEV_50          // 50 ödev teslimi (Ödev Ustası)
+  ODEV_100         // 100 ödev teslimi
+  
+  // Sınav Rozetleri 🏆
+  ILK_SINAV        // İlk sınav tamamlandı
+  SINAV_90         // Bir sınavda %90+ (Sınav Şampiyonu)
+  SINAV_100        // Bir sınavda %100 (Mükemmeliyetçi)
+  SINAV_10         // 10 sınav tamamlandı
+  
+  // Zaman Rozetleri ⏰
+  ERKEN_KUS        // Sabah 06:00-08:00 arası 10 görev
+  GECE_KUSU        // Gece 22:00-00:00 arası 10 görev
+  HAFTA_SONU       // Hafta sonu 20 görev tamamladı
+  
+  // Sosyal Rozetler 💬
+  SOSYAL_KELEBEK   // 50 mesaj gönder
+  YARDIMCI         // 10 arkadaşına yardım et
+  
+  // Canlı Ders Rozetleri 🎥
+  CANLI_DERS_10    // 10 canlı derse katıl
+  CANLI_DERS_50    // 50 canlı derse katıl (Canlı Ders Ustası)
+  
+  // XP Rozetleri ⭐
+  XP_1000          // 1000 XP topla
+  XP_5000          // 5000 XP topla
+  XP_10000         // 10000 XP topla
+  XP_25000         // 25000 XP topla
+  XP_50000         // 50000 XP topla (XP Kralı)
+  
+  // Günün Sorusu Rozetleri ❓
+  GUN_SORUSU_7     // 7 gün üst üste günün sorusunu çöz
+  GUN_SORUSU_30    // 30 gün üst üste günün sorusunu çöz
+  GUN_SORUSU_DOGRU_10 // 10 günün sorusunu doğru cevapla
+  
+  // Hız Rozetleri ⚡
+  HIZ_SAMPIYONU    // Bir sınavı en hızlı bitiren
+  ERKEN_TESLIM     // 10 ödevi son tarihten 3+ gün önce teslim et
+  
+  // Özel Rozetler 🌟
+  SISTEM_MIMARI    // Tüm modülleri kullandı
+  BETA_TESTER      // Beta test sürecine katıldı
+  KUSURSUZ_HAFTA   // 1 hafta boyunca tüm görevleri tamamladı
 }
 
 model Rozet {
@@ -1217,10 +1465,19 @@ model Rozet {
   tip             RozetTipi
   kazanilanTarih  DateTime  @default(now())
   
+  // Rozet kazanıldığında verilen XP
+  kazanilanXp     Int       @default(50)
+  
+  // Öğretmen tarafından ödüllendirildi mi?
+  ogretmenOdullendirdi Boolean @default(false)
+  odullendirmeTarihi   DateTime?
+  odullendirmeNotu     String?  @db.Text
+  
   createdAt       DateTime  @default(now())
 
   @@unique([userId, tip])
   @@index([userId])
+  @@index([ogretmenOdullendirdi])
 }
 
 enum GorevTipi {
@@ -1252,23 +1509,84 @@ model GunlukGorev {
   @@index([tarih])
 }
 
-// Günün sorusu (Lichess puzzle tarzı)
-model GununSorusu {
+// Soru Havuzu (Günün sorusu için kaynak - Öğretmenler tarafından eklenir)
+model SoruHavuzu {
   id              String    @id @default(uuid())
-  tarih           DateTime  @unique @db.Date
   
   soruMetni       String    @db.Text
-  secenekler      String    @db.Text  // JSON array
-  dogruCevap      String
+  secenekler      String    @db.Text  // JSON array: ["A şıkkı", "B şıkkı", "C şıkkı", "D şıkkı"]
+  dogruCevap      String    // A, B, C, D
   aciklama        String?   @db.Text  // Çözüm açıklaması
   
-  zorluk          Int       @default(1) // 1: Kolay, 2: Orta, 3: Zor
-  xpOdulu         Int       @default(15)
-  konu            String?   // Matematik, Fizik, vs.
+  // Öğretmen tarafından eklendi
+  ekleyenId       String?
+  ekleyen         User?     @relation("OgretmenSorulari", fields: [ekleyenId], references: [id], onDelete: SetNull)
+  
+  // Kategoriler
+  konu            String    // Matematik, Fizik, Türkçe, Tarih, Coğrafya, Biyoloji, Kimya, İngilizce
+  altKonu         String?   // Alt konu (Trigonometri, Denklemler, vb.)
+  
+  // Hedef sınıflar (JSON array: [5, 6, 7, 8] veya [9, 10, 11, 12] gibi)
+  hedefSiniflar   String?   @db.Text  // JSON array
+  sinifSeviyesi   Int?      // Minimum sınıf seviyesi (5-12 arası)
+  
+  // Zorluk (1-5 arası)
+  zorluk          Int       @default(3) // 1: Çok Kolay, 2: Kolay, 3: Orta, 4: Zor, 5: Çok Zor
+  
+  // İstatistikler
+  sorulmaSayisi   Int       @default(0)
+  dogruCevapSayisi Int      @default(0)
+  basariOrani     Float?    // Otomatik hesaplanır
+  
+  aktif           Boolean   @default(true)
+  onaylandiMi     Boolean   @default(true) // Müdür onayı gerekebilir
+  
+  // Günün sorusu olarak seçildiğinde
+  gununSorulari   GununSorusu[]
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([konu])
+  @@index([zorluk])
+  @@index([sinifSeviyesi])
+  @@index([aktif])
+  @@index([ekleyenId])
+}
+
+// Günün sorusu (Her gün, her sınıf seviyesi için ayrı soru)
+// Örnek: 6 Ocak 2026 - 8. sınıf için Matematik sorusu
+model GununSorusu {
+  id              String      @id @default(uuid())
+  tarih           DateTime    @db.Date
+  
+  // Sınıf seviyesi (5-12 arası)
+  sinifSeviyesi   Int         // 5, 6, 7, 8, 9, 10, 11, 12
+  
+  // Soru havuzundan referans
+  soruHavuzuId    String?
+  soruHavuzu      SoruHavuzu? @relation(fields: [soruHavuzuId], references: [id], onDelete: SetNull)
+  
+  // Soru içeriği (havuzdan kopyalanır veya özel yazılır)
+  soruMetni       String      @db.Text
+  secenekler      String      @db.Text  // JSON array
+  dogruCevap      String
+  aciklama        String?     @db.Text  // Çözüm açıklaması
+  
+  zorluk          Int         @default(3) // 1-5 arası
+  xpOdulu         Int         @default(15) // Zorluğa göre: 10, 15, 20, 30, 50
+  konu            String?     // Matematik, Fizik, vs.
   
   cevaplar        GununSorusuCevap[]
   
-  createdAt       DateTime  @default(now())
+  createdAt       DateTime    @default(now())
+  
+  // Her gün her sınıf seviyesi için sadece 1 soru
+  @@unique([tarih, sinifSeviyesi])
+  @@index([soruHavuzuId])
+  @@index([konu])
+  @@index([sinifSeviyesi])
+  @@index([tarih])
 }
 
 model GununSorusuCevap {

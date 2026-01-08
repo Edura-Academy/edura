@@ -60,7 +60,7 @@ export default function CocukOdevler() {
   const fetchOdevler = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/veli/cocuk/${cocukId}/odevler`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/veli/cocuk/${cocukId}/odevler`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

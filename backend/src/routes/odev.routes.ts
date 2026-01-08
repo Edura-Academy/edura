@@ -14,6 +14,9 @@ import {
   uploadOdevImage,
   uploadSoruImage,
   gradeHomework,
+  updateGrade,
+  copyHomework,
+  publishDraft,
   getStudentHomeworks,
   submitHomework,
   uploadTeslimImage,
@@ -61,6 +64,12 @@ router.put('/:odevId', authorizeRoles('ogretmen', 'mudur'), updateHomework);
 // Ödev sil
 router.delete('/:odevId', authorizeRoles('ogretmen', 'mudur'), deleteHomework);
 
+// Ödev kopyala
+router.post('/:odevId/kopyala', authorizeRoles('ogretmen', 'mudur'), copyHomework);
+
+// Taslak ödevi yayınla
+router.post('/:odevId/yayinla', authorizeRoles('ogretmen', 'mudur'), publishDraft);
+
 // ==================== SORU YÖNETİMİ ====================
 
 // Ödevde soru ekle
@@ -84,6 +93,9 @@ router.post('/:odevId/sorular/:soruId/resim', authorizeRoles('ogretmen', 'mudur'
 
 // Ödev teslimini değerlendir
 router.post('/teslim/:teslimId/degerlendir', authorizeRoles('ogretmen', 'mudur'), gradeHomework);
+
+// Değerlendirmeyi güncelle/düzenle
+router.put('/teslim/:teslimId/degerlendir', authorizeRoles('ogretmen', 'mudur'), updateGrade);
 
 // ==================== ÖĞRENCİ ROUTE'LARI ====================
 

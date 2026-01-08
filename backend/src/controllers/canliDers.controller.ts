@@ -1,8 +1,95 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Course, Sinif } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
+import { socketService, SocketEvents } from '../services/socket.service';
+import { pushService } from '../services/push.service';
 
 const prisma = new PrismaClient();
+
+// Course with sinif type
+type CourseWithSinif = Course & { sinif: Sinif };
+
+// ==================== YARDIMCI FONKSİYONLAR ====================
+
+// Öğretmenin sınıflarını getir (branşa göre)
+export const getOgretmenSiniflari = async (req: Request, res: Response) => {
+  try {
+    const ogretmenId = (req as any).user.id;
+    
+    // Öğretmenin bilgilerini al
+    const ogretmen = await prisma.user.findUnique({
+      where: { id: ogretmenId },
+      select: { kursId: true, brans: true, ad: true, soyad: true }
+    });
+
+    if (!ogretmen?.kursId) {
+      return res.status(400).json({ error: 'Kursa bağlı değilsiniz' });
+    }
+
+    // Öğretmenin derslerinden sınıfları bul
+    const ogretmenDersleri = await prisma.course.findMany({
+      where: { 
+        ogretmenId,
+        aktif: true 
+      },
+      select: {
+        sinifId: true,
+        sinif: {
+          select: {
+            id: true,
+            ad: true,
+            seviye: true
+          }
+        }
+      }
+    });
+
+    // Unique sınıfları al
+    const sinifMap = new Map();
+    ogretmenDersleri.forEach(ders => {
+      if (ders.sinif && !sinifMap.has(ders.sinif.id)) {
+        sinifMap.set(ders.sinif.id, ders.sinif);
+      }
+    });
+
+    // Eğer öğretmenin hiç dersi yoksa, kursa ait tüm sınıfları göster
+    let siniflar = Array.from(sinifMap.values());
+    
+    if (siniflar.length === 0) {
+      const tumSiniflar = await prisma.sinif.findMany({
+        where: { 
+          kursId: ogretmen.kursId,
+          aktif: true 
+        },
+        select: {
+          id: true,
+          ad: true,
+          seviye: true
+        },
+        orderBy: [{ seviye: 'asc' }, { ad: 'asc' }]
+      });
+      siniflar = tumSiniflar;
+    }
+
+    // Sınıfları seviye ve ada göre sırala
+    siniflar.sort((a, b) => {
+      if (a.seviye !== b.seviye) return a.seviye - b.seviye;
+      return a.ad.localeCompare(b.ad, 'tr');
+    });
+
+    res.json({
+      ogretmen: {
+        ad: ogretmen.ad,
+        soyad: ogretmen.soyad,
+        brans: ogretmen.brans
+      },
+      siniflar
+    });
+  } catch (error) {
+    console.error('Öğretmen sınıfları getirme hatası:', error);
+    res.status(500).json({ error: 'Sınıflar alınamadı' });
+  }
+};
 
 // ==================== ÖĞRETMEN FONKSİYONLARI ====================
 
@@ -14,6 +101,7 @@ export const createCanliDers = async (req: Request, res: Response) => {
       baslik,
       aciklama,
       courseId,
+      hedefSiniflar, // Yeni: string[] - sınıf ID'leri
       baslangicTarihi,
       bitisTarihi,
       odaSifresi,
@@ -23,26 +111,97 @@ export const createCanliDers = async (req: Request, res: Response) => {
       sohbetAcik
     } = req.body;
 
-    // Dersin öğretmenine ait olduğunu kontrol et
-    const course = await prisma.course.findFirst({
-      where: {
-        id: courseId,
-        ogretmenId
-      }
+    // Öğretmen bilgilerini al
+    const ogretmen = await prisma.user.findUnique({
+      where: { id: ogretmenId },
+      select: { kursId: true, brans: true, ad: true, soyad: true }
     });
 
+    if (!ogretmen?.kursId) {
+      return res.status(400).json({ error: 'Kursa bağlı değilsiniz' });
+    }
+
+    let course: CourseWithSinif | null = null;
+    let hedefSinifIdleri: string[] = [];
+
+    // courseId varsa mevcut mantık
+    if (courseId) {
+      const foundCourse = await prisma.course.findFirst({
+        where: {
+          id: courseId,
+          ogretmenId
+        },
+        include: {
+          sinif: true
+        }
+      });
+
+      if (!foundCourse) {
+        return res.status(403).json({ error: 'Bu ders size ait değil' });
+      }
+      
+      course = foundCourse;
+      hedefSinifIdleri = [course.sinifId];
+    }
+    
+    // hedefSiniflar varsa bunları kullan
+    if (hedefSiniflar && Array.isArray(hedefSiniflar) && hedefSiniflar.length > 0) {
+      // Sınıfların kursa ait olduğunu kontrol et
+      const siniflar = await prisma.sinif.findMany({
+        where: {
+          id: { in: hedefSiniflar },
+          kursId: ogretmen.kursId
+        }
+      });
+
+      if (siniflar.length === 0) {
+        return res.status(400).json({ error: 'Geçerli sınıf seçilmedi' });
+      }
+
+      hedefSinifIdleri = siniflar.map(s => s.id);
+      
+      // Eğer courseId yoksa, öğretmenin bu sınıflardan birine ait bir dersini bul
+      if (!course) {
+        const ogretmenDersi = await prisma.course.findFirst({
+          where: {
+            ogretmenId,
+            sinifId: { in: hedefSinifIdleri }
+          },
+          include: {
+            sinif: true
+          }
+        });
+        
+        // Eğer ders bulunamazsa, ilk sınıfa ait herhangi bir ders bul veya yeni oluştur için ID gerekli
+        if (ogretmenDersi) {
+          course = ogretmenDersi;
+        } else {
+          // Öğretmenin herhangi bir dersini al
+          const herhangiDers = await prisma.course.findFirst({
+            where: { ogretmenId },
+            include: { sinif: true }
+          });
+          
+          if (!herhangiDers) {
+            return res.status(400).json({ error: 'Canlı ders oluşturmak için en az bir dersiniz olmalı' });
+          }
+          course = herhangiDers;
+        }
+      }
+    }
+
     if (!course) {
-      return res.status(403).json({ error: 'Bu ders size ait değil' });
+      return res.status(400).json({ error: 'Ders veya sınıf seçimi yapılmalı' });
     }
 
     // Benzersiz oda adı oluştur
-    const odaAdi = `edura-${courseId.slice(0, 8)}-${uuidv4().slice(0, 8)}`;
+    const odaAdi = `edura-${ogretmenId.slice(0, 8)}-${uuidv4().slice(0, 8)}`;
 
     const canliDers = await prisma.canliDers.create({
       data: {
         baslik,
         aciklama,
-        courseId,
+        courseId: course.id,
         ogretmenId,
         baslangicTarihi: new Date(baslangicTarihi),
         bitisTarihi: new Date(bitisTarihi),
@@ -68,29 +227,72 @@ export const createCanliDers = async (req: Request, res: Response) => {
       }
     });
 
-    // Öğrencilere bildirim gönder
-    const enrollments = await prisma.courseEnrollment.findMany({
+    // Hedef sınıflardaki TÜM öğrencilere bildirim gönder
+    const hedefOgrenciler = await prisma.user.findMany({
       where: {
-        courseId,
-        aktif: true
+        role: 'ogrenci',
+        aktif: true,
+        sinifId: { in: hedefSinifIdleri }
       },
       select: {
-        ogrenciId: true
+        id: true,
+        fcmToken: true
       }
     });
 
-    const notifications = enrollments.map(e => ({
-      userId: e.ogrenciId,
+    // Sınıf adlarını al
+    const sinifAdlari = await prisma.sinif.findMany({
+      where: { id: { in: hedefSinifIdleri } },
+      select: { ad: true }
+    });
+    const sinifAdlariStr = sinifAdlari.map(s => s.ad).join(', ');
+
+    const dersAdi = ogretmen.brans || course.ad;
+    const tarihStr = new Date(baslangicTarihi).toLocaleString('tr-TR');
+    
+    const notifications = hedefOgrenciler.map(ogrenci => ({
+      userId: ogrenci.id,
       tip: 'BILDIRIM' as const,
       baslik: '🎥 Yeni Canlı Ders Planlandı',
-      mesaj: `${course.ad} dersi için "${baslik}" başlıklı canlı ders planlandı. Tarih: ${new Date(baslangicTarihi).toLocaleString('tr-TR')}`
+      mesaj: `${ogretmen.ad} ${ogretmen.soyad} hocadan ${dersAdi} dersi için "${baslik}" başlıklı canlı ders planlandı.\n📍 Sınıf: ${sinifAdlariStr}\n📅 Tarih: ${tarihStr}`
     }));
 
     if (notifications.length > 0) {
       await prisma.notification.createMany({ data: notifications });
     }
 
-    res.status(201).json(canliDers);
+    // Push bildirim gönder (FCM token'ı olan öğrencilere)
+    const fcmTokenlar = hedefOgrenciler
+      .filter(o => o.fcmToken)
+      .map(o => o.fcmToken!);
+
+    if (fcmTokenlar.length > 0) {
+      try {
+        await pushService.sendToDevices(fcmTokenlar, {
+          title: '🎥 Yeni Canlı Ders',
+          body: `${ogretmen.ad} ${ogretmen.soyad} - ${dersAdi}: ${baslik}`,
+          data: { type: 'canli-ders', dersId: canliDers.id }
+        });
+      } catch (pushError) {
+        console.error('Push bildirim hatası:', pushError);
+      }
+    }
+
+    // WebSocket ile anlık bildirim
+    hedefOgrenciler.forEach(ogrenci => {
+      socketService.sendToUser(ogrenci.id, SocketEvents.NOTIFICATION, {
+        tip: 'CANLI_DERS',
+        baslik: '🎥 Yeni Canlı Ders Planlandı',
+        mesaj: `${dersAdi} - ${baslik}`,
+        dersId: canliDers.id
+      });
+    });
+
+    res.status(201).json({
+      ...canliDers,
+      hedefSiniflar: hedefSinifIdleri,
+      hedefOgrenciSayisi: hedefOgrenciler.length
+    });
   } catch (error) {
     console.error('Canlı ders oluşturma hatası:', error);
     res.status(500).json({ error: 'Canlı ders oluşturulamadı' });
@@ -296,7 +498,18 @@ export const startCanliDers = async (req: Request, res: Response) => {
         ogretmenId
       },
       include: {
-        course: true
+        course: {
+          include: {
+            sinif: true
+          }
+        },
+        ogretmen: {
+          select: {
+            ad: true,
+            soyad: true,
+            brans: true
+          }
+        }
       }
     });
 
@@ -320,27 +533,70 @@ export const startCanliDers = async (req: Request, res: Response) => {
       }
     });
 
-    // Öğrencilere bildirim gönder
-    const enrollments = await prisma.courseEnrollment.findMany({
+    // Sınıftaki TÜM öğrencilere bildirim gönder (sadece course enrollment değil)
+    const sinifId = canliDers.course.sinifId;
+    const sinifOgrencileri = await prisma.user.findMany({
       where: {
-        courseId: canliDers.courseId,
-        aktif: true
+        role: 'ogrenci',
+        aktif: true,
+        sinifId: sinifId
       },
       select: {
-        ogrenciId: true
+        id: true,
+        fcmToken: true
       }
     });
 
-    const notifications = enrollments.map(e => ({
-      userId: e.ogrenciId,
+    const dersAdi = canliDers.ogretmen.brans || canliDers.course.ad;
+    const ogretmenAdSoyad = `${canliDers.ogretmen.ad} ${canliDers.ogretmen.soyad}`;
+
+    const notifications = sinifOgrencileri.map(ogrenci => ({
+      userId: ogrenci.id,
       tip: 'BILDIRIM' as const,
       baslik: '🔴 Canlı Ders Başladı!',
-      mesaj: `${canliDers.course.ad} dersi için "${canliDers.baslik}" başlıklı canlı ders şimdi başladı. Hemen katılın!`
+      mesaj: `${ogretmenAdSoyad} hocadan ${dersAdi} dersi "${canliDers.baslik}" şimdi başladı! Hemen katılın!`
     }));
 
     if (notifications.length > 0) {
       await prisma.notification.createMany({ data: notifications });
     }
+
+    // Push bildirim gönder (FCM token'ı olan öğrencilere)
+    const fcmTokenlar = sinifOgrencileri
+      .filter(o => o.fcmToken)
+      .map(o => o.fcmToken!);
+
+    if (fcmTokenlar.length > 0) {
+      try {
+        await pushService.sendToDevices(fcmTokenlar, {
+          title: '🔴 Canlı Ders Başladı!',
+          body: `${ogretmenAdSoyad} - ${dersAdi}: ${canliDers.baslik}`,
+          data: { type: 'canli-ders-basladi', dersId: id }
+        });
+      } catch (pushError) {
+        console.error('Push bildirim hatası:', pushError);
+      }
+    }
+
+    // 🔌 WebSocket: Canlı ders başladı bildirimi gönder
+    // Dersin sınıfına broadcast yap
+    if (sinifId) {
+      socketService.sendLiveClassStarted(sinifId, {
+        dersId: id,
+        baslik: canliDers.baslik,
+        ogretmenAd: ogretmenAdSoyad
+      });
+    }
+
+    // Tüm sınıf öğrencilerine WebSocket bildirimi gönder
+    sinifOgrencileri.forEach(ogrenci => {
+      socketService.sendToUser(ogrenci.id, SocketEvents.LIVE_CLASS_STARTED, {
+        dersId: id,
+        baslik: canliDers.baslik,
+        courseAd: dersAdi,
+        ogretmenAd: ogretmenAdSoyad
+      });
+    });
 
     res.json({
       ...updatedDers,
@@ -711,11 +967,26 @@ export const joinCanliDers = async (req: Request, res: Response) => {
       }
     });
 
+    // Öğretmen bilgisini al
+    const ogretmen = await prisma.user.findUnique({
+      where: { id: canliDers.ogretmenId },
+      select: { ad: true, soyad: true }
+    });
+
     res.json({
       message: 'Derse katılım kaydedildi',
       joinUrl: `https://meet.jit.si/${canliDers.odaAdi}`,
       odaAdi: canliDers.odaAdi,
-      odaSifresi: canliDers.odaSifresi
+      odaSifresi: canliDers.odaSifresi,
+      canliDers: {
+        id: canliDers.id,
+        baslik: canliDers.baslik,
+        durum: canliDers.durum,
+        ogretmen: ogretmen,
+        mikrofonAcik: canliDers.mikrofonAcik,
+        kameraAcik: canliDers.kameraAcik,
+        sohbetAcik: canliDers.sohbetAcik
+      }
     });
   } catch (error) {
     console.error('Derse katılma hatası:', error);

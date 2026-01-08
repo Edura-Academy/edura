@@ -211,7 +211,7 @@ export default function ProfilePhotoUpload({
 
       {/* Bilgi */}
       <p className="text-xs text-gray-500 text-center">
-        JPG veya PNG • Maks 2MB
+        JPG, PNG veya WebP • Maks 8MB
       </p>
     </div>
   );

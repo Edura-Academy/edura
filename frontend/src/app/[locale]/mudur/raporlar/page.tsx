@@ -14,9 +14,14 @@ import {
   CheckCircle,
   XCircle,
   Clock,
+  FileSpreadsheet,
+  File,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { RoleGuard } from '@/components/RoleGuard';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
@@ -107,6 +112,211 @@ function RaporlarContent() {
     ? Math.round((data.odev.teslimEdilen / data.odev.toplam) * 100)
     : 0;
 
+  // Excel export - Türkçe karakter destekli
+  const exportToExcel = () => {
+    if (!data) return;
+    
+    // Genel özet verileri
+    const ozetData = [
+      { 'İstatistik': 'Öğrenci Sayısı', 'Değer': data.ozet.ogrenciSayisi },
+      { 'İstatistik': 'Öğretmen Sayısı', 'Değer': data.ozet.ogretmenSayisi },
+      { 'İstatistik': 'Sınıf Sayısı', 'Değer': data.ozet.sinifSayisi },
+      { 'İstatistik': 'Ders Sayısı', 'Değer': data.ozet.dersSayisi },
+      { 'İstatistik': 'Aylık Gelir (TL)', 'Değer': data.aylikGelir },
+      { 'İstatistik': 'Yoklama Oranı (%)', 'Değer': yoklamaOran },
+      { 'İstatistik': 'Ödev Teslim Oranı (%)', 'Değer': odevTeslimOrani },
+    ];
+
+    // Yoklama verileri
+    const yoklamaData = [
+      { 'Durum': 'Katıldı', 'Sayı': data.yoklama.ozet.katildi },
+      { 'Durum': 'Katılmadı', 'Sayı': data.yoklama.ozet.katilmadi },
+      { 'Durum': 'Geç Kaldı', 'Sayı': data.yoklama.ozet.gec },
+    ];
+
+    // Yoklama trendi
+    const trendData = data.yoklama.trend.map(t => ({
+      'Gün': t.gun,
+      'Katılım': t.katilim
+    }));
+
+    // Ödev ve Sınav verileri
+    const odevSinavData = [
+      { 'Kategori': 'Toplam Ödev', 'Değer': data.odev.toplam },
+      { 'Kategori': 'Teslim Edilen Ödev', 'Değer': data.odev.teslimEdilen },
+      { 'Kategori': 'Aktif Sınav', 'Değer': data.sinav.aktif },
+      { 'Kategori': 'Tamamlanan Sınav', 'Değer': data.sinav.tamamlanan },
+    ];
+
+    // Son kayıtlar
+    const kayitData = data.sonKayitlar.map(k => ({
+      'Ad': k.ad,
+      'Soyad': k.soyad,
+      'Sınıf': k.sinif?.ad || 'Atanmadı',
+      'Kayıt Tarihi': new Date(k.createdAt).toLocaleDateString('tr-TR')
+    }));
+
+    // Workbook oluştur
+    const wb = XLSX.utils.book_new();
+    
+    // Sayfa 1: Genel Özet
+    const wsOzet = XLSX.utils.json_to_sheet(ozetData);
+    wsOzet['!cols'] = [{ wch: 25 }, { wch: 15 }];
+    XLSX.utils.book_append_sheet(wb, wsOzet, 'Genel Özet');
+
+    // Sayfa 2: Yoklama
+    const wsYoklama = XLSX.utils.json_to_sheet(yoklamaData);
+    wsYoklama['!cols'] = [{ wch: 15 }, { wch: 10 }];
+    XLSX.utils.book_append_sheet(wb, wsYoklama, 'Yoklama Dağılımı');
+
+    // Sayfa 3: Haftalık Trend
+    const wsTrend = XLSX.utils.json_to_sheet(trendData);
+    wsTrend['!cols'] = [{ wch: 15 }, { wch: 12 }];
+    XLSX.utils.book_append_sheet(wb, wsTrend, 'Haftalık Trend');
+
+    // Sayfa 4: Ödev & Sınav
+    const wsOdevSinav = XLSX.utils.json_to_sheet(odevSinavData);
+    wsOdevSinav['!cols'] = [{ wch: 20 }, { wch: 10 }];
+    XLSX.utils.book_append_sheet(wb, wsOdevSinav, 'Ödev ve Sınav');
+
+    // Sayfa 5: Son Kayıtlar
+    if (kayitData.length > 0) {
+      const wsKayit = XLSX.utils.json_to_sheet(kayitData);
+      wsKayit['!cols'] = [{ wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 15 }];
+      XLSX.utils.book_append_sheet(wb, wsKayit, 'Son Kayıtlar');
+    }
+
+    // Dosyayı indir
+    const tarih = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(wb, `Mudur_Raporu_${tarih}.xlsx`);
+  };
+
+  // PDF export
+  const exportToPDF = () => {
+    if (!data) return;
+
+    const doc = new jsPDF('portrait', 'mm', 'a4');
+    
+    // Başlık
+    doc.setFontSize(18);
+    doc.setTextColor(147, 51, 234); // Purple renk
+    doc.text('Mudur Raporu', 14, 15);
+    
+    // Tarih
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    const tarih = new Date().toLocaleDateString('tr-TR', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+    doc.text(`Rapor Tarihi: ${tarih}`, 14, 22);
+
+    // Genel İstatistikler Tablosu
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    doc.text('Genel Istatistikler', 14, 32);
+
+    autoTable(doc, {
+      startY: 35,
+      head: [['Istatistik', 'Deger']],
+      body: [
+        ['Ogrenci Sayisi', data.ozet.ogrenciSayisi.toString()],
+        ['Ogretmen Sayisi', data.ozet.ogretmenSayisi.toString()],
+        ['Sinif Sayisi', data.ozet.sinifSayisi.toString()],
+        ['Ders Sayisi', data.ozet.dersSayisi.toString()],
+        ['Yoklama Orani', `%${yoklamaOran}`],
+        ['Odev Teslim Orani', `%${odevTeslimOrani}`],
+      ],
+      theme: 'striped',
+      headStyles: { fillColor: [147, 51, 234], textColor: 255 },
+      margin: { left: 14 },
+      tableWidth: 80,
+    });
+
+    // Yoklama Dağılımı
+    doc.text('Yoklama Dagilimi', 110, 32);
+
+    autoTable(doc, {
+      startY: 35,
+      head: [['Durum', 'Sayi']],
+      body: [
+        ['Katildi', data.yoklama.ozet.katildi.toString()],
+        ['Katilmadi', data.yoklama.ozet.katilmadi.toString()],
+        ['Gec Kaldi', data.yoklama.ozet.gec.toString()],
+      ],
+      theme: 'striped',
+      headStyles: { fillColor: [34, 197, 94], textColor: 255 },
+      margin: { left: 110 },
+      tableWidth: 70,
+    });
+
+    // Ödev & Sınav
+    const afterFirstTable = (doc as any).lastAutoTable.finalY + 15;
+    doc.text('Odev & Sinav Istatistikleri', 14, afterFirstTable);
+
+    autoTable(doc, {
+      startY: afterFirstTable + 5,
+      head: [['Kategori', 'Deger']],
+      body: [
+        ['Toplam Odev', data.odev.toplam.toString()],
+        ['Teslim Edilen', data.odev.teslimEdilen.toString()],
+        ['Aktif Sinav', data.sinav.aktif.toString()],
+        ['Tamamlanan Sinav', data.sinav.tamamlanan.toString()],
+      ],
+      theme: 'striped',
+      headStyles: { fillColor: [59, 130, 246], textColor: 255 },
+      margin: { left: 14 },
+      tableWidth: 80,
+    });
+
+    // Haftalık Trend
+    doc.text('Haftalik Yoklama Trendi', 110, afterFirstTable);
+
+    const trendRows = data.yoklama.trend.map(t => [t.gun, t.katilim.toString()]);
+
+    autoTable(doc, {
+      startY: afterFirstTable + 5,
+      head: [['Gun', 'Katilim']],
+      body: trendRows,
+      theme: 'striped',
+      headStyles: { fillColor: [245, 158, 11], textColor: 255 },
+      margin: { left: 110 },
+      tableWidth: 70,
+    });
+
+    // Son Kayıtlar
+    if (data.sonKayitlar.length > 0) {
+      const afterSecondTable = (doc as any).lastAutoTable.finalY + 15;
+      doc.text('Son Ogrenci Kayitlari', 14, afterSecondTable);
+
+      const kayitRows = data.sonKayitlar.map(k => [
+        `${k.ad} ${k.soyad}`.replace(/[ığüşöçİĞÜŞÖÇ]/g, (char) => {
+          const map: Record<string, string> = {
+            'ı': 'i', 'ğ': 'g', 'ü': 'u', 'ş': 's', 'ö': 'o', 'ç': 'c',
+            'İ': 'I', 'Ğ': 'G', 'Ü': 'U', 'Ş': 'S', 'Ö': 'O', 'Ç': 'C'
+          };
+          return map[char] || char;
+        }),
+        k.sinif?.ad || 'Atanmadi',
+        new Date(k.createdAt).toLocaleDateString('tr-TR')
+      ]);
+
+      autoTable(doc, {
+        startY: afterSecondTable + 5,
+        head: [['Ad Soyad', 'Sinif', 'Kayit Tarihi']],
+        body: kayitRows,
+        theme: 'striped',
+        headStyles: { fillColor: [139, 92, 246], textColor: 255 },
+        margin: { left: 14 },
+      });
+    }
+
+    // Dosyayı indir
+    const dosyaTarih = new Date().toISOString().split('T')[0];
+    doc.save(`Mudur_Raporu_${dosyaTarih}.pdf`);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
@@ -124,6 +334,24 @@ function RaporlarContent() {
                 <h1 className="text-lg font-bold text-slate-900">Raporlar</h1>
                 <p className="text-xs text-slate-500">Detaylı istatistikler ve analizler</p>
               </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={exportToExcel}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm"
+                title="Excel formatında indir"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                Excel
+              </button>
+              <button 
+                onClick={exportToPDF}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors text-sm"
+                title="PDF formatında indir"
+              >
+                <File className="w-4 h-4" />
+                PDF
+              </button>
             </div>
           </div>
         </div>

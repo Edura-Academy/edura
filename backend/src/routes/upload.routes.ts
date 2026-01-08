@@ -8,7 +8,9 @@ import {
   uploadGroupPhoto,
   uploadHomeworkDocument,
   uploadCourseDocument,
-  uploadStudentDocument
+  uploadStudentDocument,
+  uploadStudentHomeworkFile,
+  uploadSinavSoruResmi
 } from '../controllers/upload.controller';
 import { authenticateToken } from '../middleware/auth.middleware';
 
@@ -167,6 +169,18 @@ router.post(
   uploadStudentDocument
 );
 
+/**
+ * Öğrenci ödev teslim dosyası yükle (PDF, DOC, DOCX, resim vb.)
+ * POST /api/upload/student/:ogrenciId/homework/:odevId
+ * Klasör: students/{ogrenciId}/odevler/{odevId}/
+ */
+router.post(
+  '/student/:ogrenciId/homework/:odevId',
+  authenticateToken,
+  uploadAny.single('file'),
+  uploadStudentHomeworkFile
+);
+
 // ==================== GENEL BELGE YÜKLEME ====================
 
 /**
@@ -180,6 +194,86 @@ router.post(
   authenticateToken,
   uploadDoc.single('document'),
   uploadDocument
+);
+
+// ==================== SINAV SORU RESMİ ====================
+
+/**
+ * Online sınav soru resmi yükle
+ * POST /api/upload/sinav/soru-resmi
+ * Klasör: sinavlar/{year}/sorular/
+ */
+router.post(
+  '/sinav/soru-resmi',
+  authenticateToken,
+  uploadImage.single('image'),
+  uploadSinavSoruResmi
+);
+
+// ==================== MATERYAL YÜKLEME ====================
+
+/**
+ * Materyal dosyası yükle (öğretmen materyalleri için)
+ * POST /api/upload/materyal
+ * Klasör: materyaller/{year}/
+ * Desteklenen türler: PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, resimler, videolar
+ */
+router.post(
+  '/materyal',
+  authenticateToken,
+  uploadAny.single('file'),
+  async (req, res) => {
+    try {
+      const file = req.file;
+
+      if (!file) {
+        return res.status(400).json({
+          success: false,
+          error: 'Dosya bulunamadı',
+        });
+      }
+
+      // Boyut kontrolü (50MB)
+      if (file.size > 50 * 1024 * 1024) {
+        return res.status(400).json({
+          success: false,
+          error: 'Dosya boyutu 50MB\'dan küçük olmalıdır.',
+        });
+      }
+
+      // Firebase'e yükle
+      const { uploadToFirebase } = require('../services/upload.service');
+      const currentYear = new Date().getFullYear();
+      const folder = `materyaller/${currentYear}`;
+      
+      const uploadResult = await uploadToFirebase(file, folder);
+
+      if (!uploadResult.success) {
+        return res.status(500).json({
+          success: false,
+          error: uploadResult.error,
+        });
+      }
+
+      return res.json({
+        success: true,
+        message: 'Dosya başarıyla yüklendi',
+        url: uploadResult.url,
+        data: {
+          url: uploadResult.url,
+          originalName: file.originalname,
+          size: file.size,
+          mimeType: file.mimetype,
+        },
+      });
+    } catch (error) {
+      console.error('Materyal upload error:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Dosya yüklenirken bir hata oluştu',
+      });
+    }
+  }
 );
 
 export default router;

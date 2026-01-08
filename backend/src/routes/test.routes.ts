@@ -3,9 +3,77 @@ import prisma from '../lib/prisma';
 
 const router = Router();
 
+// Test sayfası şifre doğrulama
+// POST /api/test/verify-password
+router.post('/verify-password', async (req: Request, res: Response) => {
+  try {
+    const { password } = req.body;
+    
+    // Env'den şifreyi al (varsayılan: 'test123')
+    const testPagePassword = process.env.TEST_PAGE_PASSWORD || 'test123';
+    
+    if (!password) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Şifre gerekli' 
+      });
+    }
+    
+    if (password !== testPagePassword) {
+      return res.status(401).json({ 
+        success: false, 
+        error: 'Yanlış şifre' 
+      });
+    }
+    
+    // Şifre doğru - basit bir token oluştur (session için)
+    const sessionToken = Buffer.from(`test-page-${Date.now()}-${Math.random()}`).toString('base64');
+    
+    res.json({ 
+      success: true, 
+      data: { 
+        sessionToken,
+        message: 'Şifre doğrulandı' 
+      }
+    });
+  } catch (error) {
+    console.error('Test şifre doğrulama hatası:', error);
+    res.status(500).json({ success: false, error: 'Sunucu hatası' });
+  }
+});
+
+// Session token doğrulama middleware
+const verifyTestSession = (req: Request, res: Response, next: Function) => {
+  const sessionToken = req.headers['x-test-session'] as string;
+  
+  if (!sessionToken) {
+    return res.status(401).json({ 
+      success: false, 
+      error: 'Oturum gerekli. Lütfen önce şifre ile giriş yapın.' 
+    });
+  }
+  
+  // Basit token doğrulama (prefix kontrolü)
+  try {
+    const decoded = Buffer.from(sessionToken, 'base64').toString('utf-8');
+    if (!decoded.startsWith('test-page-')) {
+      return res.status(401).json({ 
+        success: false, 
+        error: 'Geçersiz oturum' 
+      });
+    }
+    next();
+  } catch {
+    return res.status(401).json({ 
+      success: false, 
+      error: 'Geçersiz oturum' 
+    });
+  }
+};
+
 // TEST HESAP BİLGİLERİ - Sadece development ortamında çalışır
 // GET /api/test/hesaplar
-router.get('/hesaplar', async (req: Request, res: Response) => {
+router.get('/hesaplar', verifyTestSession, async (req: Request, res: Response) => {
   try {
     // Sadece development ortamında çalışsın
     if (process.env.NODE_ENV === 'production') {
@@ -35,6 +103,15 @@ router.get('/hesaplar', async (req: Request, res: Response) => {
       include: {
         kurs: { select: { id: true, ad: true } },
         sinif: { select: { id: true, ad: true, seviye: true } },
+        // Veli için çocukları getir
+        cocuklari: { 
+          select: { 
+            id: true, 
+            ad: true, 
+            soyad: true,
+            sinif: { select: { ad: true } }
+          } 
+        },
       },
       orderBy: [
         { role: 'asc' },
@@ -44,12 +121,13 @@ router.get('/hesaplar', async (req: Request, res: Response) => {
 
     // Varsayılan şifre bilgisi
     const varsayilanSifre = 'edura123';
+    const adminSifre = 'Edura2026.!'; // Admin hesapları için özel şifre
 
     // Kullanıcı bilgilerini formatla
     const hesaplar = users.map((user: any) => ({
       id: user.id,
       email: user.email,
-      sifre: varsayilanSifre, // Tüm test hesapları için aynı şifre
+      sifre: user.role === 'admin' ? adminSifre : varsayilanSifre, // Admin için farklı şifre
       ad: user.ad,
       soyad: user.soyad,
       role: user.role,
@@ -57,6 +135,13 @@ router.get('/hesaplar', async (req: Request, res: Response) => {
       ogrenciNo: user.ogrenciNo,
       kurs: user.kurs,
       sinif: user.sinif,
+      // Veli için çocuk bilgileri
+      cocuklar: user.cocuklari?.map((c: any) => ({
+        id: c.id,
+        ad: c.ad,
+        soyad: c.soyad,
+        sinif: c.sinif?.ad
+      })) || [],
     }));
 
     // İstatistikler
@@ -101,4 +186,3 @@ router.get('/hesaplar', async (req: Request, res: Response) => {
 });
 
 export default router;
-

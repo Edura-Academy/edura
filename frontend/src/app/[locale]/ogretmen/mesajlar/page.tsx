@@ -264,7 +264,14 @@ export default function MesajlarPage() {
       
       const data = await response.json();
       if (data.success) {
-        setMesajlar(prev => [...prev, data.data]);
+        // Duplicate kontrolü ile mesajı ekle
+        setMesajlar(prev => {
+          // Aynı ID'li mesaj zaten varsa ekleme
+          if (prev.some(m => m.id === data.data.id)) {
+            return prev;
+          }
+          return [...prev, data.data];
+        });
         lastMessageTimeRef.current = data.data.tarih;
         // Konuşmalar listesini güncelle
         fetchConversations();

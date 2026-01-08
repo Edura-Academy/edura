@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from '@/i18n/routing';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface UserData {
   role: string;
@@ -11,6 +12,8 @@ interface UserData {
 
 export default function Home() {
   const router = useRouter();
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -61,11 +64,13 @@ export default function Home() {
 
   // Yükleniyor göstergesi
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+    <div className={`min-h-screen flex items-center justify-center ${isDark ? 'bg-gray-900' : 'bg-gray-100'}`}>
       <div className="text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4">
-          <span className="text-white text-2xl font-bold">E</span>
-        </div>
+        <img 
+          src={isDark ? "/logos/Edura-logo-dark-2.png" : "/logos/Edura-logo-nobg.png"} 
+          alt="Edura Logo" 
+          className="w-16 h-16 object-contain mx-auto mb-4"
+        />
         <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
         <p className="mt-4 text-gray-500">Yükleniyor...</p>
       </div>

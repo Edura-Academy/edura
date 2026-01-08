@@ -31,7 +31,22 @@
     "currentPassword": "Mevcut Şifre",
     "newPassword": "Yeni Şifre",
     "confirmPassword": "Şifre Tekrar",
-    "rememberMe": "Beni Hatırla"
+    "rememberMe": "Beni Hatırla",
+    "courseTrackingSystem": "Kurs Takip Sistemi",
+    "userType": "Kullanıcı Türü",
+    "staff": "Personel",
+    "student": "Öğrenci",
+    "staffLoginDesc": "Kurs, Müdür, Öğretmen, Sekreter girişi",
+    "studentLoginDesc": "Öğrenci girişi",
+    "enterUsername": "Kullanıcı adınızı girin",
+    "enterPassword": "Şifrenizi girin",
+    "logging": "Giriş yapılıyor...",
+    "invalidCredentials": "Kullanıcı adı veya şifre hatalı",
+    "connectionError": "Bağlantı hatası. Backend çalışıyor mu?",
+    "copyright": "© 2025 Edura Academy. Tüm hakları saklıdır.",
+    "testLogin": "Test Girişi",
+    "selectUser": "Hangi kullanıcı ile giriş yapmak istersiniz?",
+    "cancel": "İptal"
   },
   "admin": {
     "title": "Admin Paneli",
@@ -77,9 +92,10 @@
     "title": "Dil",
     "turkish": "Türkçe",
     "english": "English",
-    "spanish": "Español",
-    "japanese": "日本語",
-    "french": "Français"
+    "german": "Deutsch",
+    "arabic": "العربية",
+    "french": "Français",
+    "spanish": "Español"
   },
   "courses": {
     "courseName": "Kurs Adı",
@@ -127,6 +143,811 @@
     "hoursAgo": "saat önce",
     "yesterday": "Dün",
     "daysAgo": "gün önce"
+  },
+  "chatbot": {
+    "title": "Edura Asistanı",
+    "placeholder": "Bir mesaj yazın...",
+    "voiceMode": "Sesli mod",
+    "chatMode": "Chat modu",
+    "listening": "Dinleniyor...",
+    "speaking": "Konuşuyor...",
+    "stop": "Durdur",
+    "send": "Gönder",
+    "welcome": "Merhaba! Ben Edura asistanınız. Size nasıl yardımcı olabilirim?",
+    "error": "Bir hata oluştu. Lütfen tekrar deneyin.",
+    "connectionError": "Bağlantı hatası. Lütfen internet bağlantınızı kontrol edin."
+  },
+  "accessibility": {
+    "ttsEnabled": "Sesli okuma açıldı",
+    "ttsDisabled": "Sesli okuma kapatıldı",
+    "voiceAssistant": "Sesli asistan",
+    "microphoneButton": "Mikrofon butonu. Konuşmak için tıklayın veya Enter tuşuna basın.",
+    "assistantOpened": "Asistan açıldı",
+    "assistantClosed": "Asistan kapatıldı",
+    "voiceModeActivated": "Sesli asistan moduna geçildi. Mikrofon butonuna basarak konuşabilirsiniz.",
+    "chatModeActivated": "Chat moduna geçildi.",
+    "noSpeechDetected": "Ses algılanamadı. Lütfen tekrar deneyin.",
+    "microphoneAccessDenied": "Mikrofon izni reddedildi.",
+    "browserNotSupported": "Tarayıcınız ses tanımayı desteklemiyor.",
+    "networkError": "Ağ hatası. İnternet bağlantınızı kontrol edin."
+  },
+  "manager": {
+    "panel": "Müdür Paneli",
+    "institutionManager": "Kurum Müdürü",
+    "menu": {
+      "homePage": "Ana Sayfa",
+      "userManagement": "Kullanıcı Yönetimi",
+      "classManagement": "Sınıf Yönetimi",
+      "mockExams": "Deneme Sınavları",
+      "reports": "Raporlar",
+      "announcements": "Duyurular",
+      "messages": "Mesajlar",
+      "systemAnnouncements": "Sistem Duyuruları",
+      "support": "Destek Talebi",
+      "helpCenter": "Yardım Merkezi",
+      "new": "Yeni"
+    },
+    "welcome": {
+      "title": "Hoş Geldiniz, Müdür {name}!",
+      "subtitle": "Kurumunuzun genel durumunu buradan takip edebilirsiniz."
+    },
+    "stats": {
+      "student": "Öğrenci",
+      "teacher": "Öğretmen",
+      "secretary": "Sekreter",
+      "class": "Sınıf",
+      "totalStudents": "Toplam Öğrenci Sayısı",
+      "totalTeachers": "Toplam Öğretmen Sayısı",
+      "totalSecretaries": "Toplam Sekreter Sayısı",
+      "totalClasses": "Toplam Sınıf Sayısı",
+      "activeStudents": "Kurumunuzdaki aktif öğrenci sayısı",
+      "activeTeachers": "Kurumunuzdaki aktif öğretmen sayısı",
+      "activeSecretaries": "Kurumunuzdaki aktif sekreter sayısı",
+      "activeClasses": "Kurumunuzdaki aktif sınıf sayısı"
+    },
+    "quickActions": {
+      "addTeacher": "Öğretmen Ekle",
+      "newTeacher": "Yeni öğretmen",
+      "addTeacherDesc": "Kadronuza yeni öğretmen eklemek için tıklayın",
+      "createClass": "Sınıf Oluştur",
+      "newClass": "Yeni sınıf aç",
+      "createClassDesc": "Yeni bir sınıf açmak için tıklayın",
+      "mockExam": "Deneme Sınavı",
+      "createTytAyt": "TYT/AYT oluştur",
+      "mockExamDesc": "TYT veya AYT deneme sınavı oluşturmak için tıklayın",
+      "publishAnnouncement": "Duyuru Yayınla",
+      "toAllStaff": "Tüm personele",
+      "publishAnnouncementDesc": "Tüm personele duyuru göndermek için tıklayın",
+      "reports": "Raporlar",
+      "performanceAnalysis": "Performans analizi",
+      "reportsDesc": "Performans analizi ve raporları görüntülemek için tıklayın"
+    },
+    "recentUsers": {
+      "title": "Son Eklenen Kullanıcılar",
+      "viewAll": "Tümünü Gör",
+      "noUsers": "Henüz kullanıcı eklenmemiş",
+      "description": "Son eklenen kullanıcılar listesi. Tümünü görmek için tıklayın."
+    },
+    "quickActionsPanel": {
+      "title": "Hızlı İşlemler",
+      "description": "Hızlı işlemler paneli. Sık kullanılan işlemlere buradan ulaşabilirsiniz.",
+      "createMockExam": "Deneme Sınavı Oluştur",
+      "createMockExamDesc": "TYT, AYT veya LGS sınavı ekle",
+      "addNewTeacher": "Yeni Öğretmen Ekle",
+      "addNewTeacherDesc": "Kadronuza yeni öğretmen ekleyin",
+      "performanceReports": "Performans Raporları",
+      "performanceReportsDesc": "Detaylı analiz ve istatistikler",
+      "publishAnnouncementDesc": "Tüm personele duyuru gönderin"
+    },
+    "roles": {
+      "teacher": "Öğretmen",
+      "secretary": "Sekreter",
+      "student": "Öğrenci",
+      "parent": "Veli"
+    },
+    "header": {
+      "search": "Ara...",
+      "mockExams": "Deneme Sınavları",
+      "accountSettings": "Hesap Ayarları",
+      "logout": "Çıkış Yap"
+    },
+    "tts": {
+      "currentPage": "şu an bu sayfadasınız",
+      "goToPage": "sayfasına git",
+      "welcomeMessage": "Hoş geldiniz Müdür {name}! Kurumunuzun genel durumunu bu panelden takip edebilirsiniz. Toplam {students} öğrenci, {teachers} öğretmen, {secretaries} sekreter ve {classes} sınıf bulunmaktadır.",
+      "userInfo": "{index}. kullanıcı: {name}, Rolü: {role}",
+      "addUserHint": "Kullanıcı eklemek için kullanıcı yönetimi sayfasına gidin."
+    }
+  },
+  "courseOwner": {
+    "panel": "Kurs Sahibi Paneli",
+    "title": "Kurs Sahibi",
+    "menu": {
+      "homePage": "Ana Sayfa",
+      "courseOverview": "Kurs Genel Bakış",
+      "financialReports": "Finansal Raporlar",
+      "managers": "Müdür Yönetimi",
+      "announcements": "Duyurular",
+      "messages": "Mesajlar",
+      "settings": "Ayarlar"
+    },
+    "welcome": {
+      "title": "Hoş Geldiniz, {courseName} Sahibi {name}!",
+      "subtitle": "Kursunuzun genel durumunu ve finansal raporlarını buradan takip edebilirsiniz."
+    },
+    "stats": {
+      "totalRevenue": "Toplam Gelir",
+      "totalStudents": "Toplam Öğrenci",
+      "totalTeachers": "Toplam Öğretmen",
+      "totalClasses": "Toplam Sınıf",
+      "totalManagers": "Müdür Sayısı",
+      "monthlyRevenue": "Aylık Gelir",
+      "pendingPayments": "Bekleyen Ödemeler",
+      "student": "Öğrenci",
+      "teacher": "Öğretmen",
+      "class": "Sınıf",
+      "manager": "Müdür"
+    },
+    "quickActions": {
+      "viewFinancials": "Finansal Raporları Görüntüle",
+      "assignManager": "Müdür Ata",
+      "courseSettings": "Kurs Ayarları",
+      "viewReports": "Detaylı Raporlar",
+      "newManager": "Yeni müdür ata",
+      "incomeExpense": "Gelir/gider",
+      "analysis": "Analiz",
+      "settings": "Ayarlar"
+    },
+    "courseInfo": {
+      "title": "Kurs Bilgileri",
+      "name": "Kurs Adı",
+      "address": "Adres",
+      "phone": "Telefon",
+      "manager": "Atanmış Müdür"
+    },
+    "header": {
+      "search": "Ara...",
+      "accountSettings": "Hesap Ayarları",
+      "logout": "Çıkış Yap"
+    },
+    "managers": {
+      "title": "Atanmış Müdürler",
+      "viewAll": "Tümünü Gör",
+      "active": "Aktif",
+      "passive": "Pasif",
+      "noManagers": "Henüz müdür atanmamış",
+      "assignManager": "Müdür Ata",
+      "managerList": "Kursa atanmış müdürler listesi"
+    },
+    "ownerActions": {
+      "title": "Kurs Sahibi İşlemleri",
+      "managerManagement": "Müdür Yönetimi",
+      "managerManagementDesc": "Müdür ata, düzenle veya kaldır",
+      "financialReports": "Finansal Raporlar",
+      "financialReportsDesc": "Gelir-gider ve ödeme takibi",
+      "courseSettings": "Kurs Ayarları",
+      "courseSettingsDesc": "Bilgileri güncelle"
+    },
+    "tts": {
+      "currentPage": "şu an bu sayfadasınız",
+      "goToPage": "sayfasına git",
+      "welcomeMessage": "Hoş geldiniz {name}! {courseName} kursunuzun genel durumunu bu panelden takip edebilirsiniz.",
+      "totalStudentsDesc": "Kursumuzdaki toplam öğrenci sayısı",
+      "totalTeachersDesc": "Kursumuzdaki toplam öğretmen sayısı",
+      "totalClassesDesc": "Kursumuzdaki toplam sınıf sayısı",
+      "totalManagersDesc": "Atanmış müdür sayısı",
+      "assignManagerDesc": "Kursa müdür atamak için tıklayın",
+      "viewFinancialsDesc": "Finansal raporları görüntüle",
+      "viewReportsDesc": "Detaylı raporları görüntüle",
+      "courseSettingsDesc": "Kurs ayarlarını düzenle",
+      "ownerActionsDesc": "Kurs sahibi hızlı işlemler paneli",
+      "managerManagerDesc": "Kursa müdür atama ve yönetim işlemleri",
+      "noManagersDesc": "Henüz müdür atanmamış. Müdür atamak için yönetim sayfasına gidin."
+    }
+  },
+  "student": {
+    "panel": "Öğrenci Paneli",
+    "welcome": {
+      "title": "Merhaba, {name}!",
+      "subtitle": "Bugün nasıl hissediyorsun? Yeni başarılar seni bekliyor!"
+    },
+    "stats": {
+      "lessonCount": "Ders Sayısı",
+      "absences": "Devamsızlık",
+      "average": "Ortalama",
+      "examCount": "Deneme Sayısı"
+    },
+    "menu": {
+      "homePage": "Ana Sayfa",
+      "homework": "Ödevler",
+      "exams": "Sınavlar",
+      "liveClass": "Canlı Ders",
+      "materials": "Materyaller",
+      "achievements": "Başarılar",
+      "schedule": "Ders Programı",
+      "progress": "İlerleme",
+      "attendance": "Yoklama",
+      "messages": "Mesajlar",
+      "announcements": "Duyurular",
+      "mockExams": "Deneme Sınavları"
+    },
+    "academicProgress": {
+      "title": "Akademik İlerleme",
+      "lastWeeks": "Son 4 hafta",
+      "generalAverage": "Genel Ortalama",
+      "solvedExams": "Çözülen Sınav",
+      "submittedHomework": "Teslim Edilen",
+      "attendanceRate": "Katılım Oranı",
+      "examTrend": "Sınav Performans Trendi",
+      "subjectSuccess": "Ders Bazlı Başarı",
+      "weeklyActivity": "Haftalık Aktivite",
+      "week": "Hafta",
+      "exam": "Sınav",
+      "homework": "Ödev"
+    },
+    "mockExams": {
+      "title": "Deneme Sınavları",
+      "count": "{count} sınav",
+      "correct": "D",
+      "wrong": "Y",
+      "empty": "B",
+      "noResults": "Henüz deneme sınavı sonucun yok",
+      "noResultsDesc": "İlk sınavına girdiğinde sonuçlar burada görünecek!"
+    },
+    "weeklySchedule": {
+      "title": "Haftalık Program",
+      "yourSchedule": "Ders takvimin",
+      "empty": "Boş",
+      "days": {
+        "monday": "Pazartesi",
+        "tuesday": "Salı",
+        "wednesday": "Çarşamba",
+        "thursday": "Perşembe",
+        "friday": "Cuma",
+        "saturday": "Cumartesi",
+        "sunday": "Pazar"
+      }
+    },
+    "teachers": {
+      "title": "Öğretmenlerim",
+      "count": "{count} öğretmen",
+      "sendMessage": "Mesaj Gönder",
+      "noTeachers": "Henüz öğretmen kaydı bulunmuyor"
+    },
+    "dailyQuestion": {
+      "title": "Günün Sorusu",
+      "dailyChallenge": "Günlük meydan okuma",
+      "preparing": "Bugün için soru hazırlanıyor...",
+      "newQuestionsDaily": "Yeni sorular her gün ekleniyor!",
+      "correct": "Doğru",
+      "wrong": "Yanlış",
+      "submitAnswer": "Cevabı Gönder",
+      "showHint": "İpucu göster",
+      "hintWarning": "(XP yarıya düşer)",
+      "congratulations": "Tebrikler!",
+      "earnedXP": "+{xp} XP kazandın!",
+      "wrongAnswer": "Yanlış cevap!",
+      "explanation": "Açıklama"
+    },
+    "gamification": {
+      "level": "Seviye",
+      "totalXP": "Toplam XP",
+      "streak": "Seri",
+      "days": "gün",
+      "highestStreak": "En Yüksek Seri",
+      "levels": {
+        "beginner": "Başlangıç",
+        "apprentice": "Çırak",
+        "master": "Usta",
+        "expert": "Uzman",
+        "legend": "Efsane"
+      }
+    },
+    "profile": {
+      "editProfile": "Profili Düzenle",
+      "updateInfo": "Bilgilerini güncelle",
+      "profilePhoto": "Profil Fotoğrafı",
+      "photoFormats": "JPG, PNG veya GIF (max 5MB)",
+      "changePhoto": "Değiştir",
+      "firstName": "Ad",
+      "lastName": "Soyad",
+      "email": "E-posta",
+      "emailCantChange": "E-posta adresi değiştirilemez",
+      "phone": "Telefon",
+      "class": "Sınıf",
+      "studentNo": "Öğrenci No",
+      "saving": "Kaydediliyor...",
+      "profileUpdated": "Profiliniz başarıyla güncellendi!",
+      "updateFailed": "Profil güncellenemedi."
+    },
+    "notifications": {
+      "title": "Bildirimler",
+      "noNotifications": "Bildirim yok"
+    },
+    "header": {
+      "accountSettings": "Hesap Ayarları",
+      "logout": "Çıkış Yap"
+    },
+    "activeExams": {
+      "title": "Aktif Online Sınavlar",
+      "waiting": "{count} sınav seni bekliyor!",
+      "viewAll": "Tümünü Gör",
+      "duration": "dk",
+      "questions": "soru"
+    }
+  },
+  "parent": {
+    "panel": "Veli Paneli",
+    "role": "Veli",
+    "welcome": {
+      "title": "Hoş Geldiniz, {name}!",
+      "subtitle": "Çocuğunuzun eğitim sürecini buradan takip edebilirsiniz."
+    },
+    "childInfo": {
+      "title": "Çocuğum",
+      "myChildren": "Çocuklarım",
+      "class": "Sınıf",
+      "studentNo": "Öğrenci No",
+      "school": "Okul",
+      "viewDetails": "Detayları Gör",
+      "noChildren": "Henüz çocuk kaydı bulunmuyor"
+    },
+    "stats": {
+      "average": "Ortalama",
+      "absences": "Devamsızlık",
+      "pendingHomework": "Bekleyen Ödev",
+      "completedExams": "Tamamlanan Sınav",
+      "xp": "XP Puanı",
+      "badges": "Rozetler"
+    },
+    "menu": {
+      "homePage": "Ana Sayfa",
+      "childProgress": "Çocuğumun İlerlemesi",
+      "examResults": "Deneme Sonuçları",
+      "homeworkStatus": "Ödev Durumu",
+      "attendance": "Devamsızlık",
+      "payments": "Ödemeler",
+      "messages": "Mesajlar",
+      "announcements": "Duyurular",
+      "schedule": "Ders Programı",
+      "teachers": "Öğretmenler",
+      "settings": "Ayarlar",
+      "compare": "Karşılaştır"
+    },
+    "childProgress": {
+      "title": "Çocuğumun İlerlemesi",
+      "lastMonth": "Son 1 ay",
+      "generalAverage": "Genel Ortalama",
+      "examCount": "Sınav Sayısı",
+      "homeworkCompletion": "Ödev Tamamlama",
+      "attendanceRate": "Devam Oranı"
+    },
+    "recentExams": {
+      "title": "Son Sınav Sonuçları",
+      "viewAll": "Tümünü Gör",
+      "noExams": "Henüz sınav sonucu yok"
+    },
+    "pendingHomework": {
+      "title": "Bekleyen Ödevler",
+      "viewAll": "Tümünü Gör",
+      "noHomework": "Bekleyen ödev yok",
+      "deadline": "Son Teslim"
+    },
+    "payments": {
+      "title": "Ödemeler",
+      "totalDebt": "Toplam Borç",
+      "paidAmount": "Ödenen",
+      "pendingAmount": "Bekleyen",
+      "overdueAmount": "Gecikmiş",
+      "pending": "Bekleyen Ödeme",
+      "paid": "Ödendi",
+      "overdue": "Gecikmiş",
+      "makePayment": "Ödeme Yap",
+      "payNow": "Hemen Öde",
+      "paymentHistory": "Ödeme Geçmişi",
+      "nextPayment": "Sıradaki Ödeme",
+      "upcoming": "Yaklaşan",
+      "paymentPlans": "Ödeme Planları",
+      "history": "Geçmiş",
+      "noPayments": "Ödeme kaydı bulunmuyor",
+      "progress": "Ödeme İlerlemesi",
+      "cardNumber": "Kart Numarası",
+      "cardHolder": "Kart Sahibi",
+      "expiryDate": "Son Kullanma",
+      "cvv": "CVV",
+      "secure3d": "3D Secure ile Ödeme",
+      "securityInfo": "Ödeme bilgileriniz 256-bit SSL ile şifrelenir",
+      "processing": "İşleniyor..."
+    },
+    "teachers": {
+      "title": "Öğretmenler",
+      "sendMessage": "Mesaj Gönder",
+      "viewProfile": "Profili Gör",
+      "branch": "Branş"
+    },
+    "notifications": {
+      "title": "Bildirimler",
+      "newExamResult": "Yeni sınav sonucu",
+      "homeworkDeadline": "Ödev son teslim tarihi yaklaşıyor",
+      "paymentReminder": "Ödeme hatırlatması",
+      "absenceAlert": "Devamsızlık uyarısı",
+      "noNotifications": "Bildirim bulunmuyor",
+      "markAllRead": "Tümünü Okundu İşaretle"
+    },
+    "messages": {
+      "title": "Mesajlar",
+      "newMessage": "Yeni Mesaj",
+      "conversations": "Konuşmalar",
+      "searchConversations": "Konuşmalarda ara...",
+      "typeMessage": "Mesajınızı yazın...",
+      "send": "Gönder",
+      "noMessages": "Henüz mesaj yok",
+      "selectConversation": "Bir konuşma seçin",
+      "startConversation": "Konuşma başlatmak için bir öğretmen seçin",
+      "selectTeacher": "Öğretmen Seç",
+      "online": "Çevrimiçi",
+      "offline": "Çevrimdışı",
+      "typing": "yazıyor...",
+      "today": "Bugün",
+      "yesterday": "Dün"
+    },
+    "announcements": {
+      "title": "Duyurular",
+      "search": "Duyurularda ara...",
+      "filter": "Filtrele",
+      "category": "Kategori",
+      "priority": "Öncelik",
+      "allCategories": "Tüm Kategoriler",
+      "allPriorities": "Tüm Öncelikler",
+      "clearFilters": "Filtreleri Temizle",
+      "pinned": "Sabitlenmiş",
+      "noAnnouncements": "Henüz Duyuru Yok",
+      "noResults": "Sonuç Bulunamadı",
+      "categories": {
+        "general": "Genel",
+        "education": "Eğitim",
+        "payment": "Ödeme",
+        "event": "Etkinlik",
+        "meeting": "Toplantı",
+        "other": "Diğer"
+      },
+      "priorities": {
+        "low": "Düşük",
+        "normal": "Normal",
+        "high": "Yüksek",
+        "urgent": "Acil"
+      }
+    },
+    "examResults": {
+      "title": "Deneme Sonuçları",
+      "selectChild": "Çocuk Seç",
+      "examType": "Sınav Türü",
+      "allTypes": "Tüm Türler",
+      "totalExams": "Toplam Sınav",
+      "averageNet": "Ortalama Net",
+      "highestNet": "En Yüksek Net",
+      "lastChange": "Son Değişim",
+      "weakSubjects": "Zayıf Dersler",
+      "weakSubjectsWarning": "Bu derslere daha fazla çalışması gerekiyor",
+      "detailedResults": "Detaylı Sonuçlar",
+      "subjectPerformance": "Ders Bazlı Performans",
+      "developmentTrend": "Gelişim Trendi",
+      "noResults": "Henüz deneme sınavı sonucu bulunmuyor",
+      "correct": "Doğru",
+      "wrong": "Yanlış",
+      "empty": "Boş",
+      "net": "Net",
+      "date": "Tarih",
+      "examName": "Sınav Adı"
+    },
+    "compare": {
+      "title": "Çocuk Karşılaştırma",
+      "performance": "Performans",
+      "generalPerformance": "Genel Performans",
+      "ranking": "Sıralama",
+      "detailedComparison": "Detaylı Karşılaştırma",
+      "selectMetric": "Metrik Seç",
+      "metrics": {
+        "examAverage": "Sınav Ortalaması",
+        "homeworkRate": "Ödev Teslim Oranı",
+        "homeworkScore": "Ödev Puanı",
+        "classParticipation": "Derse Katılım",
+        "absences": "Devamsızlık"
+      },
+      "bestPerformance": "En İyi Performans",
+      "comparisonTable": "Karşılaştırma Tablosu",
+      "evaluations": {
+        "excellent": "Mükemmel",
+        "veryGood": "Çok İyi",
+        "good": "İyi",
+        "medium": "Orta",
+        "needsImprovement": "Gelişmeli",
+        "attention": "Dikkat!"
+      },
+      "singleChildView": "Tek çocuk olduğu için karşılaştırma yapılamıyor",
+      "viewDetails": "Detaylara Git"
+    },
+    "settings": {
+      "title": "Hesap Ayarları",
+      "subtitle": "Profil, güvenlik ve erişilebilirlik ayarlarınızı yönetin",
+      "tabs": {
+        "profile": "Profil",
+        "security": "Güvenlik",
+        "notifications": "Bildirimler",
+        "accessibility": "Erişilebilirlik"
+      },
+      "profile": {
+        "title": "Profil Bilgileri",
+        "photo": "Profil Fotoğrafı",
+        "uploadPhoto": "Yeni Fotoğraf Yükle",
+        "deletePhoto": "Fotoğrafı Sil",
+        "photoFormats": "Desteklenen formatlar: JPG, PNG, WebP (max 8MB)",
+        "firstName": "Ad",
+        "lastName": "Soyad",
+        "email": "E-posta",
+        "emailReadonly": "E-posta değiştirmek için yöneticinizle iletişime geçin",
+        "phone": "Telefon",
+        "saveChanges": "Değişiklikleri Kaydet",
+        "saving": "Kaydediliyor...",
+        "updateSuccess": "Profil başarıyla güncellendi!",
+        "photoUploadSuccess": "Profil fotoğrafı başarıyla yüklendi!",
+        "photoDeleteSuccess": "Profil fotoğrafı silindi!"
+      },
+      "security": {
+        "title": "Şifre Değiştir",
+        "currentPassword": "Mevcut Şifre",
+        "newPassword": "Yeni Şifre",
+        "confirmPassword": "Yeni Şifre (Tekrar)",
+        "passwordHint": "En az 6 karakter, büyük/küçük harf ve rakam içermelidir",
+        "passwordStrength": {
+          "veryWeak": "Çok zayıf",
+          "weak": "Zayıf",
+          "medium": "Orta",
+          "strong": "Güçlü"
+        },
+        "passwordsMatch": "Şifreler eşleşiyor",
+        "passwordsDontMatch": "Şifreler eşleşmiyor",
+        "changePassword": "Şifreyi Değiştir",
+        "changing": "Değiştiriliyor...",
+        "changeSuccess": "Şifre başarıyla değiştirildi!"
+      },
+      "notifications": {
+        "title": "Bildirim Tercihleri",
+        "emailNotifications": "E-posta Bildirimleri",
+        "emailDesc": "Önemli güncellemeler için e-posta al",
+        "pushNotifications": "Anlık Bildirimler",
+        "pushDesc": "Tarayıcı bildirimleri",
+        "permissionGranted": "İzin verildi",
+        "permissionDenied": "İzin reddedildi",
+        "grantPermission": "İzin Ver",
+        "categories": "Bildirim Kategorileri",
+        "homeworkNotif": "Ödev Bildirimleri",
+        "homeworkNotifDesc": "Çocuğunuzun ödevleri hakkında",
+        "absenceNotif": "Devamsızlık Bildirimleri",
+        "absenceNotifDesc": "Devamsızlık kayıtları",
+        "examNotif": "Sınav Sonuçları",
+        "examNotifDesc": "Sınav ve deneme sonuçları",
+        "messageNotif": "Mesaj Bildirimleri",
+        "messageNotifDesc": "Öğretmenlerden gelen mesajlar",
+        "announcementNotif": "Duyuru Bildirimleri",
+        "announcementNotifDesc": "Kurum duyuruları",
+        "saveSettings": "Ayarları Kaydet",
+        "updateSuccess": "Bildirim ayarları güncellendi!"
+      },
+      "accessibility": {
+        "title": "Erişilebilirlik",
+        "tts": {
+          "title": "Sesli Okuma",
+          "enabled": "Sesli Okuma",
+          "enabledDesc": "Ekrandaki öğeleri sesli dinleyin",
+          "speed": "Konuşma Hızı",
+          "slow": "Yavaş",
+          "fast": "Hızlı",
+          "pitch": "Konuşma Tonu",
+          "low": "Kalın",
+          "high": "İnce",
+          "testVoice": "Sesi Test Et"
+        },
+        "fontSize": {
+          "title": "Yazı Boyutu",
+          "size": "Boyut",
+          "preview": "Örnek metin - Bu yazı {size}px boyutunda görünüyor."
+        },
+        "visual": {
+          "title": "Görsel Ayarlar",
+          "highContrast": "Yüksek Kontrast",
+          "highContrastDesc": "Daha belirgin renkler",
+          "largeCursor": "Büyük İmleç",
+          "largeCursorDesc": "Daha görünür fare imleci",
+          "reducedMotion": "Hareket Azaltma",
+          "reducedMotionDesc": "Animasyonları devre dışı bırak",
+          "dyslexiaFont": "Disleksi Dostu Font",
+          "dyslexiaFontDesc": "Okumayı kolaylaştıran font"
+        },
+        "colorBlind": {
+          "title": "Renk Körlüğü Modu",
+          "normal": "Normal",
+          "normalDesc": "Varsayılan",
+          "protanopia": "Protanopi",
+          "protanopiaDesc": "Kırmızı körlüğü",
+          "deuteranopia": "Deuteranopi",
+          "deuteranopiaDesc": "Yeşil körlüğü",
+          "tritanopia": "Tritanopi",
+          "tritanopiaDesc": "Mavi-sarı körlüğü",
+          "monochromacy": "Akromatopsi",
+          "monochromacyDesc": "Tam renk körlüğü"
+        },
+        "lineHeight": {
+          "title": "Satır Aralığı",
+          "normal": "Normal",
+          "medium": "Geniş",
+          "large": "Çok Geniş"
+        },
+        "resetSettings": "Varsayılana Sıfırla",
+        "resetSuccess": "Ayarlar varsayılana sıfırlandı"
+      }
+    },
+    "childDetails": {
+      "grades": "Notlar",
+      "attendance": "Devamsızlık",
+      "homework": "Ödevler",
+      "teachers": "Öğretmenler",
+      "schedule": "Ders Programı",
+      "noData": "Veri bulunamadı"
+    },
+    "quickAccess": {
+      "title": "Hızlı Erişim Menüsü"
+    },
+    "header": {
+      "accountSettings": "Hesap Ayarları",
+      "logout": "Çıkış Yap"
+    },
+    "tts": {
+      "currentPage": "Şu an bu sayfadasınız",
+      "goToPage": "sayfasına gitmek için tıklayın",
+      "welcomeMessage": "Hoş geldiniz, sayın {name}. Çocuklarınızın akademik durumunu buradan takip edebilirsiniz.",
+      "childCard": "{name}. Sınıf: {class}. Devamsızlık: {absences} gün. Ortalama: {average}. Bekleyen ödev: {homework}.",
+      "viewGrades": "için notları görüntüle",
+      "viewAttendance": "için yoklama ve devamsızlık bilgilerini görüntüle",
+      "viewHomework": "için ödevleri görüntüle",
+      "notification": "Bildirim: {title}. {message}",
+      "announcement": "Duyuru: {title}. {priority}",
+      "profileMenu": "Profil menüsü. Menüyü açmak için tıklayın",
+      "logoutButton": "Çıkış Yap. Hesaptan çıkış yapmak için tıklayın",
+      "settingsLink": "Hesap Ayarları. Hesap ayarlarına gitmek için tıklayın",
+      "notificationsButton": "Bildirimler",
+      "messagesButton": "Mesajlar. Mesajlarınızı görüntülemek için tıklayın",
+      "newMessageButton": "Yeni Mesaj. Öğretmenlere mesaj göndermek için tıklayın",
+      "payNowButton": "Hemen Öde. Ödeme yapmak için tıklayın",
+      "examResult": "Sınav: {name}. Net: {net}. Doğru: {correct}. Yanlış: {wrong}",
+      "compareChild": "{name}. Genel performans: {performance} puan",
+      "userInfo": "Giriş yapan kullanıcı: {name}. Veli."
+    }
+  },
+  "teacher": {
+    "panel": "Öğretmen Paneli",
+    "welcome": {
+      "title": "Hoş Geldiniz, {name} Hoca!",
+      "subtitle": "Derslerinizi ve öğrencilerinizi buradan yönetebilirsiniz."
+    },
+    "stats": {
+      "totalStudents": "Toplam Öğrenci",
+      "activeClasses": "Aktif Sınıf",
+      "pendingHomework": "Bekleyen Ödev",
+      "upcomingExams": "Yaklaşan Sınav"
+    },
+    "menu": {
+      "homePage": "Ana Sayfa",
+      "myClasses": "Sınıflarım",
+      "students": "Öğrencilerim",
+      "homework": "Ödevler",
+      "exams": "Sınavlar",
+      "liveClass": "Canlı Ders",
+      "materials": "Materyaller",
+      "attendance": "Yoklama",
+      "grades": "Notlar",
+      "messages": "Mesajlar",
+      "announcements": "Duyurular",
+      "questionBank": "Soru Havuzu",
+      "reports": "Raporlar"
+    },
+    "classes": {
+      "title": "Sınıflarım",
+      "studentCount": "{count} öğrenci",
+      "viewClass": "Sınıfı Görüntüle",
+      "noClasses": "Henüz sınıf atanmamış"
+    },
+    "homework": {
+      "title": "Ödevler",
+      "createHomework": "Ödev Oluştur",
+      "pending": "Değerlendirme Bekleyen",
+      "graded": "Değerlendirilmiş",
+      "deadline": "Son Teslim",
+      "submissions": "Teslim"
+    },
+    "exams": {
+      "title": "Sınavlar",
+      "createExam": "Sınav Oluştur",
+      "activeExams": "Aktif Sınavlar",
+      "completedExams": "Tamamlanan Sınavlar",
+      "duration": "Süre",
+      "questions": "Soru"
+    },
+    "liveClass": {
+      "title": "Canlı Ders",
+      "startClass": "Ders Başlat",
+      "scheduleClass": "Ders Planla",
+      "upcomingClasses": "Yaklaşan Dersler",
+      "pastClasses": "Geçmiş Dersler"
+    },
+    "attendance": {
+      "title": "Yoklama",
+      "takeAttendance": "Yoklama Al",
+      "present": "Var",
+      "absent": "Yok",
+      "late": "Geç",
+      "excused": "İzinli"
+    },
+    "grades": {
+      "title": "Notlar",
+      "enterGrades": "Not Gir",
+      "classAverage": "Sınıf Ortalaması",
+      "highestGrade": "En Yüksek",
+      "lowestGrade": "En Düşük"
+    },
+    "todaySchedule": {
+      "title": "Bugünkü Program",
+      "noClass": "Bugün ders yok",
+      "nextClass": "Sonraki Ders"
+    }
+  },
+  "secretary": {
+    "panel": "Sekreter Paneli",
+    "welcome": {
+      "title": "Hoş Geldiniz, {name}!",
+      "subtitle": "Kurum işlemlerini buradan yönetebilirsiniz."
+    },
+    "stats": {
+      "totalStudents": "Toplam Öğrenci",
+      "pendingRegistrations": "Bekleyen Kayıt",
+      "pendingPayments": "Bekleyen Ödeme",
+      "todayAbsences": "Bugünkü Devamsızlık"
+    },
+    "menu": {
+      "homePage": "Ana Sayfa",
+      "studentRegistration": "Öğrenci Kayıt",
+      "payments": "Ödemeler",
+      "attendance": "Devamsızlık",
+      "documents": "Belgeler",
+      "reports": "Raporlar",
+      "messages": "Mesajlar",
+      "announcements": "Duyurular"
+    },
+    "registration": {
+      "title": "Öğrenci Kayıt",
+      "newRegistration": "Yeni Kayıt",
+      "pendingRegistrations": "Bekleyen Kayıtlar",
+      "completedRegistrations": "Tamamlanan Kayıtlar"
+    },
+    "payments": {
+      "title": "Ödemeler",
+      "receivePayment": "Ödeme Al",
+      "pendingPayments": "Bekleyen Ödemeler",
+      "paymentHistory": "Ödeme Geçmişi",
+      "generateReceipt": "Makbuz Oluştur"
+    },
+    "attendance": {
+      "title": "Devamsızlık",
+      "enterAbsence": "Devamsızlık Gir",
+      "todayAbsences": "Bugünkü Devamsızlıklar",
+      "monthlyReport": "Aylık Rapor"
+    },
+    "documents": {
+      "title": "Belgeler",
+      "studentDocument": "Öğrenci Belgesi",
+      "transcript": "Transkript",
+      "certificate": "Sertifika"
+    }
   }
 }
 

@@ -23,7 +23,12 @@ import {
   Target,
   Edit,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Copy,
+  Save,
+  Send,
+  AlertTriangle,
+  Settings
 } from 'lucide-react';
 import Link from 'next/link';
 import { RoleGuard } from '@/components/RoleGuard';
@@ -86,6 +91,14 @@ interface Odev {
   sonTeslimTarihi: string;
   maxPuan: number;
   aktif: boolean;
+  taslak: boolean;
+  gecTeslimPolitikasi: {
+    piyanKesintisiGunluk: number;
+    maksimumGecikmeGun: number;
+    toleransSaat: number;
+  } | null;
+  geriBildirimDuzenlenebilir: boolean;
+  kopyalananOdevId: string | null;
   createdAt: string;
   resimler: string[];
   dosyalar: any[];
@@ -109,8 +122,8 @@ interface Odev {
 
 // Ödev Tipi seçenekleri
 const ODEV_TIPLERI = [
-  { value: 'KARISIK', label: 'Karışık (Hepsi)', description: 'Metin, soru ve dosya yükleme' },
-  { value: 'KLASIK', label: 'Klasik', description: 'Sadece metin tabanlı' },
+  { value: 'KARISIK', label: 'Karışık (Hepsi)', description: 'Test ve klasik sorular' },
+  { value: 'TEST', label: 'Test', description: 'Çoktan seçmeli sorular' },
   { value: 'SORU_CEVAP', label: 'Soru-Cevap', description: 'Klasik sorular' },
   { value: 'DOSYA_YUKLE', label: 'Dosya Yükle', description: 'Öğrenci dosya yükler' },
 ];
@@ -126,12 +139,20 @@ function OgretmenOdevlerContent() {
   const [showDegerlendirModal, setShowDegerlendirModal] = useState(false);
   const [selectedTeslim, setSelectedTeslim] = useState<OdevTeslim | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'hepsi' | 'aktif' | 'gecmis'>('hepsi');
+  const [filterStatus, setFilterStatus] = useState<'hepsi' | 'aktif' | 'gecmis' | 'taslak'>('hepsi');
   const [processing, setProcessing] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [showSoruEkle, setShowSoruEkle] = useState(false);
+  
+  // Mesaj modal state
+  const [showMessageModal, setShowMessageModal] = useState(false);
+  const [messageModal, setMessageModal] = useState<{ type: 'success' | 'error' | 'warning'; title: string; message: string }>({
+    type: 'error',
+    title: '',
+    message: ''
+  });
 
   // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -151,14 +172,37 @@ function OgretmenOdevlerContent() {
     odevTipi: 'KARISIK' as const,
     resimler: [] as string[],
     dosyalar: [] as any[],
-    sorular: [] as { soruMetni: string; resimUrl?: string; puan: number }[]
+    sorular: [] as { soruMetni: string; resimUrl?: string; puan: number; tip: 'test' | 'klasik'; siklar?: string[]; dogruCevap?: number }[],
+    taslak: false,
+    gecTeslimPolitikasi: null as { puanKesintisiGunluk: number; maksimumGecikmeGun: number; toleransSaat: number } | null,
+    geriBildirimDuzenlenebilir: true
   });
+
+  // Geç teslim politikası açık mı
+  const [gecTeslimAcik, setGecTeslimAcik] = useState(false);
+  const [gecTeslimForm, setGecTeslimForm] = useState({
+    puanKesintisiGunluk: 10,
+    maksimumGecikmeGun: 3,
+    toleransSaat: 6
+  });
+
+  // Kopyalama state
+  const [showKopyalaModal, setShowKopyalaModal] = useState(false);
+  const [kopyalanacakOdev, setKopyalanacakOdev] = useState<Odev | null>(null);
+  const [kopyaBaslik, setKopyaBaslik] = useState('');
+  const [kopyaSonTeslim, setKopyaSonTeslim] = useState('');
+
+  // Karışık modda aktif soru tipi
+  const [aktivSoruTipi, setAktivSoruTipi] = useState<'test' | 'klasik'>('test');
 
   // Yeni soru state
   const [yeniSoru, setYeniSoru] = useState({
     soruMetni: '',
     resimUrl: '',
-    puan: 10
+    puan: 10,
+    tip: 'test' as 'test' | 'klasik',
+    siklar: ['', '', '', ''] as string[],
+    dogruCevap: 0
   });
 
   // Değerlendirme state
@@ -260,24 +304,50 @@ function OgretmenOdevlerContent() {
           }));
         }
       } else {
-        alert(data.error || 'Resim yüklenemedi');
+        setMessageModal({
+          type: 'error',
+          title: 'Resim Yükleme Hatası',
+          message: data.error || 'Resim yüklenemedi'
+        });
+        setShowMessageModal(true);
       }
     } catch (error) {
       console.error('Resim yükleme hatası:', error);
-      alert('Resim yüklenirken bir hata oluştu');
+      setMessageModal({
+        type: 'error',
+        title: 'Hata',
+        message: 'Resim yüklenirken bir hata oluştu'
+      });
+      setShowMessageModal(true);
     } finally {
       setUploadingImage(false);
     }
   };
 
   // Yeni ödev oluştur
-  const handleYeniOdev = async (e: React.FormEvent) => {
+  const handleYeniOdev = async (e: React.FormEvent, asTaslak = false) => {
     e.preventDefault();
+    
+    // Soru puanları toplamını kontrol et (taslak değilse)
+    if (!asTaslak && yeniOdev.sorular.length > 0) {
+      const toplamPuan = yeniOdev.sorular.reduce((acc, soru) => acc + soru.puan, 0);
+      if (toplamPuan > yeniOdev.maxPuan) {
+        setMessageModal({
+          type: 'warning',
+          title: 'Puan Uyarısı',
+          message: `Soru puanları toplamı (${toplamPuan}) maksimum puandan (${yeniOdev.maxPuan}) fazla. Lütfen soru puanlarını veya maksimum puanı düzenleyin.`
+        });
+        setShowMessageModal(true);
+        return;
+      }
+    }
+    
     setProcessing(true);
     
     try {
       const payload = {
         ...yeniOdev,
+        taslak: asTaslak,
         hedefSiniflar: yeniOdev.hedefSiniflar.length > 0 ? yeniOdev.hedefSiniflar : undefined,
         courseId: yeniOdev.courseId || undefined,
         baslangicTarihi: yeniOdev.baslangicTarihi || undefined,
@@ -285,7 +355,9 @@ function OgretmenOdevlerContent() {
         icerik: yeniOdev.icerik || undefined,
         resimler: yeniOdev.resimler.length > 0 ? yeniOdev.resimler : undefined,
         dosyalar: yeniOdev.dosyalar.length > 0 ? yeniOdev.dosyalar : undefined,
-        sorular: yeniOdev.sorular.length > 0 ? yeniOdev.sorular : undefined
+        sorular: yeniOdev.sorular.length > 0 ? yeniOdev.sorular : undefined,
+        gecTeslimPolitikasi: gecTeslimAcik ? gecTeslimForm : null,
+        geriBildirimDuzenlenebilir: yeniOdev.geriBildirimDuzenlenebilir
       };
 
       const response = await fetch(`${API_URL}/odevler`, {
@@ -296,16 +368,121 @@ function OgretmenOdevlerContent() {
       const data = await response.json();
       
       if (data.success) {
-        alert('Ödev başarıyla oluşturuldu!');
+        setMessageModal({
+          type: 'success',
+          title: 'Başarılı',
+          message: asTaslak ? 'Ödev taslak olarak kaydedildi!' : 'Ödev başarıyla oluşturuldu!'
+        });
+        setShowMessageModal(true);
         setShowYeniOdevModal(false);
         resetYeniOdevForm();
         fetchOdevler();
       } else {
-        alert(data.error || 'Ödev oluşturulamadı');
+        setMessageModal({
+          type: 'error',
+          title: 'Hata',
+          message: data.error || 'Ödev oluşturulamadı'
+        });
+        setShowMessageModal(true);
       }
     } catch (error) {
       console.error('Ödev oluşturma hatası:', error);
-      alert('Bir hata oluştu');
+      setMessageModal({
+        type: 'error',
+        title: 'Hata',
+        message: 'Bir hata oluştu'
+      });
+      setShowMessageModal(true);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Ödev kopyala
+  const handleKopyalaOdev = async () => {
+    if (!kopyalanacakOdev || !kopyaBaslik || !kopyaSonTeslim) {
+      setMessageModal({
+        type: 'warning',
+        title: 'Uyarı',
+        message: 'Lütfen başlık ve son teslim tarihi girin'
+      });
+      setShowMessageModal(true);
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      const response = await fetch(`${API_URL}/odevler/${kopyalanacakOdev.id}/kopyala`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          yeniBaslik: kopyaBaslik,
+          yeniSonTeslimTarihi: kopyaSonTeslim
+        })
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        setMessageModal({
+          type: 'success',
+          title: 'Başarılı',
+          message: 'Ödev başarıyla kopyalandı!'
+        });
+        setShowMessageModal(true);
+        setShowKopyalaModal(false);
+        setKopyalanacakOdev(null);
+        setKopyaBaslik('');
+        setKopyaSonTeslim('');
+        fetchOdevler();
+      } else {
+        setMessageModal({
+          type: 'error',
+          title: 'Hata',
+          message: data.error || 'Ödev kopyalanamadı'
+        });
+        setShowMessageModal(true);
+      }
+    } catch (error) {
+      console.error('Ödev kopyalama hatası:', error);
+      setMessageModal({
+        type: 'error',
+        title: 'Hata',
+        message: 'Bir hata oluştu'
+      });
+      setShowMessageModal(true);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Taslak ödevi yayınla
+  const handleYayinla = async (odevId: string) => {
+    setProcessing(true);
+    try {
+      const response = await fetch(`${API_URL}/odevler/${odevId}/yayinla`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        setMessageModal({
+          type: 'success',
+          title: 'Başarılı',
+          message: 'Ödev yayınlandı!'
+        });
+        setShowMessageModal(true);
+        fetchOdevler();
+      } else {
+        setMessageModal({
+          type: 'error',
+          title: 'Hata',
+          message: data.error || 'Ödev yayınlanamadı'
+        });
+        setShowMessageModal(true);
+      }
+    } catch (error) {
+      console.error('Ödev yayınlama hatası:', error);
     } finally {
       setProcessing(false);
     }
@@ -326,23 +503,67 @@ function OgretmenOdevlerContent() {
       odevTipi: 'KARISIK',
       resimler: [],
       dosyalar: [],
-      sorular: []
+      sorular: [],
+      taslak: false,
+      gecTeslimPolitikasi: null,
+      geriBildirimDuzenlenebilir: true
     });
-    setYeniSoru({ soruMetni: '', resimUrl: '', puan: 10 });
+    setYeniSoru({ soruMetni: '', resimUrl: '', puan: 10, tip: 'test', siklar: ['', '', '', ''], dogruCevap: 0 });
+    setAktivSoruTipi('test');
     setShowSoruEkle(false);
+    setGecTeslimAcik(false);
+    setGecTeslimForm({ puanKesintisiGunluk: 10, maksimumGecikmeGun: 3, toleransSaat: 6 });
   };
 
   // Soru ekle
   const handleSoruEkle = () => {
     if (!yeniSoru.soruMetni.trim()) {
-      alert('Soru metni gerekli');
+      setMessageModal({
+        type: 'warning',
+        title: 'Uyarı',
+        message: 'Soru metni gerekli'
+      });
+      setShowMessageModal(true);
       return;
     }
+
+    // Test sorusu için şıklar kontrolü
+    if (yeniSoru.tip === 'test') {
+      const bosOlmayanSiklar = yeniSoru.siklar.filter(s => s.trim() !== '');
+      if (bosOlmayanSiklar.length < 2) {
+        setMessageModal({
+          type: 'warning',
+          title: 'Uyarı',
+          message: 'Test sorusu için en az 2 şık gerekli'
+        });
+        setShowMessageModal(true);
+        return;
+      }
+    }
+    
+    // Yeni soru eklendiğinde toplam puanı kontrol et
+    const mevcutToplam = yeniOdev.sorular.reduce((acc, soru) => acc + soru.puan, 0);
+    const yeniToplam = mevcutToplam + yeniSoru.puan;
+    
+    if (yeniToplam > yeniOdev.maxPuan) {
+      setMessageModal({
+        type: 'warning',
+        title: 'Puan Uyarısı',
+        message: `Bu soru eklendiğinde toplam puan (${yeniToplam}) maksimum puandan (${yeniOdev.maxPuan}) fazla olacak. Yine de eklensin mi?`
+      });
+      setShowMessageModal(true);
+    }
+    
+    // Soruyu ekle
+    const yeniSoruData = yeniSoru.tip === 'test' 
+      ? { ...yeniSoru, siklar: yeniSoru.siklar.filter(s => s.trim() !== '') }
+      : { soruMetni: yeniSoru.soruMetni, resimUrl: yeniSoru.resimUrl, puan: yeniSoru.puan, tip: yeniSoru.tip };
+    
     setYeniOdev(prev => ({
       ...prev,
-      sorular: [...prev.sorular, { ...yeniSoru }]
+      sorular: [...prev.sorular, yeniSoruData as any]
     }));
-    setYeniSoru({ soruMetni: '', resimUrl: '', puan: 10 });
+    setYeniSoru({ soruMetni: '', resimUrl: '', puan: 10, tip: aktivSoruTipi, siklar: ['', '', '', ''], dogruCevap: 0 });
   };
 
   // Soru sil
@@ -380,7 +601,12 @@ function OgretmenOdevlerContent() {
       const data = await response.json();
       
       if (data.success) {
-        alert('Ödev değerlendirildi!');
+        setMessageModal({
+          type: 'success',
+          title: 'Başarılı',
+          message: 'Ödev değerlendirildi!'
+        });
+        setShowMessageModal(true);
         setShowDegerlendirModal(false);
         setSelectedTeslim(null);
         setDegerlendirme({ puan: 0, yorum: '' });
@@ -397,11 +623,21 @@ function OgretmenOdevlerContent() {
           if (updatedOdev) setSelectedOdev(updatedOdev);
         }
       } else {
-        alert(data.error || 'Değerlendirme yapılamadı');
+        setMessageModal({
+          type: 'error',
+          title: 'Hata',
+          message: data.error || 'Değerlendirme yapılamadı'
+        });
+        setShowMessageModal(true);
       }
     } catch (error) {
       console.error('Değerlendirme hatası:', error);
-      alert('Bir hata oluştu');
+      setMessageModal({
+        type: 'error',
+        title: 'Hata',
+        message: 'Bir hata oluştu'
+      });
+      setShowMessageModal(true);
     } finally {
       setProcessing(false);
     }
@@ -430,8 +666,10 @@ function OgretmenOdevlerContent() {
     const now = new Date();
     const sonTeslim = new Date(odev.sonTeslimTarihi);
     
-    if (filterStatus === 'aktif' && sonTeslim < now) return false;
-    if (filterStatus === 'gecmis' && sonTeslim >= now) return false;
+    if (filterStatus === 'taslak' && !odev.taslak) return false;
+    if (filterStatus === 'aktif' && (sonTeslim < now || odev.taslak)) return false;
+    if (filterStatus === 'gecmis' && (sonTeslim >= now || odev.taslak)) return false;
+    if (filterStatus === 'hepsi' && odev.taslak) return false; // Taslakları hepsi'de gösterme
 
     return true;
   });
@@ -510,8 +748,8 @@ function OgretmenOdevlerContent() {
               />
             </div>
 
-            <div className="flex gap-2">
-              {(['hepsi', 'aktif', 'gecmis'] as const).map((status) => (
+            <div className="flex gap-2 flex-wrap">
+              {(['hepsi', 'aktif', 'gecmis', 'taslak'] as const).map((status) => (
                 <button
                   key={status}
                   onClick={() => setFilterStatus(status)}
@@ -521,7 +759,7 @@ function OgretmenOdevlerContent() {
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
-                  {status === 'hepsi' ? 'Tümü' : status === 'aktif' ? 'Aktif' : 'Geçmiş'}
+                  {status === 'hepsi' ? 'Tümü' : status === 'aktif' ? 'Aktif' : status === 'gecmis' ? 'Geçmiş' : 'Taslaklar'}
                 </button>
               ))}
             </div>
@@ -596,33 +834,73 @@ function OgretmenOdevlerContent() {
                   const isSelected = selectedOdev?.id === odev.id;
 
                   return (
-                    <button
+                    <div
                       key={odev.id}
-                      onClick={() => setSelectedOdev(odev)}
                       className={`w-full p-4 text-left hover:bg-slate-50 transition-colors ${
                         isSelected ? 'bg-amber-50' : ''
                       }`}
                     >
                       <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium text-slate-800 truncate">{odev.baslik}</h3>
+                        <button
+                          onClick={() => setSelectedOdev(odev)}
+                          className="flex-1 min-w-0 text-left"
+                        >
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-medium text-slate-800 truncate">{odev.baslik}</h3>
+                            {odev.taslak && (
+                              <span className="bg-slate-200 text-slate-600 text-xs px-2 py-0.5 rounded">
+                                Taslak
+                              </span>
+                            )}
+                            {odev.gecTeslimPolitikasi && (
+                              <span className="bg-orange-100 text-orange-600 text-xs px-2 py-0.5 rounded" title="Geç teslim kabul edilir">
+                                <Clock size={10} className="inline" />
+                              </span>
+                            )}
+                          </div>
                           <p className="text-sm text-slate-500 truncate">
                             {odev.course?.ad || 'Genel'} {odev.course?.sinif && `- ${odev.course.sinif.ad}`}
                           </p>
                           <div className="flex items-center gap-3 mt-2">
-                            <span className={`text-xs ${kalanSure.color}`}>{kalanSure.text}</span>
-                            <span className="text-xs text-slate-400">
-                              {odev.stats.teslimEdilen}/{odev.stats.toplamOgrenci} teslim
-                            </span>
+                            {!odev.taslak && (
+                              <>
+                                <span className={`text-xs ${kalanSure.color}`}>{kalanSure.text}</span>
+                                <span className="text-xs text-slate-400">
+                                  {odev.stats.teslimEdilen}/{odev.stats.toplamOgrenci} teslim
+                                </span>
+                              </>
+                            )}
                           </div>
+                        </button>
+                        <div className="flex items-center gap-1">
+                          {odev.taslak ? (
+                            <button
+                              onClick={() => handleYayinla(odev.id)}
+                              className="p-1.5 bg-green-100 text-green-600 rounded hover:bg-green-200 transition-colors"
+                              title="Yayınla"
+                            >
+                              <Send size={14} />
+                            </button>
+                          ) : odev.stats.bekleyen > 0 ? (
+                            <span className="bg-yellow-100 text-yellow-700 text-xs px-2 py-1 rounded-full">
+                              {odev.stats.bekleyen} bekliyor
+                            </span>
+                          ) : null}
+                          <button
+                            onClick={() => {
+                              setKopyalanacakOdev(odev);
+                              setKopyaBaslik(`${odev.baslik} (Kopya)`);
+                              setKopyaSonTeslim('');
+                              setShowKopyalaModal(true);
+                            }}
+                            className="p-1.5 hover:bg-slate-200 rounded transition-colors text-slate-500"
+                            title="Kopyala"
+                          >
+                            <Copy size={14} />
+                          </button>
                         </div>
-                        {odev.stats.bekleyen > 0 && (
-                          <span className="bg-yellow-100 text-yellow-700 text-xs px-2 py-1 rounded-full">
-                            {odev.stats.bekleyen} bekliyor
-                          </span>
-                        )}
                       </div>
-                    </button>
+                    </div>
                   );
                 })
               )}
@@ -757,10 +1035,25 @@ function OgretmenOdevlerContent() {
 
                           <div className="flex items-center gap-3">
                             {teslim.durum === 'DEGERLENDIRILDI' ? (
-                              <span className="flex items-center gap-1 text-green-600 bg-green-100 px-3 py-1 rounded-full text-sm">
-                                <CheckCircle size={14} />
-                                {teslim.puan}/{selectedOdev.maxPuan}
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className="flex items-center gap-1 text-green-600 bg-green-100 px-3 py-1 rounded-full text-sm">
+                                  <CheckCircle size={14} />
+                                  {teslim.puan}/{selectedOdev.maxPuan}
+                                </span>
+                                {selectedOdev.geriBildirimDuzenlenebilir && (
+                                  <button
+                                    onClick={() => {
+                                      setSelectedTeslim(teslim);
+                                      setDegerlendirme({ puan: teslim.puan || 0, yorum: teslim.ogretmenYorumu || '' });
+                                      setShowDegerlendirModal(true);
+                                    }}
+                                    className="p-1.5 hover:bg-slate-200 rounded transition-colors text-slate-500"
+                                    title="Düzenle"
+                                  >
+                                    <Edit size={14} />
+                                  </button>
+                                )}
+                              </div>
                             ) : teslim.durum === 'TESLIM_EDILDI' ? (
                               <button
                                 onClick={() => {
@@ -846,7 +1139,8 @@ function OgretmenOdevlerContent() {
                   <select
                     value={yeniOdev.courseId}
                     onChange={(e) => setYeniOdev({ ...yeniOdev, courseId: e.target.value })}
-                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-800 bg-white"
+                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-gray-900 bg-white"
+                    style={{ color: '#1f2937' }}
                   >
                     <option value="">Ders seçin...</option>
                     {courses.map((course) => (
@@ -893,7 +1187,8 @@ function OgretmenOdevlerContent() {
                     onChange={(e) => setYeniOdev({ ...yeniOdev, baslik: e.target.value })}
                     required
                     placeholder="Örn: 1. Ünite Değerlendirme Ödevi"
-                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-800 placeholder-slate-400"
+                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white placeholder-slate-400"
+                    style={{ color: '#1f2937' }}
                   />
                 </div>
 
@@ -906,7 +1201,8 @@ function OgretmenOdevlerContent() {
                     value={yeniOdev.konuBasligi}
                     onChange={(e) => setYeniOdev({ ...yeniOdev, konuBasligi: e.target.value })}
                     placeholder="Örn: Trigonometri - Sinüs ve Kosinüs"
-                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-800 placeholder-slate-400"
+                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white placeholder-slate-400"
+                    style={{ color: '#1f2937' }}
                   />
                 </div>
 
@@ -919,7 +1215,8 @@ function OgretmenOdevlerContent() {
                     onChange={(e) => setYeniOdev({ ...yeniOdev, aciklama: e.target.value })}
                     placeholder="Ödev hakkında detaylı bilgi yazın..."
                     rows={3}
-                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-800 placeholder-slate-400 resize-none"
+                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white placeholder-slate-400 resize-none"
+                    style={{ color: '#1f2937' }}
                   />
                 </div>
               </div>
@@ -958,7 +1255,8 @@ function OgretmenOdevlerContent() {
                     type="datetime-local"
                     value={yeniOdev.baslangicTarihi}
                     onChange={(e) => setYeniOdev({ ...yeniOdev, baslangicTarihi: e.target.value })}
-                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-800"
+                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+                    style={{ color: '#1f2937' }}
                   />
                 </div>
                 <div>
@@ -970,7 +1268,8 @@ function OgretmenOdevlerContent() {
                     value={yeniOdev.sonTeslimTarihi}
                     onChange={(e) => setYeniOdev({ ...yeniOdev, sonTeslimTarihi: e.target.value })}
                     required
-                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-800"
+                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+                    style={{ color: '#1f2937' }}
                   />
                 </div>
                 <div>
@@ -983,7 +1282,8 @@ function OgretmenOdevlerContent() {
                     onChange={(e) => setYeniOdev({ ...yeniOdev, maxPuan: parseInt(e.target.value) || 100 })}
                     min={1}
                     max={1000}
-                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-800"
+                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+                    style={{ color: '#1f2937' }}
                   />
                 </div>
               </div>
@@ -1035,8 +1335,90 @@ function OgretmenOdevlerContent() {
                 </div>
               </div>
 
+              {/* Geç Teslim Politikası */}
+              <div className="border border-slate-200 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Settings size={18} className="text-slate-500" />
+                    <h4 className="font-semibold text-slate-700">Geç Teslim Politikası</h4>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={gecTeslimAcik}
+                      onChange={(e) => setGecTeslimAcik(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                  </label>
+                </div>
+                
+                {gecTeslimAcik && (
+                  <div className="space-y-3 mt-3 p-3 bg-amber-50 rounded-lg">
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs text-slate-600 mb-1">Günlük Kesinti (%)</label>
+                        <input
+                          type="number"
+                          value={gecTeslimForm.puanKesintisiGunluk}
+                          onChange={(e) => setGecTeslimForm({...gecTeslimForm, puanKesintisiGunluk: parseInt(e.target.value) || 0})}
+                          min={0}
+                          max={100}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
+                          style={{ color: '#1f2937' }}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-600 mb-1">Max Gecikme (Gün)</label>
+                        <input
+                          type="number"
+                          value={gecTeslimForm.maksimumGecikmeGun}
+                          onChange={(e) => setGecTeslimForm({...gecTeslimForm, maksimumGecikmeGun: parseInt(e.target.value) || 0})}
+                          min={1}
+                          max={30}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
+                          style={{ color: '#1f2937' }}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-600 mb-1">Tolerans (Saat)</label>
+                        <input
+                          type="number"
+                          value={gecTeslimForm.toleransSaat}
+                          onChange={(e) => setGecTeslimForm({...gecTeslimForm, toleransSaat: parseInt(e.target.value) || 0})}
+                          min={0}
+                          max={24}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
+                          style={{ color: '#1f2937' }}
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-amber-700">
+                      Son teslim tarihinden sonra {gecTeslimForm.toleransSaat} saat tolerans, ardından günlük %{gecTeslimForm.puanKesintisiGunluk} kesinti (max {gecTeslimForm.maksimumGecikmeGun} gün)
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Geri Bildirim Düzenlenebilir */}
+              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+                <div>
+                  <h4 className="font-medium text-slate-700">Geri Bildirim Düzenlenebilir</h4>
+                  <p className="text-xs text-slate-500">Değerlendirme sonrası puan/yorum düzenlenebilsin mi?</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={yeniOdev.geriBildirimDuzenlenebilir}
+                    onChange={(e) => setYeniOdev({...yeniOdev, geriBildirimDuzenlenebilir: e.target.checked})}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                </label>
+              </div>
+
               {/* Soru Ekleme */}
-              {(yeniOdev.odevTipi === 'SORU_CEVAP' || yeniOdev.odevTipi === 'KARISIK') && (
+              {(yeniOdev.odevTipi === 'SORU_CEVAP' || yeniOdev.odevTipi === 'KARISIK' || yeniOdev.odevTipi === 'TEST') && (
                 <div className="border border-slate-200 rounded-xl p-4">
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="font-semibold text-slate-700">Sorular ({yeniOdev.sorular.length})</h4>
@@ -1056,8 +1438,22 @@ function OgretmenOdevlerContent() {
                       {yeniOdev.sorular.map((soru, index) => (
                         <div key={index} className="flex items-start justify-between p-3 bg-slate-50 rounded-lg">
                           <div className="flex-1">
-                            <span className="text-sm font-medium text-slate-700">Soru {index + 1}</span>
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-sm font-medium text-slate-700">Soru {index + 1}</span>
+                              <span className={`text-xs px-2 py-0.5 rounded ${soru.tip === 'test' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                                {soru.tip === 'test' ? 'Test' : 'Klasik'}
+                              </span>
+                            </div>
                             <p className="text-sm text-slate-600 mt-1">{soru.soruMetni}</p>
+                            {soru.tip === 'test' && soru.siklar && (
+                              <div className="mt-2 space-y-1">
+                                {soru.siklar.map((sik, sikIndex) => (
+                                  <div key={sikIndex} className={`text-xs px-2 py-1 rounded ${soru.dogruCevap === sikIndex ? 'bg-green-100 text-green-700 font-medium' : 'bg-slate-100 text-slate-600'}`}>
+                                    {String.fromCharCode(65 + sikIndex)}) {sik}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                             {soru.resimUrl && (
                               <img src={soru.resimUrl} alt="" className="mt-2 h-16 rounded" />
                             )}
@@ -1082,13 +1478,96 @@ function OgretmenOdevlerContent() {
                   {/* Yeni Soru Formu */}
                   {showSoruEkle && (
                     <div className="space-y-3 p-3 bg-amber-50 rounded-lg">
+                      {/* Karışık modda soru tipi seçimi */}
+                      {yeniOdev.odevTipi === 'KARISIK' && (
+                        <div className="flex gap-2 mb-3">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAktivSoruTipi('test');
+                              setYeniSoru({ ...yeniSoru, tip: 'test' });
+                            }}
+                            className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                              aktivSoruTipi === 'test'
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-white text-slate-600 border border-slate-300 hover:bg-slate-50'
+                            }`}
+                          >
+                            📝 Test Sorusu
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAktivSoruTipi('klasik');
+                              setYeniSoru({ ...yeniSoru, tip: 'klasik' });
+                            }}
+                            className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                              aktivSoruTipi === 'klasik'
+                                ? 'bg-green-500 text-white'
+                                : 'bg-white text-slate-600 border border-slate-300 hover:bg-slate-50'
+                            }`}
+                          >
+                            ✏️ Klasik Soru
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Test modunda otomatik test tipi */}
+                      {yeniOdev.odevTipi === 'TEST' && yeniSoru.tip !== 'test' && setYeniSoru({ ...yeniSoru, tip: 'test' })}
+                      
+                      {/* Soru-Cevap modunda otomatik klasik tipi */}
+                      {yeniOdev.odevTipi === 'SORU_CEVAP' && yeniSoru.tip !== 'klasik' && setYeniSoru({ ...yeniSoru, tip: 'klasik' })}
+
                       <textarea
                         value={yeniSoru.soruMetni}
                         onChange={(e) => setYeniSoru({ ...yeniSoru, soruMetni: e.target.value })}
                         placeholder="Soru metnini yazın..."
                         rows={2}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-800 placeholder-slate-400 resize-none"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white placeholder-slate-400 resize-none"
+                        style={{ color: '#1f2937' }}
                       />
+
+                      {/* Test Sorusu Şıkları */}
+                      {(yeniSoru.tip === 'test' || yeniOdev.odevTipi === 'TEST') && (
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-slate-700">Şıklar (doğru olanı seçin)</label>
+                          {yeniSoru.siklar.map((sik, index) => (
+                            <div key={index} className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setYeniSoru({ ...yeniSoru, dogruCevap: index })}
+                                className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${
+                                  yeniSoru.dogruCevap === index
+                                    ? 'bg-green-500 text-white'
+                                    : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                                }`}
+                              >
+                                {String.fromCharCode(65 + index)}
+                              </button>
+                              <input
+                                type="text"
+                                value={sik}
+                                onChange={(e) => {
+                                  const yeniSiklar = [...yeniSoru.siklar];
+                                  yeniSiklar[index] = e.target.value;
+                                  setYeniSoru({ ...yeniSoru, siklar: yeniSiklar });
+                                }}
+                                placeholder={`${String.fromCharCode(65 + index)} şıkkı`}
+                                className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white text-sm"
+                                style={{ color: '#1f2937' }}
+                              />
+                            </div>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => setYeniSoru({ ...yeniSoru, siklar: [...yeniSoru.siklar, ''] })}
+                            className="text-xs text-amber-600 hover:text-amber-700 font-medium"
+                          >
+                            + Şık Ekle
+                          </button>
+                        </div>
+                      )}
+
                       <div className="flex items-center gap-3">
                         <div className="flex-1">
                           <button
@@ -1118,7 +1597,8 @@ function OgretmenOdevlerContent() {
                             value={yeniSoru.puan}
                             onChange={(e) => setYeniSoru({ ...yeniSoru, puan: parseInt(e.target.value) || 10 })}
                             min={1}
-                            className="w-16 px-2 py-1 border border-slate-300 rounded text-slate-800 text-center"
+                            className="w-16 px-2 py-1 border border-slate-300 rounded bg-white text-center"
+                            style={{ color: '#1f2937' }}
                           />
                         </div>
                         <button
@@ -1151,9 +1631,18 @@ function OgretmenOdevlerContent() {
                 <button
                   type="button"
                   onClick={() => { setShowYeniOdevModal(false); resetYeniOdevForm(); }}
-                  className="flex-1 px-4 py-3 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 font-medium"
+                  className="px-4 py-3 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 font-medium"
                 >
                   İptal
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => handleYeniOdev(e as any, true)}
+                  disabled={processing}
+                  className="flex-1 px-4 py-3 bg-slate-500 text-white rounded-xl hover:bg-slate-600 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  <Save size={18} />
+                  Taslak Kaydet
                 </button>
                 <button
                   type="submit"
@@ -1175,116 +1664,454 @@ function OgretmenOdevlerContent() {
         </div>
       )}
 
-      {/* Değerlendirme Modal */}
-      {showDegerlendirModal && selectedTeslim && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
-            <div className="p-5 bg-gradient-to-r from-amber-500 to-amber-600 text-white flex items-center justify-between">
-              <h3 className="text-xl font-bold">Ödev Değerlendir</h3>
-              <button onClick={() => setShowDegerlendirModal(false)} className="p-2 hover:bg-white/20 rounded-lg">
-                <X size={20} />
-              </button>
-            </div>
-
-            <form onSubmit={handleDegerlendir} className="p-6 space-y-5">
-              <div className="p-4 bg-slate-50 rounded-xl">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-amber-500 rounded-full flex items-center justify-center text-white font-bold">
-                    {selectedTeslim.ogrenci.ad.charAt(0)}{selectedTeslim.ogrenci.soyad.charAt(0)}
-                  </div>
-                  <div>
-                    <p className="font-semibold text-slate-800">
-                      {selectedTeslim.ogrenci.ad} {selectedTeslim.ogrenci.soyad}
-                    </p>
-                    <p className="text-sm text-slate-500">
-                      Teslim: {formatDate(selectedTeslim.teslimTarihi)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Teslim İçeriği */}
-              {selectedTeslim.aciklama && (
-                <div className="p-4 bg-blue-50 rounded-xl">
-                  <h4 className="font-medium text-slate-700 mb-2">Öğrenci Açıklaması:</h4>
-                  <p className="text-slate-600 text-sm">{selectedTeslim.aciklama}</p>
-                </div>
-              )}
-
-              {/* Teslim Resimleri */}
-              {selectedTeslim.resimler && selectedTeslim.resimler.length > 0 && (
-                <div>
-                  <h4 className="font-medium text-slate-700 mb-2">Yüklenen Resimler:</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedTeslim.resimler.map((resim, index) => (
-                      <div
-                        key={index}
-                        className="w-20 h-20 rounded-lg overflow-hidden border border-slate-200 cursor-pointer hover:opacity-80"
-                        onClick={() => {
-                          setPreviewImage(resim);
-                          setShowPreviewModal(true);
-                        }}
-                      >
-                        <img src={resim} alt={`Resim ${index + 1}`} className="w-full h-full object-cover" />
+      {/* Değerlendirme Panel - Modern Slide-over */}
+      {showDegerlendirModal && selectedTeslim && selectedOdev && (
+        <div className="fixed inset-0 z-50 overflow-hidden">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+            onClick={() => setShowDegerlendirModal(false)}
+          />
+          
+          {/* Slide-over Panel */}
+          <div className="absolute inset-y-0 right-0 flex max-w-full">
+            <div className="w-screen max-w-5xl transform transition-transform duration-300 ease-out">
+              <div className="flex h-full flex-col bg-white shadow-2xl">
+                {/* Header */}
+                <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 px-6 py-5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-14 h-14 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                        {selectedTeslim.ogrenci.ad.charAt(0)}{selectedTeslim.ogrenci.soyad.charAt(0)}
                       </div>
-                    ))}
+                      <div>
+                        <h2 className="text-xl font-bold text-white">
+                          {selectedTeslim.ogrenci.ad} {selectedTeslim.ogrenci.soyad}
+                        </h2>
+                        <p className="text-white/80 text-sm flex items-center gap-2">
+                          <Clock size={14} />
+                          {formatDate(selectedTeslim.teslimTarihi)}
+                          {selectedTeslim.ogrenci.ogrenciNo && (
+                            <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">
+                              No: {selectedTeslim.ogrenci.ogrenciNo}
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {selectedTeslim.durum === 'DEGERLENDIRILDI' && (
+                        <div className="bg-white/20 backdrop-blur rounded-xl px-4 py-2 text-white">
+                          <span className="text-sm opacity-80">Mevcut Puan:</span>
+                          <span className="ml-2 text-xl font-bold">{selectedTeslim.puan}/{selectedOdev.maxPuan}</span>
+                        </div>
+                      )}
+                      <button 
+                        onClick={() => setShowDegerlendirModal(false)} 
+                        className="p-2.5 hover:bg-white/20 rounded-xl transition-colors"
+                      >
+                        <X size={24} className="text-white" />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Ödev Bilgisi */}
+                  <div className="mt-4 p-3 bg-white/10 backdrop-blur rounded-xl">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div>
+                        <h3 className="font-semibold text-white">{selectedOdev.baslik}</h3>
+                        <p className="text-white/70 text-sm">
+                          {selectedOdev.course?.ad || 'Genel'} {selectedOdev.course?.sinif && `• ${selectedOdev.course.sinif.ad}`}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3 text-white/80 text-sm">
+                        <span className="flex items-center gap-1">
+                          <Star size={14} />
+                          Max {selectedOdev.maxPuan} puan
+                        </span>
+                        {selectedOdev.sorular.length > 0 && (
+                          <span className="flex items-center gap-1">
+                            <BookOpen size={14} />
+                            {selectedOdev.sorular.length} soru
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              )}
 
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Puan (Max: {selectedOdev?.maxPuan})
-                </label>
-                <input
-                  type="number"
-                  value={degerlendirme.puan}
-                  onChange={(e) => setDegerlendirme({ ...degerlendirme, puan: parseInt(e.target.value) || 0 })}
-                  min={0}
-                  max={selectedOdev?.maxPuan || 100}
-                  required
-                  className="w-full px-4 py-4 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-3xl font-bold text-center text-slate-800"
-                />
-                <input
-                  type="range"
-                  value={degerlendirme.puan}
-                  onChange={(e) => setDegerlendirme({ ...degerlendirme, puan: parseInt(e.target.value) })}
-                  min={0}
-                  max={selectedOdev?.maxPuan || 100}
-                  className="w-full mt-2 accent-amber-500"
-                />
-              </div>
+                {/* İçerik - İki Sütun */}
+                <div className="flex-1 overflow-hidden flex">
+                  {/* Sol Sütun - Öğrenci Teslimi */}
+                  <div className="flex-1 overflow-y-auto border-r border-slate-200 bg-slate-50/50">
+                    <div className="p-6 space-y-6">
+                      {/* Öğrenci Açıklaması */}
+                      {selectedTeslim.aciklama && (
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                          <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-slate-100">
+                            <h4 className="font-semibold text-slate-800 flex items-center gap-2">
+                              <MessageSquare size={18} className="text-blue-500" />
+                              Öğrenci Açıklaması
+                            </h4>
+                          </div>
+                          <div className="p-4">
+                            <p className="text-slate-700 whitespace-pre-wrap">{selectedTeslim.aciklama}</p>
+                          </div>
+                        </div>
+                      )}
 
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Yorum (Opsiyonel)
-                </label>
-                <textarea
-                  value={degerlendirme.yorum}
-                  onChange={(e) => setDegerlendirme({ ...degerlendirme, yorum: e.target.value })}
-                  placeholder="Öğrenciye geri bildirim yazın..."
-                  rows={3}
-                  className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-800 placeholder-slate-400 resize-none"
-                />
-              </div>
+                      {/* Soru-Cevap Görünümü */}
+                      {selectedOdev.sorular.length > 0 && (
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                          <div className="px-4 py-3 bg-gradient-to-r from-purple-50 to-pink-50 border-b border-slate-100">
+                            <h4 className="font-semibold text-slate-800 flex items-center gap-2">
+                              <Target size={18} className="text-purple-500" />
+                              Sorular ve Cevaplar
+                            </h4>
+                          </div>
+                          <div className="divide-y divide-slate-100">
+                            {selectedOdev.sorular.map((soru, index) => {
+                              const cevap = selectedTeslim.soruCevaplari?.find((c: any) => c.soruId === soru.id);
+                              return (
+                                <div key={soru.id} className="p-4">
+                                  <div className="flex items-start gap-3">
+                                    <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-sm">
+                                      {index + 1}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-start justify-between gap-2 mb-2">
+                                        <p className="text-slate-800 font-medium">{soru.soruMetni}</p>
+                                        <span className="bg-amber-100 text-amber-700 text-xs px-2 py-1 rounded-full font-medium shrink-0">
+                                          {soru.puan} puan
+                                        </span>
+                                      </div>
+                                      
+                                      {/* Soru Resmi */}
+                                      {soru.resimUrl && (
+                                        <div 
+                                          className="mb-3 cursor-pointer"
+                                          onClick={() => {
+                                            setPreviewImage(soru.resimUrl);
+                                            setShowPreviewModal(true);
+                                          }}
+                                        >
+                                          <img 
+                                            src={soru.resimUrl} 
+                                            alt={`Soru ${index + 1}`} 
+                                            className="max-h-40 rounded-lg border border-slate-200 hover:opacity-90 transition-opacity"
+                                          />
+                                        </div>
+                                      )}
+                                      
+                                      {/* Öğrenci Cevabı */}
+                                      <div className="mt-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                                        <div className="flex items-center gap-2 mb-2">
+                                          <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                                            <span className="text-white text-[10px]">Ö</span>
+                                          </div>
+                                          <span className="text-xs font-medium text-slate-500">Öğrenci Cevabı</span>
+                                        </div>
+                                        {cevap ? (
+                                          <div>
+                                            {cevap.cevapMetni && (
+                                              <p className="text-slate-700">{cevap.cevapMetni}</p>
+                                            )}
+                                            {cevap.secilenSik !== null && cevap.secilenSik !== undefined && (
+                                              <div className="flex items-center gap-2">
+                                                <span className="w-7 h-7 bg-blue-100 text-blue-700 rounded-lg flex items-center justify-center font-bold text-sm">
+                                                  {String.fromCharCode(65 + cevap.secilenSik)}
+                                                </span>
+                                                <span className="text-slate-600">{cevap.sikMetni || ''}</span>
+                                              </div>
+                                            )}
+                                            {cevap.resimUrl && (
+                                              <div 
+                                                className="mt-2 cursor-pointer"
+                                                onClick={() => {
+                                                  setPreviewImage(cevap.resimUrl);
+                                                  setShowPreviewModal(true);
+                                                }}
+                                              >
+                                                <img 
+                                                  src={cevap.resimUrl} 
+                                                  alt="Cevap resmi" 
+                                                  className="max-h-32 rounded-lg border border-slate-200 hover:opacity-90"
+                                                />
+                                              </div>
+                                            )}
+                                          </div>
+                                        ) : (
+                                          <p className="text-slate-400 italic text-sm">Cevap verilmemiş</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
 
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowDegerlendirModal(false)}
-                  className="flex-1 px-4 py-3 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 font-medium"
-                >
-                  İptal
-                </button>
-                <button
-                  type="submit"
-                  disabled={processing}
-                  className="flex-1 px-4 py-3 bg-amber-500 text-white rounded-xl hover:bg-amber-600 font-medium disabled:opacity-50"
-                >
-                  {processing ? 'Değerlendiriliyor...' : 'Değerlendir'}
-                </button>
+                      {/* Yüklenen Belgeler ve Resimler */}
+                      {((selectedTeslim.dosyalar && selectedTeslim.dosyalar.length > 0) || 
+                        (selectedTeslim.resimler && selectedTeslim.resimler.length > 0) ||
+                        selectedTeslim.dosyaUrl) && (
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                          <div className="px-4 py-3 bg-gradient-to-r from-green-50 to-emerald-50 border-b border-slate-100">
+                            <h4 className="font-semibold text-slate-800 flex items-center gap-2">
+                              <Upload size={18} className="text-green-500" />
+                              Yüklenen Dosyalar ve Resimler
+                            </h4>
+                          </div>
+                          <div className="p-4">
+                            {/* Dosyalar */}
+                            {(selectedTeslim.dosyaUrl || (selectedTeslim.dosyalar && selectedTeslim.dosyalar.length > 0)) && (
+                              <div className="mb-4">
+                                <h5 className="text-sm font-medium text-slate-600 mb-2 flex items-center gap-2">
+                                  <FileText size={14} />
+                                  Dosyalar
+                                </h5>
+                                <div className="space-y-2">
+                                  {selectedTeslim.dosyaUrl && (
+                                    <a
+                                      href={selectedTeslim.dosyaUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors border border-slate-200 group"
+                                    >
+                                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                                        <FileText size={20} className="text-blue-600" />
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="font-medium text-slate-700 truncate">Teslim Dosyası</p>
+                                        <p className="text-xs text-slate-500">İndirmek için tıklayın</p>
+                                      </div>
+                                      <Download size={18} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
+                                    </a>
+                                  )}
+                                  {selectedTeslim.dosyalar?.map((dosya: any, index: number) => (
+                                    <a
+                                      key={index}
+                                      href={dosya.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors border border-slate-200 group"
+                                    >
+                                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                                        <FileText size={20} className="text-blue-600" />
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="font-medium text-slate-700 truncate">{dosya.ad || `Dosya ${index + 1}`}</p>
+                                        <p className="text-xs text-slate-500">{dosya.boyut ? `${(dosya.boyut / 1024).toFixed(1)} KB` : 'İndirmek için tıklayın'}</p>
+                                      </div>
+                                      <Download size={18} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
+                                    </a>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Resimler */}
+                            {selectedTeslim.resimler && selectedTeslim.resimler.length > 0 && (
+                              <div>
+                                <h5 className="text-sm font-medium text-slate-600 mb-2 flex items-center gap-2">
+                                  <ImageIcon size={14} />
+                                  Resimler ({selectedTeslim.resimler.length})
+                                </h5>
+                                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                                  {selectedTeslim.resimler.map((resim, index) => (
+                                    <div
+                                      key={index}
+                                      className="relative aspect-square rounded-xl overflow-hidden border-2 border-slate-200 cursor-pointer group hover:border-amber-400 transition-colors"
+                                      onClick={() => {
+                                        setPreviewImage(resim);
+                                        setShowPreviewModal(true);
+                                      }}
+                                    >
+                                      <img 
+                                        src={resim} 
+                                        alt={`Resim ${index + 1}`} 
+                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                                      />
+                                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-2">
+                                        <span className="text-white text-xs font-medium flex items-center gap-1">
+                                          <Eye size={12} />
+                                          Önizle
+                                        </span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Hiç içerik yoksa */}
+                      {!selectedTeslim.aciklama && 
+                       selectedOdev.sorular.length === 0 && 
+                       !selectedTeslim.dosyaUrl && 
+                       (!selectedTeslim.dosyalar || selectedTeslim.dosyalar.length === 0) && 
+                       (!selectedTeslim.resimler || selectedTeslim.resimler.length === 0) && (
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 text-center">
+                          <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                            <FileText size={32} className="text-slate-400" />
+                          </div>
+                          <h4 className="font-medium text-slate-700 mb-1">Teslim İçeriği Yok</h4>
+                          <p className="text-slate-500 text-sm">Öğrenci henüz detaylı içerik paylaşmamış.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Sağ Sütun - Değerlendirme Formu */}
+                  <div className="w-96 bg-white flex flex-col">
+                    <form onSubmit={handleDegerlendir} className="flex-1 flex flex-col">
+                      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                        {/* Toplam Puan */}
+                        <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-6 border border-amber-200">
+                          <label className="block text-sm font-semibold text-amber-800 mb-3">
+                            Toplam Puan
+                          </label>
+                          <div className="flex items-center gap-4">
+                            <input
+                              type="number"
+                              value={degerlendirme.puan}
+                              onChange={(e) => setDegerlendirme({ ...degerlendirme, puan: parseInt(e.target.value) || 0 })}
+                              min={0}
+                              max={selectedOdev.maxPuan}
+                              required
+                              className="w-full px-4 py-4 border-2 border-amber-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-4xl font-bold text-center bg-white text-slate-800"
+                            />
+                            <div className="text-center">
+                              <div className="text-3xl font-bold text-amber-600">/</div>
+                              <div className="text-lg font-semibold text-amber-700">{selectedOdev.maxPuan}</div>
+                            </div>
+                          </div>
+                          <input
+                            type="range"
+                            value={degerlendirme.puan}
+                            onChange={(e) => setDegerlendirme({ ...degerlendirme, puan: parseInt(e.target.value) })}
+                            min={0}
+                            max={selectedOdev.maxPuan}
+                            className="w-full mt-4 accent-amber-500 h-3 rounded-lg"
+                          />
+                          {/* Puan Yüzdesi */}
+                          <div className="mt-3 flex items-center justify-between text-sm">
+                            <span className="text-amber-700">Başarı Oranı</span>
+                            <span className={`font-bold ${
+                              (degerlendirme.puan / selectedOdev.maxPuan) >= 0.8 ? 'text-green-600' :
+                              (degerlendirme.puan / selectedOdev.maxPuan) >= 0.5 ? 'text-amber-600' :
+                              'text-red-600'
+                            }`}>
+                              %{Math.round((degerlendirme.puan / selectedOdev.maxPuan) * 100)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Hızlı Puanlama */}
+                        <div>
+                          <label className="block text-sm font-semibold text-slate-700 mb-2">
+                            Hızlı Puanlama
+                          </label>
+                          <div className="grid grid-cols-5 gap-2">
+                            {[0, 25, 50, 75, 100].map((yuzde) => (
+                              <button
+                                key={yuzde}
+                                type="button"
+                                onClick={() => setDegerlendirme({ ...degerlendirme, puan: Math.round(selectedOdev.maxPuan * yuzde / 100) })}
+                                className={`py-2 rounded-lg text-sm font-medium transition-all ${
+                                  Math.round((degerlendirme.puan / selectedOdev.maxPuan) * 100) === yuzde
+                                    ? 'bg-amber-500 text-white shadow-md'
+                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                }`}
+                              >
+                                %{yuzde}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Yorum */}
+                        <div>
+                          <label className="block text-sm font-semibold text-slate-700 mb-2">
+                            Geri Bildirim
+                          </label>
+                          <textarea
+                            value={degerlendirme.yorum}
+                            onChange={(e) => setDegerlendirme({ ...degerlendirme, yorum: e.target.value })}
+                            placeholder="Öğrenciye detaylı geri bildirim yazın..."
+                            rows={5}
+                            className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white placeholder-slate-400 resize-none text-slate-800"
+                          />
+                        </div>
+
+                        {/* Hazır Yorumlar */}
+                        <div>
+                          <label className="block text-sm font-semibold text-slate-700 mb-2">
+                            Hazır Yorumlar
+                          </label>
+                          <div className="flex flex-wrap gap-2">
+                            {[
+                              { emoji: '🌟', text: 'Mükemmel çalışma!' },
+                              { emoji: '👍', text: 'İyi iş çıkardın.' },
+                              { emoji: '💪', text: 'Gelişme gösteriyorsun.' },
+                              { emoji: '📚', text: 'Daha fazla çalışmalısın.' },
+                              { emoji: '✏️', text: 'Detaylara dikkat et.' },
+                            ].map((item) => (
+                              <button
+                                key={item.text}
+                                type="button"
+                                onClick={() => setDegerlendirme({ 
+                                  ...degerlendirme, 
+                                  yorum: degerlendirme.yorum ? `${degerlendirme.yorum}\n${item.text}` : item.text 
+                                })}
+                                className="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm text-slate-700 transition-colors"
+                              >
+                                <span>{item.emoji}</span>
+                                <span>{item.text}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Butonlar - Sticky Footer */}
+                      <div className="p-4 border-t border-slate-200 bg-slate-50">
+                        <div className="flex gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setShowDegerlendirModal(false)}
+                            className="flex-1 px-4 py-3 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-100 font-medium transition-colors"
+                          >
+                            İptal
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={processing}
+                            className="flex-1 px-4 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl hover:from-amber-600 hover:to-orange-600 font-medium disabled:opacity-50 transition-all shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2"
+                          >
+                            {processing ? (
+                              <>
+                                <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+                                <span>Kaydediliyor...</span>
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle size={18} />
+                                <span>{selectedTeslim.durum === 'DEGERLENDIRILDI' ? 'Güncelle' : 'Değerlendir'}</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </form>
+                  </div>
+                </div>
               </div>
-            </form>
+            </div>
           </div>
         </div>
       )}
@@ -1317,6 +2144,128 @@ function OgretmenOdevlerContent() {
               <Download size={18} />
               İndir
             </a>
+          </div>
+        </div>
+      )}
+
+      {/* Kopyalama Modal */}
+      {showKopyalaModal && kopyalanacakOdev && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="p-5 bg-gradient-to-r from-blue-500 to-blue-600 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Copy size={20} />
+                <h3 className="text-xl font-bold">Ödevi Kopyala</h3>
+              </div>
+              <button onClick={() => setShowKopyalaModal(false)} className="p-2 hover:bg-white/20 rounded-lg">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="p-3 bg-blue-50 rounded-lg">
+                <p className="text-sm text-blue-700">
+                  <strong>Kaynak:</strong> {kopyalanacakOdev.baslik}
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  {kopyalanacakOdev.sorular.length} soru kopyalanacak
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  Yeni Başlık
+                </label>
+                <input
+                  type="text"
+                  value={kopyaBaslik}
+                  onChange={(e) => setKopyaBaslik(e.target.value)}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  style={{ color: '#1f2937' }}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  Yeni Son Teslim Tarihi
+                </label>
+                <input
+                  type="datetime-local"
+                  value={kopyaSonTeslim}
+                  onChange={(e) => setKopyaSonTeslim(e.target.value)}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  style={{ color: '#1f2937' }}
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowKopyalaModal(false)}
+                  className="flex-1 px-4 py-3 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 font-medium"
+                >
+                  İptal
+                </button>
+                <button
+                  onClick={handleKopyalaOdev}
+                  disabled={processing}
+                  className="flex-1 px-4 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {processing ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                  ) : (
+                    <>
+                      <Copy size={18} />
+                      Kopyala
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mesaj Modal */}
+      {showMessageModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className={`p-6 ${
+              messageModal.type === 'success' ? 'bg-gradient-to-r from-green-500 to-green-600' :
+              messageModal.type === 'warning' ? 'bg-gradient-to-r from-amber-500 to-amber-600' :
+              'bg-gradient-to-r from-red-500 to-red-600'
+            } text-white`}>
+              <div className="flex items-center gap-3">
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                  messageModal.type === 'success' ? 'bg-white/20' :
+                  messageModal.type === 'warning' ? 'bg-white/20' :
+                  'bg-white/20'
+                }`}>
+                  {messageModal.type === 'success' ? (
+                    <CheckCircle size={28} />
+                  ) : messageModal.type === 'warning' ? (
+                    <AlertCircle size={28} />
+                  ) : (
+                    <AlertCircle size={28} />
+                  )}
+                </div>
+                <h3 className="text-xl font-bold">{messageModal.title}</h3>
+              </div>
+            </div>
+            <div className="p-6">
+              <p className="text-slate-700 text-base">{messageModal.message}</p>
+            </div>
+            <div className="px-6 pb-6">
+              <button
+                onClick={() => setShowMessageModal(false)}
+                className={`w-full py-3 rounded-xl font-semibold text-white transition-colors ${
+                  messageModal.type === 'success' ? 'bg-green-500 hover:bg-green-600' :
+                  messageModal.type === 'warning' ? 'bg-amber-500 hover:bg-amber-600' :
+                  'bg-red-500 hover:bg-red-600'
+                }`}
+              >
+                Tamam
+              </button>
+            </div>
           </div>
         </div>
       )}

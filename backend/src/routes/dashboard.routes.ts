@@ -13,7 +13,10 @@ import {
   getOgrenciHaftalikProgram,
   getOgrenciOgretmenler,
   getOgrenciDenemeSonuclari,
-  getOgrenciDevamsizlik
+  getOgrenciDevamsizlik,
+  getSinifKarsilastirma,
+  getOgretmenPerformans,
+  getGenelRapor
 } from '../controllers/dashboard.controller';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.middleware';
 
@@ -22,13 +25,23 @@ const router = Router();
 // Müdür/Admin dashboard
 router.get('/mudur', authenticateToken, authorizeRoles('mudur', 'admin'), getMudurDashboard);
 
+// Sınıf karşılaştırma raporu
+router.get('/sinif-karsilastirma', authenticateToken, authorizeRoles('mudur', 'admin'), getSinifKarsilastirma);
+
+// Öğretmen performans raporu
+router.get('/ogretmen-performans', authenticateToken, authorizeRoles('mudur', 'admin'), getOgretmenPerformans);
+
+// Genel rapor (PDF export için)
+router.get('/genel-rapor', authenticateToken, authorizeRoles('mudur', 'admin'), getGenelRapor);
+
 // Öğretmen dashboard stats
 router.get('/ogretmen/stats', authenticateToken, authorizeRoles('ogretmen'), getOgretmenDashboardStats);
 
 // Öğretmen bugünkü dersler
 router.get('/ogretmen/bugun-dersler', authenticateToken, authorizeRoles('ogretmen'), getOgretmenBugunDersler);
 
-// Öğretmen raporları
+// Öğretmen raporları (detaylı)
+router.get('/ogretmen/rapor', authenticateToken, authorizeRoles('ogretmen'), getOgretmenRaporlari);
 router.get('/ogretmen', authenticateToken, authorizeRoles('ogretmen'), getOgretmenRaporlari);
 
 // Sekreter dashboard stats

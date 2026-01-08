@@ -50,7 +50,7 @@ export default function CocukDersProgrami() {
   const fetchDersProgrami = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/veli/cocuk/${cocukId}/ders-programi`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/veli/cocuk/${cocukId}/ders-programi`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
