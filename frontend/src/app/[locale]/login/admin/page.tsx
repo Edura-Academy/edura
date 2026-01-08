@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from '@/i18n/routing';
+import { useAuth } from '@/contexts/AuthContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
@@ -14,6 +15,7 @@ const backgrounds = [
 
 export default function AdminLoginPage() {
   const router = useRouter();
+  const { login: authLogin } = useAuth();
   const [currentBg, setCurrentBg] = useState(0);
   const [kullaniciAdi, setKullaniciAdi] = useState('');
   const [sifre, setSifre] = useState('');
@@ -48,12 +50,13 @@ export default function AdminLoginPage() {
         return;
       }
 
-      // Token'ı kaydet
-      localStorage.setItem('token', data.data.token);
-      localStorage.setItem('user', JSON.stringify(data.data.user));
+      // AuthContext ile token'ı kaydet
+      authLogin(data.data.user, data.data.token);
 
-      // Admin paneline yönlendir
-      router.push('/admin');
+      // Kısa gecikme ile admin paneline yönlendir
+      setTimeout(() => {
+        router.push('/admin');
+      }, 100);
     } catch (err) {
       setError('Sunucu bağlantı hatası');
       console.error(err);

@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import { useTheme } from '@/contexts/ThemeContext';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { useAuth } from '@/contexts/AuthContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
@@ -19,6 +20,7 @@ const backgrounds = [
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login: authLogin } = useAuth();
   const { speak, ttsEnabled } = useAccessibility();
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
@@ -94,44 +96,48 @@ export default function LoginPage() {
       return;
     }
 
-    // Token'ı kaydet
-    localStorage.setItem('token', loginData.data.token);
-    localStorage.setItem('user', JSON.stringify(loginData.data.user));
+    // AuthContext ile token'ı kaydet
+    authLogin(loginData.data.user, loginData.data.token);
 
     // Başarılı giriş bildirimi
     handleSpeak(`Hoş geldiniz ${loginData.data.user.ad}. Giriş başarılı, yönlendiriliyorsunuz.`);
 
-    // İlk giriş kontrolü - şifre değiştirilmemişse yönlendir
-    if (!loginData.data.user.sifreDegistirildiMi) {
-      router.push('/change-password');
-    } else {
-      // Role göre yönlendir
-      const userRole = loginData.data.user.role;
-      switch (userRole) {
-        case 'admin':
-          router.push('/admin');
-          break;
-        case 'mudur':
-          router.push('/mudur');
-          break;
-        case 'sekreter':
-          router.push('/sekreter');
-          break;
-        case 'ogretmen':
-          router.push('/ogretmen');
-          break;
-        case 'ogrenci':
-          router.push('/ogrenci');
-          break;
-        case 'veli':
-          router.push('/veli');
-          break;
-        default:
-          router.push('/ogrenci');
+    // Kısa bir gecikme ile yönlendir (state'in güncellenmesi için)
+    setTimeout(() => {
+      // İlk giriş kontrolü - şifre değiştirilmemişse yönlendir
+      if (!loginData.data.user.sifreDegistirildiMi) {
+        router.push('/change-password');
+      } else {
+        // Role göre yönlendir
+        const userRole = loginData.data.user.role;
+        switch (userRole) {
+          case 'admin':
+            router.push('/admin');
+            break;
+          case 'kursSahibi':
+            router.push('/kurs-sahibi');
+            break;
+          case 'mudur':
+            router.push('/mudur');
+            break;
+          case 'sekreter':
+            router.push('/sekreter');
+            break;
+          case 'ogretmen':
+            router.push('/ogretmen');
+            break;
+          case 'ogrenci':
+            router.push('/ogrenci');
+            break;
+          case 'veli':
+            router.push('/veli');
+            break;
+          default:
+            router.push('/ogrenci');
+        }
       }
-    }
-
-    setLoading(false);
+      setLoading(false);
+    }, 100);
   };
 
   return (
