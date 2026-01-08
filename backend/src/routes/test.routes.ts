@@ -182,7 +182,11 @@ router.get('/hesaplar', verifyTestSession, async (req: Request, res: Response) =
         stats,
         kurslar,
         siniflar,
-        varsayilanSifre,
+        sifreGruplari: {
+          adminler: 'Edura2026.!',
+          kucukyaliBuket: 'Edura2025.!',
+          digerKurslar: 'edura123'
+        }
       }
     });
   } catch (error) {
