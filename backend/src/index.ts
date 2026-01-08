@@ -45,11 +45,16 @@ socketService.initialize(httpServer);
 // CORS Configuration
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production' 
-    ? [process.env.FRONTEND_URL || 'https://edura.vercel.app', /\.vercel\.app$/]
+    ? [
+        process.env.FRONTEND_URL || 'https://myedura.com',
+        'https://myedura.com',
+        'https://www.myedura.com',
+        /\.vercel\.app$/
+      ]
     : ['http://localhost:3000', 'http://127.0.0.1:3000'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-test-session'],
 };
 
 // Middleware
