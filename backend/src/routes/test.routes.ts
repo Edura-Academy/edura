@@ -112,7 +112,7 @@ router.get('/hesaplar', verifyTestSession, async (req: Request, res: Response) =
       ],
     });
 
-    // Şifre belirleme fonksiyonu
+    // Şifre belirleme fonksiyonu - DOĞRU DEĞERLERİ döndürür
     const getSifre = (user: any) => {
       // Adminler
       if (user.role === 'admin') {
@@ -122,11 +122,12 @@ router.get('/hesaplar', verifyTestSession, async (req: Request, res: Response) =
       if (user.kurs?.ad?.includes('Buket') || user.email?.includes('buket') || 
           ['busrabuyuktanir', 'mervecevizcipinar', 'damlamengus', 'mervehazaniscan', 
            'seydakarci', 'ziyaanilsen', 'emineumaykilinc', 'muratbarisakyuz', 'zeynepucar',
-           'akilrahmanturza', 'alirizamistik', 'buraktuzcu'].some(e => user.email?.includes(e))) {
-        return 'Edura2025.!';
+           'akilrahmanturza', 'alirizamistik', 'buraktuzcu', 'buketdogan', 'masihullahomar',
+           'egemenkoraykeles', 'muhammetbatuhankaranfil', 'efekocal'].some(e => user.email?.includes(e))) {
+        return 'edura123';
       }
       // Diğer kurslar (varsayılan)
-      return 'edura123';
+      return 'Edura2025.!';
     };
 
     // Kullanıcı bilgilerini formatla
@@ -184,8 +185,8 @@ router.get('/hesaplar', verifyTestSession, async (req: Request, res: Response) =
         siniflar,
         sifreGruplari: {
           adminler: 'Edura2026.!',
-          kucukyaliBuket: 'Edura2025.!',
-          digerKurslar: 'edura123'
+          kucukyaliBuket: 'edura123',
+          digerKurslar: 'Edura2025.!'
         }
       }
     });
