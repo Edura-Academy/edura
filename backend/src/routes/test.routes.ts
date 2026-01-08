@@ -112,15 +112,28 @@ router.get('/hesaplar', verifyTestSession, async (req: Request, res: Response) =
       ],
     });
 
-    // Varsayılan şifre bilgisi
-    const varsayilanSifre = 'Edura2025.!';
-    const adminSifre = 'Edura2025.!'; // Tüm hesaplar için aynı şifre
+    // Şifre belirleme fonksiyonu
+    const getSifre = (user: any) => {
+      // Adminler
+      if (user.role === 'admin') {
+        return 'Edura2026.!';
+      }
+      // Küçükyalı Buket kullanıcıları (kurs adına veya email'e göre)
+      if (user.kurs?.ad?.includes('Buket') || user.email?.includes('buket') || 
+          ['busrabuyuktanir', 'mervecevizcipinar', 'damlamengus', 'mervehazaniscan', 
+           'seydakarci', 'ziyaanilsen', 'emineumaykilinc', 'muratbarisakyuz', 'zeynepucar',
+           'akilrahmanturza', 'alirizamistik', 'buraktuzcu'].some(e => user.email?.includes(e))) {
+        return 'Edura2025.!';
+      }
+      // Diğer kurslar (varsayılan)
+      return 'edura123';
+    };
 
     // Kullanıcı bilgilerini formatla
     const hesaplar = users.map((user: any) => ({
       id: user.id,
       email: user.email,
-      sifre: user.role === 'admin' ? adminSifre : varsayilanSifre, // Admin için farklı şifre
+      sifre: getSifre(user),
       ad: user.ad,
       soyad: user.soyad,
       role: user.role,
