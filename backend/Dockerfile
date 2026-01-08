@@ -1,7 +1,10 @@
-# Build stage
-FROM node:20-alpine AS builder
+# Build stage - Debian tabanlı (Prisma uyumlu)
+FROM node:20-slim AS builder
 
 WORKDIR /app
+
+# OpenSSL ve gerekli paketleri kur
+RUN apt-get update && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies
 COPY package*.json ./
@@ -17,9 +20,12 @@ RUN npx prisma generate
 RUN npm run build
 
 # Production stage
-FROM node:20-alpine AS runner
+FROM node:20-slim AS runner
 
 WORKDIR /app
+
+# OpenSSL ve gerekli paketleri kur
+RUN apt-get update && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Install production dependencies only
 COPY package*.json ./
@@ -37,7 +43,6 @@ RUN mkdir -p uploads
 
 # Environment variables
 ENV NODE_ENV=production
-ENV PORT=5000
 
 # Expose port (Cloud Run uses PORT env variable)
 EXPOSE 5000
