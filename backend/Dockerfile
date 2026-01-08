@@ -5,7 +5,7 @@ WORKDIR /app
 
 # Install dependencies
 COPY package*.json ./
-RUN npm ci --only=production=false
+RUN npm ci
 
 # Copy source files
 COPY . .
@@ -32,19 +32,18 @@ RUN npx prisma generate
 # Copy built files
 COPY --from=builder /app/dist ./dist
 
-# Create uploads directory
+# Create uploads directory (Firebase Storage kullanılıyor ama fallback için)
 RUN mkdir -p uploads
 
 # Environment variables
 ENV NODE_ENV=production
 ENV PORT=5000
 
-# Expose port
+# Expose port (Cloud Run uses PORT env variable)
 EXPOSE 5000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:5000/api/health || exit 1
+# Cloud Run health check endpoint: /api/health
+# No HEALTHCHECK needed - Cloud Run handles this
 
 # Start the server
 CMD ["node", "dist/index.js"]
