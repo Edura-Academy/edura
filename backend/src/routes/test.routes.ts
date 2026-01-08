@@ -71,17 +71,10 @@ const verifyTestSession = (req: Request, res: Response, next: Function) => {
   }
 };
 
-// TEST HESAP BİLGİLERİ - Sadece development ortamında çalışır
+// TEST HESAP BİLGİLERİ - Şifre korumalı, production'da da çalışır
 // GET /api/test/hesaplar
 router.get('/hesaplar', verifyTestSession, async (req: Request, res: Response) => {
   try {
-    // Sadece development ortamında çalışsın
-    if (process.env.NODE_ENV === 'production') {
-      return res.status(403).json({ 
-        success: false, 
-        error: 'Bu endpoint production ortamında devre dışı' 
-      });
-    }
 
     const { role, kursId, sinifId, search } = req.query;
 
@@ -120,8 +113,8 @@ router.get('/hesaplar', verifyTestSession, async (req: Request, res: Response) =
     });
 
     // Varsayılan şifre bilgisi
-    const varsayilanSifre = 'edura123';
-    const adminSifre = 'Edura2026.!'; // Admin hesapları için özel şifre
+    const varsayilanSifre = 'Edura2025.!';
+    const adminSifre = 'Edura2025.!'; // Tüm hesaplar için aynı şifre
 
     // Kullanıcı bilgilerini formatla
     const hesaplar = users.map((user: any) => ({
