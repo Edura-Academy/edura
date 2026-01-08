@@ -8,6 +8,7 @@ import { LanguageSelector } from '@/components/LanguageSelector';
 import { useTheme } from '@/contexts/ThemeContext';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useAuth } from '@/contexts/AuthContext';
+import { AccessibilityToggle } from '@/components/accessibility/AccessibilityToggle';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
@@ -385,6 +386,9 @@ export default function LoginPage() {
           />
         ))}
       </div>
+
+      {/* Erişilebilirlik Kontrolleri */}
+      <AccessibilityToggle />
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from '@/i18n/routing';
 import { useAuth } from '@/contexts/AuthContext';
+import { AccessibilityToggle } from '@/components/accessibility/AccessibilityToggle';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
@@ -215,6 +216,9 @@ export default function AdminLoginPage() {
           />
         ))}
       </div>
+
+      {/* Erişilebilirlik Kontrolleri */}
+      <AccessibilityToggle />
     </div>
   );
 }
